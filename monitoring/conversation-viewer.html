@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Conversation Viewer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            min-height: 100vh;
+            display: flex;
+        }
+        .sidebar {
+            width: 450px;
+            border-right: 1px solid #333;
+            overflow-y: auto;
+            height: 100vh;
+        }
+        .main-panel {
+            flex: 1;
+            overflow-y: auto;
+            height: 100vh;
+            background: #252526;
+        }
+        .header {
+            padding: 16px;
+            border-bottom: 1px solid #333;
+            background: #252526;
+        }
+        h1 {
+            color: #f59e0b;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+        .search-bar {
+            display: flex;
+            gap: 8px;
+            position: relative;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #3c3c3c;
+            color: #d4d4d4;
+            font-size: 13px;
+        }
+        .search-bar input:focus {
+            outline: none;
+            border-color: #0078d4;
+        }
+        .search-bar button {
+            padding: 8px 16px;
+            background: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .search-bar button:hover {
+            background: #106ebe;
+        }
+        .search-bar .recent-btn {
+            background: #4b5563;
+        }
+        .search-bar .recent-btn:hover {
+            background: #6b7280;
+        }
+        .recent-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: #1e1e1e;
+            border: 1px solid #404040;
+            border-radius: 8px;
+            min-width: 380px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        .recent-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .recent-item:hover {
+            background: #2d2d2d;
+        }
+        .recent-item:last-child {
+            border-bottom: none;
+        }
+        .recent-item .conv-id {
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            color: #60a5fa;
+        }
+        .recent-item .conv-meta {
+            font-size: 11px;
+            color: #888;
+            display: flex;
+            gap: 12px;
+        }
+        .recent-loading {
+            padding: 20px;
+            text-align: center;
+            color: #888;
+        }
+        
+        /* Tree view styles */
+        .tree {
+            padding: 8px 0;
+        }
+        .tree-node {
+            user-select: none;
+        }
+        .tree-node-header {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            gap: 6px;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+            height: 28px;
+        }
+        .tree-node-header:hover {
+            background: #2a2d2e;
+        }
+        .tree-node-header.selected {
+            background: #094771;
+            border-left-color: #0078d4;
+        }
+        .tree-node-header.selected:hover {
+            background: #094771;
+        }
+        .expand-icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #888;
+            transition: transform 0.15s;
+        }
+        .expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+        .expand-icon.empty {
+            visibility: hidden;
+        }
+        .node-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+        }
+        .node-icon.conversation { background: #6b7280; }
+        .node-icon.run { background: #8b5cf6; }
+        .node-icon.run-step { background: #3b82f6; }
+        .node-icon.tool { background: #10b981; }
+        .node-icon.message { background: #f59e0b; }
+        
+        .node-label {
+            flex: 1;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .node-meta {
+            font-size: 11px;
+            color: #888;
+            display: flex;
+            gap: 8px;
+        }
+        .node-meta .duration {
+            color: #888;
+        }
+        .node-meta .tokens {
+            color: #6b7280;
+        }
+        
+        .tree-children {
+            margin-left: 24px;
+            border-left: 1px solid #333;
+        }
+        
+        /* Detail panel */
+        .detail-header {
+            padding: 16px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .detail-header h2 {
+            font-size: 14px;
+            font-weight: 500;
+            flex: 1;
+        }
+        .detail-header .meta {
+            font-size: 12px;
+            color: #888;
+        }
+        .detail-tabs {
+            display: flex;
+            border-bottom: 1px solid #333;
+            background: #1e1e1e;
+        }
+        .detail-tab {
+            padding: 10px 16px;
+            font-size: 13px;
+            color: #888;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .detail-tab:hover {
+            color: #d4d4d4;
+        }
+        .detail-tab.active {
+            color: #d4d4d4;
+            border-bottom-color: #0078d4;
+        }
+        .detail-content {
+            padding: 16px;
+        }
+        .detail-section {
+            margin-bottom: 20px;
+        }
+        .detail-section h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .message-bubble {
+            background: #2d2d2d;
+            border: 1px solid #404040;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .message-bubble.user {
+            border-left: 3px solid #3b82f6;
+        }
+        .message-bubble.assistant {
+            border-left: 3px solid #10b981;
+        }
+        .message-bubble.system {
+            border-left: 3px solid #6b7280;
+            font-size: 12px;
+            color: #888;
+        }
+        .message-bubble.tool {
+            border-left: 3px solid #f59e0b;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .message-role {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .message-role.user { color: #3b82f6; }
+        .message-role.assistant { color: #10b981; }
+        .message-role.system { color: #6b7280; }
+        .message-role.tool { color: #f59e0b; }
+        .message-content {
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .code-block {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .loading {
+            padding: 40px;
+            text-align: center;
+            color: #888;
+        }
+        .empty {
+            padding: 60px 20px;
+            text-align: center;
+            color: #666;
+        }
+        .empty h2 {
+            color: #888;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .error {
+            background: #4a1515;
+            border: 1px solid #dc2626;
+            padding: 12px;
+            margin: 16px;
+            border-radius: 4px;
+            color: #fca5a5;
+            font-size: 13px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        .badge.tokens {
+            background: #1e3a5f;
+            color: #60a5fa;
+        }
+        .metadata-grid {
+            display: grid;
+            gap: 8px;
+        }
+        .metadata-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border-radius: 4px;
+            border: 1px solid #404040;
+        }
+        .metadata-label {
+            color: #888;
+            font-size: 12px;
+        }
+        .metadata-value {
+            color: #d4d4d4;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="header">
+            <h1>🤖 Agent Conversation Viewer</h1>
+            <div class="search-bar">
+                <input type="text" id="conversationId" placeholder="Enter Conversation ID...">
+                <button onclick="loadConversation()">Load</button>
+                <button onclick="toggleRecent()" class="recent-btn" title="Recent conversations">▾ Recent</button>
+                <div id="recentDropdown" class="recent-dropdown" style="display: none;"></div>
+            </div>
+        </div>
+        <div id="tree" class="tree">
+            <div class="empty">
+                <h2>Enter a Conversation ID</h2>
+                <p>Paste a conversation ID to view the trace tree</p>
+            </div>
+        </div>
+    </div>
+    <div class="main-panel">
+        <div id="detail">
+            <div class="empty">
+                <h2>Select a node</h2>
+                <p>Click on a trace node to view details</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TEMPO_URL = '';
+        let allSpans = [];
+        let selectedNode = null;
+        let recentOpen = false;
+
+        async function toggleRecent() {
+            console.log('toggleRecent called');
+            const dropdown = document.getElementById('recentDropdown');
+            if (recentOpen) {
+                dropdown.style.display = 'none';
+                recentOpen = false;
+                return;
+            }
+            
+            dropdown.style.display = 'block';
+            dropdown.innerHTML = '<div class="recent-loading">Loading recent conversations...</div>';
+            recentOpen = true;
+            
+            try {
+                // Query for recent traces with conversation IDs
+                console.log('Fetching traces...');
+                const response = await fetch(`${TEMPO_URL}/api/search?limit=50`);
+                const data = await response.json();
+                
+                console.log('Got traces:', data.traces?.length);
+                if (!data.traces || data.traces.length === 0) {
+                    dropdown.innerHTML = '<div class="recent-loading">No recent traces found</div>';
+                    return;
+                }
+                
+                // Fetch conversation IDs from each trace
+                const conversations = new Map();
+                
+                for (const trace of data.traces.slice(0, 20)) {
+                    try {
+                        const traceResponse = await fetch(`${TEMPO_URL}/api/traces/${trace.traceID}`);
+                        const traceData = await traceResponse.json();
+                        
+                        for (const batch of traceData.batches || []) {
+                            for (const ils of batch.instrumentationLibrarySpans || batch.scopeSpans || []) {
+                                for (const span of ils.spans || []) {
+                                    const attrs = {};
+                                    for (const attr of span.attributes || []) {
+                                        attrs[attr.key] = attr.value?.stringValue || attr.value?.intValue;
+                                    }
+                                    const convId = attrs['gen_ai.conversation.id'];
+                                    if (convId && !conversations.has(convId)) {
+                                        const startNano = parseInt(span.startTimeUnixNano);
+                                        const startTime = new Date(startNano / 1000000);
+                                        conversations.set(convId, {
+                                            id: convId,
+                                            time: startTime,
+                                            traceId: trace.traceID
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Failed to fetch trace:', trace.traceID, e);
+                    }
+                }
+                
+                console.log('Found conversations:', conversations.size);
+                if (conversations.size === 0) {
+                    dropdown.innerHTML = '<div class="recent-loading">No conversations found</div>';
+                    return;
+                }
+                
+                // Sort by time descending and render
+                const sorted = Array.from(conversations.values()).sort((a, b) => b.time - a.time);
+                
+                let html = '';
+                for (const conv of sorted.slice(0, 10)) {
+                    const timeStr = conv.time.toLocaleString();
+                    const relativeTime = getRelativeTime(conv.time);
+                    html += `
+                        <div class="recent-item" onclick="selectRecent('${conv.id}')">
+                            <div class="conv-id">${conv.id}</div>
+                            <div class="conv-meta">
+                                <span>${timeStr}</span>
+                                <span>${relativeTime}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                dropdown.innerHTML = html;
+            } catch (e) {
+                dropdown.innerHTML = `<div class="recent-loading">Error: ${e.message}</div>`;
+            }
+        }
+        
+        function getRelativeTime(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            return `${diffDays}d ago`;
+        }
+        
+        function selectRecent(convId) {
+            document.getElementById('conversationId').value = convId;
+            document.getElementById('recentDropdown').style.display = 'none';
+            recentOpen = false;
+            loadConversation();
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-bar') && !e.target.closest('.recent-dropdown')) {
+                document.getElementById('recentDropdown').style.display = 'none';
+                recentOpen = false;
+            }
+        });
+
+        async function loadConversation() {
+            const conversationId = document.getElementById('conversationId').value.trim();
+            if (!conversationId) return;
+            
+            const tree = document.getElementById('tree');
+            tree.innerHTML = '<div class="loading">Loading traces...</div>';
+            
+            try {
+                const query = encodeURIComponent(`{ span.gen_ai.conversation.id = "${conversationId}" }`);
+                const response = await fetch(`${TEMPO_URL}/api/search?q=${query}&limit=50`);
+                const data = await response.json();
+                
+                if (!data.traces || data.traces.length === 0) {
+                    tree.innerHTML = `<div class="empty"><h2>No traces found</h2><p>Conversation ID: ${conversationId}</p></div>`;
+                    return;
+                }
+                
+                // Fetch all trace details
+                allSpans = [];
+                for (const trace of data.traces) {
+                    const traceResponse = await fetch(`${TEMPO_URL}/api/traces/${trace.traceID}`);
+                    const traceData = await traceResponse.json();
+                    
+                    for (const batch of traceData.batches || []) {
+                        for (const ils of batch.instrumentationLibrarySpans || batch.scopeSpans || []) {
+                            for (const span of ils.spans || []) {
+                                allSpans.push(parseSpan(span, trace.traceID));
+                            }
+                        }
+                    }
+                }
+                
+                // Sort by start time
+                allSpans.sort((a, b) => a.startTime - b.startTime);
+                
+                // Build tree
+                renderTree(conversationId);
+                
+            } catch (error) {
+                tree.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function parseSpan(span, traceId) {
+            const attrs = {};
+            for (const attr of span.attributes || []) {
+                attrs[attr.key] = attr.value.stringValue || attr.value.intValue || attr.value.doubleValue || '';
+            }
+            
+            const startTime = parseInt(span.startTimeUnixNano) / 1000000;
+            const endTime = parseInt(span.endTimeUnixNano) / 1000000;
+            const durationMs = endTime - startTime;
+            
+            let inputMessages = null, outputMessages = null;
+            try {
+                if (attrs['gen_ai.input.messages']) inputMessages = JSON.parse(attrs['gen_ai.input.messages']);
+                if (attrs['gen_ai.output.messages']) outputMessages = JSON.parse(attrs['gen_ai.output.messages']);
+            } catch (e) {}
+            
+            return {
+                traceId,
+                spanId: span.spanId,
+                parentSpanId: span.parentSpanId,
+                name: span.name,
+                operation: attrs['gen_ai.operation.name'],
+                model: attrs['gen_ai.request.model'] || attrs['gen_ai.response.model'],
+                agentName: attrs['gen_ai.agent.name'],
+                conversationId: attrs['gen_ai.conversation.id'] || attrs['conversation_id'],
+                toolName: attrs['gen_ai.tool.name'],
+                toolArgs: attrs['gen_ai.tool.call.arguments'],
+                toolResult: attrs['gen_ai.tool.call.result'],
+                inputMessages,
+                outputMessages,
+                startTime,
+                duration: formatDuration(durationMs),
+                durationMs,
+                inputTokens: attrs['gen_ai.usage.input_tokens'],
+                outputTokens: attrs['gen_ai.usage.output_tokens'],
+                attrs
+            };
+        }
+
+        function renderTree(conversationId) {
+            const tree = document.getElementById('tree');
+            
+            // Group spans by trace (each trace = one "Run")
+            const traceMap = {};
+            for (const span of allSpans) {
+                if (!traceMap[span.traceId]) traceMap[span.traceId] = [];
+                traceMap[span.traceId].push(span);
+            }
+            
+            let html = '';
+            
+            // Conversation node
+            html += `
+                <div class="tree-node">
+                    <div class="tree-node-header" onclick="toggleNode(this)">
+                        <span class="expand-icon expanded">▶</span>
+                        <span class="node-icon conversation">C</span>
+                        <span class="node-label">Conversation ${conversationId.substring(0, 8)}...</span>
+                    </div>
+                    <div class="tree-children">
+            `;
+            
+            // Each trace is a "Run"
+            const traceIds = Object.keys(traceMap).sort((a, b) => {
+                const aStart = Math.min(...traceMap[a].map(s => s.startTime));
+                const bStart = Math.min(...traceMap[b].map(s => s.startTime));
+                return aStart - bStart;
+            });
+            
+            for (const traceId of traceIds) {
+                const spans = traceMap[traceId];
+                const invokeSpan = spans.find(s => s.name.includes('invoke_agent'));
+                const chatSpans = spans.filter(s => s.operation === 'chat').sort((a, b) => a.startTime - b.startTime);
+                const toolSpans = spans.filter(s => s.operation === 'execute_tool').sort((a, b) => a.startTime - b.startTime);
+                
+                const totalDuration = invokeSpan ? invokeSpan.duration : formatDuration(Math.max(...spans.map(s => s.durationMs)));
+                const totalTokens = chatSpans.reduce((sum, s) => sum + (parseInt(s.inputTokens) || 0) + (parseInt(s.outputTokens) || 0), 0);
+                
+                const runId = traceId.substring(0, 12);
+                const startTime = new Date(Math.min(...spans.map(s => s.startTime))).toLocaleTimeString();
+                
+                html += `
+                    <div class="tree-node">
+                        <div class="tree-node-header" onclick="toggleNode(this); selectRun('${traceId}')">
+                            <span class="expand-icon expanded">▶</span>
+                            <span class="node-icon run">R</span>
+                            <span class="node-label">run_${runId}</span>
+                            <span class="node-meta">
+                                <span class="duration">⏱ ${totalDuration}</span>
+                                <span class="tokens">⊛ ${totalTokens}t</span>
+                            </span>
+                        </div>
+                        <div class="tree-children">
+                `;
+                
+                // Chat spans as "Run steps"
+                for (let i = 0; i < chatSpans.length; i++) {
+                    const chat = chatSpans[i];
+                    const toolCallParts = [];
+                    // Extract tool call names from this chat's output
+                    if (chat.outputMessages) {
+                        for (const msg of chat.outputMessages) {
+                            if (msg.parts) {
+                                for (const part of msg.parts) {
+                                    if (part.type === 'tool_call' && part.name) {
+                                        toolCallParts.push(part.name);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    const hasToolCalls = toolCallParts.length > 0;
+                    const stepType = hasToolCalls ? 'tool_calls' : 'message_creation';
+                    const tokens = (parseInt(chat.inputTokens) || 0) + (parseInt(chat.outputTokens) || 0);
+                    
+                    // Find tool spans that match the tool calls in this chat
+                    const chatToolSpans = toolSpans.filter(t => toolCallParts.includes(t.toolName));
+                    
+                    html += `
+                        <div class="tree-node">
+                            <div class="tree-node-header" onclick="toggleNode(this); selectChat('${traceId}', ${i})">
+                                <span class="expand-icon ${chatToolSpans.length > 0 ? '' : 'empty'}">▶</span>
+                                <span class="node-icon run-step">S</span>
+                                <span class="node-label">Run step ${stepType}</span>
+                                <span class="node-meta">
+                                    <span class="duration">⏱ ${chat.duration}</span>
+                                    <span class="tokens">⊛ ${tokens}t</span>
+                                </span>
+                            </div>
+                    `;
+                    
+                    // Tool calls under this step
+                    if (chatToolSpans.length > 0) {
+                        html += '<div class="tree-children">';
+                        for (const tool of chatToolSpans) {
+                            html += `
+                                <div class="tree-node">
+                                    <div class="tree-node-header" onclick="selectTool('${traceId}', '${tool.spanId}')">
+                                        <span class="expand-icon empty">▶</span>
+                                        <span class="node-icon tool">F</span>
+                                        <span class="node-label">Tool ${tool.toolName}</span>
+                                        <span class="node-meta">
+                                            <span class="duration">⏱ ${tool.duration}</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        html += '</div>';
+                    }
+                    
+                    html += '</div>';
+                }
+                
+                html += '</div></div>';
+            }
+            
+            html += '</div></div>';
+            tree.innerHTML = html;
+        }
+
+        function toggleNode(header) {
+            const icon = header.querySelector('.expand-icon');
+            const children = header.nextElementSibling;
+            
+            if (icon.classList.contains('empty')) return;
+            
+            icon.classList.toggle('expanded');
+            if (children && children.classList.contains('tree-children')) {
+                children.style.display = children.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function selectRun(traceId) {
+            updateSelection(event.currentTarget);
+            
+            const spans = allSpans.filter(s => s.traceId === traceId);
+            const invokeSpan = spans.find(s => s.name.includes('invoke_agent'));
+            const chatSpans = spans.filter(s => s.operation === 'chat');
+            
+            // Collect all user messages across all chat spans
+            const allUserMessages = [];
+            const allOutputMessages = [];
+            
+            for (const chat of chatSpans) {
+                if (chat.inputMessages) {
+                    for (const msg of chat.inputMessages) {
+                        if (msg.role === 'user') {
+                            const content = getTextContent(msg);
+                            if (content && !allUserMessages.includes(content)) {
+                                allUserMessages.push(content);
+                            }
+                        }
+                    }
+                }
+                if (chat.outputMessages) {
+                    allOutputMessages.push(...chat.outputMessages);
+                }
+            }
+            
+            const startTime = new Date(Math.min(...spans.map(s => s.startTime))).toLocaleString();
+            const totalTokens = chatSpans.reduce((sum, s) => sum + (parseInt(s.inputTokens) || 0) + (parseInt(s.outputTokens) || 0), 0);
+            
+            let html = `
+                <div class="detail-header">
+                    <span class="node-icon run">R</span>
+                    <h2>run_${traceId.substring(0, 12)}</h2>
+                    <span class="meta">${startTime}</span>
+                    <span class="meta">⏱ ${invokeSpan ? invokeSpan.duration : 'N/A'}</span>
+                    <span class="badge tokens">⊛ ${totalTokens}t</span>
+                </div>
+                <div class="detail-tabs">
+                    <div class="detail-tab active" onclick="showTab(this, 'io-${traceId}')">Input & output</div>
+                    <div class="detail-tab" onclick="showTab(this, 'meta-${traceId}')">Metadata</div>
+                </div>
+                <div id="io-${traceId}" class="detail-content">
+                    <div class="detail-section">
+                        <h3>Input</h3>
+            `;
+            
+            for (const content of allUserMessages) {
+                html += `
+                    <div class="message-bubble user">
+                        <div class="message-role user">user</div>
+                        <div class="message-content">${escapeHtml(content)}</div>
+                    </div>
+                `;
+            }
+            
+            html += '</div><div class="detail-section"><h3>Output</h3>';
+            
+            for (const msg of allOutputMessages) {
+                html += renderMessageBubble(msg);
+            }
+            
+            html += '</div></div>';
+            
+            // Metadata tab content
+            html += `
+                <div id="meta-${traceId}" class="detail-content" style="display:none;">
+                    <div class="detail-section">
+                        <h3>Trace Information</h3>
+                        <div class="metadata-grid">
+                            <div class="metadata-item"><span class="metadata-label">Trace ID</span><span class="metadata-value">${traceId}</span></div>
+                            <div class="metadata-item"><span class="metadata-label">Start Time</span><span class="metadata-value">${startTime}</span></div>
+                            <div class="metadata-item"><span class="metadata-label">Duration</span><span class="metadata-value">${invokeSpan ? invokeSpan.duration : 'N/A'}</span></div>
+                            <div class="metadata-item"><span class="metadata-label">Total Tokens</span><span class="metadata-value">${totalTokens}</span></div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <h3>Model</h3>
+                        <div class="metadata-grid">
+                            <div class="metadata-item"><span class="metadata-label">Model</span><span class="metadata-value">${invokeSpan?.model || chatSpans[0]?.model || 'Unknown'}</span></div>
+                            <div class="metadata-item"><span class="metadata-label">Agent</span><span class="metadata-value">${invokeSpan?.agentName || 'Unknown'}</span></div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <h3>Token Usage</h3>
+                        <div class="metadata-grid">
+                            ${chatSpans.map((c, i) => `
+                                <div class="metadata-item"><span class="metadata-label">Step ${i+1} Input</span><span class="metadata-value">${c.inputTokens || 0} tokens</span></div>
+                                <div class="metadata-item"><span class="metadata-label">Step ${i+1} Output</span><span class="metadata-value">${c.outputTokens || 0} tokens</span></div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('detail').innerHTML = html;
+        }
+
+        function selectChat(traceId, index) {
+            updateSelection(event.currentTarget);
+            
+            const spans = allSpans.filter(s => s.traceId === traceId);
+            const chatSpans = spans.filter(s => s.operation === 'chat');
+            const chat = chatSpans[index];
+            
+            if (!chat) return;
+            
+            const tokens = (parseInt(chat.inputTokens) || 0) + (parseInt(chat.outputTokens) || 0);
+            const hasToolCalls = chat.outputMessages?.some(m => m.parts?.some(p => p.type === 'tool_call'));
+            const stepType = hasToolCalls ? 'tool_calls' : 'message_creation';
+            
+            const chatId = `${traceId}-${index}`;
+            let html = `
+                <div class="detail-header">
+                    <span class="node-icon run-step">S</span>
+                    <h2>Run step ${stepType}</h2>
+                    <span class="meta">⏱ ${chat.duration}</span>
+                    <span class="badge tokens">⊛ ${tokens}t</span>
+                </div>
+                <div class="detail-tabs">
+                    <div class="detail-tab active" onclick="showTab(this, 'io-${chatId}')">Input & output</div>
+                    <div class="detail-tab" onclick="showTab(this, 'meta-${chatId}')">Metadata</div>
+                </div>
+                <div id="io-${chatId}" class="detail-content">
+            `;
+            
+            if (chat.inputMessages) {
+                html += '<div class="detail-section"><h3>Input Messages</h3>';
+                for (const msg of chat.inputMessages) {
+                    if (msg.role === 'user') {
+                        html += renderMessageBubble(msg);
+                    }
+                }
+                html += '</div>';
+            }
+            
+            if (chat.outputMessages) {
+                html += '<div class="detail-section"><h3>Output</h3>';
+                for (const msg of chat.outputMessages) {
+                    html += renderMessageBubble(msg);
+                }
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            
+            // Metadata tab
+            html += `
+                <div id="meta-${chatId}" class="detail-content" style="display:none;">
+                    <div class="detail-section">
+                        <h3>Step Information</h3>
+                        <div class="metadata-grid">
+                            <div class="metadata-item"><span class="metadata-label">Type</span><span class="metadata-value">${stepType}</span></div>
+                            <div class="metadata-item"><span class="metadata-label">Duration</span><span class="metadata-value">${chat.duration}</span></div>
+                            <div class="metadata-item"><span class="metadata-label">Model</span><span class="metadata-value">${chat.model || 'Unknown'}</span></div>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <h3>Token Usage</h3>
+                        <div class="metadata-grid">
+                            <div class="metadata-item"><span class="metadata-label">Input Tokens</span><span class="metadata-value">${chat.inputTokens || 0}</span></div>
+                            <div class="metadata-item"><span class="metadata-label">Output Tokens</span><span class="metadata-value">${chat.outputTokens || 0}</span></div>
+                            <div class="metadata-item"><span class="metadata-label">Total</span><span class="metadata-value">${tokens}</span></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('detail').innerHTML = html;
+        }
+
+        function selectTool(traceId, spanId) {
+            updateSelection(event.currentTarget);
+            
+            const tool = allSpans.find(s => s.traceId === traceId && s.spanId === spanId);
+            if (!tool) return;
+            
+            let args = tool.toolArgs;
+            let result = tool.toolResult;
+            try { args = JSON.parse(args); } catch(e) {}
+            try { result = JSON.parse(result); } catch(e) {}
+            
+            // Clean null values
+            if (typeof args === 'object') {
+                args = Object.fromEntries(Object.entries(args).filter(([k, v]) => v !== null));
+            }
+            
+            const toolId = `${traceId}-${spanId}`;
+            let html = `
+                <div class="detail-header">
+                    <span class="node-icon tool">F</span>
+                    <h2>Tool ${tool.toolName}</h2>
+                    <span class="meta">⏱ ${tool.duration}</span>
+                </div>
+                <div class="detail-tabs">
+                    <div class="detail-tab active" onclick="showTab(this, 'io-${toolId}')">Input & output</div>
+                    <div class="detail-tab" onclick="showTab(this, 'meta-${toolId}')">Metadata</div>
+                </div>
+                <div id="io-${toolId}" class="detail-content">
+                    <div class="detail-section">
+                        <h3>Arguments</h3>
+                        <div class="code-block">${formatJson(args)}</div>
+                    </div>
+                    <div class="detail-section">
+                        <h3>Result</h3>
+                        <div class="code-block">${formatJson(result)}</div>
+                    </div>
+                </div>
+                <div id="meta-${toolId}" class="detail-content" style="display:none;">
+                    <div class="detail-section">
+                        <h3>Tool Information</h3>
+                        <div class="metadata-grid">
+                            <div class="metadata-item"><span class="metadata-label">Tool Name</span><span class="metadata-value">${tool.toolName}</span></div>
+                            <div class="metadata-item"><span class="metadata-label">Duration</span><span class="metadata-value">${tool.duration}</span></div>
+                            <div class="metadata-item"><span class="metadata-label">Span ID</span><span class="metadata-value">${tool.spanId}</span></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('detail').innerHTML = html;
+        }
+
+        function updateSelection(element) {
+            document.querySelectorAll('.tree-node-header.selected').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        function showTab(tabElement, contentId) {
+            // Update tab states
+            const tabs = tabElement.parentElement.querySelectorAll('.detail-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            tabElement.classList.add('active');
+            
+            // Show/hide content
+            const allContent = tabElement.closest('.main-panel, #detail').querySelectorAll('.detail-content');
+            allContent.forEach(c => c.style.display = 'none');
+            document.getElementById(contentId).style.display = 'block';
+        }
+
+        function renderMessageBubble(msg) {
+            const role = msg.role;
+            let content = '';
+            
+            for (const part of msg.parts || []) {
+                if (part.type === 'text') {
+                    content += part.content;
+                } else if (part.type === 'tool_call') {
+                    return `
+                        <div class="message-bubble tool">
+                            <div class="message-role tool">tool_call: ${part.name}</div>
+                            <div class="code-block">${formatJson(part.arguments)}</div>
+                        </div>
+                    `;
+                } else if (part.type === 'tool_call_response') {
+                    let result = part.response;
+                    try { result = JSON.parse(result); } catch(e) {}
+                    return `
+                        <div class="message-bubble tool">
+                            <div class="message-role tool">tool_result</div>
+                            <div class="code-block">${formatJson(result)}</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            if (!content) return '';
+            
+            // Truncate long system messages
+            if (role === 'system' && content.length > 200) {
+                content = content.substring(0, 200) + '... (truncated)';
+            }
+            
+            return `
+                <div class="message-bubble ${role}">
+                    <div class="message-role ${role}">${role}</div>
+                    <div class="message-content">${escapeHtml(content)}</div>
+                </div>
+            `;
+        }
+
+        function getTextContent(msg) {
+            for (const part of msg.parts || []) {
+                if (part.type === 'text') return part.content;
+            }
+            return '';
+        }
+
+        function formatJson(obj) {
+            if (typeof obj === 'string') return escapeHtml(obj);
+            try {
+                return escapeHtml(JSON.stringify(obj, null, 2));
+            } catch(e) {
+                return escapeHtml(String(obj));
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function formatDuration(ms) {
+            if (ms < 1) return `${(ms * 1000).toFixed(0)}µs`;
+            if (ms < 1000) return `${ms.toFixed(0)}ms`;
+            return `${(ms / 1000).toFixed(1)}s`;
+        }
+
+        document.getElementById('conversationId').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadConversation();
+        });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const convId = urlParams.get('conversation');
+        if (convId) {
+            document.getElementById('conversationId').value = convId;
+            loadConversation();
+        }
+    </script>
+</body>
+</html>

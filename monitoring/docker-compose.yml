@@ -1,0 +1,72 @@
+services:
+  # OpenTelemetry Collector - receives traces from the backend
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+    depends_on:
+      - tempo
+    networks:
+      - otel-network
+
+  # Grafana Tempo - distributed tracing backend
+  tempo:
+    image: grafana/tempo:2.3.1
+    container_name: tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo-config.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+      - "9095:9095"   # Tempo gRPC
+    networks:
+      - otel-network
+
+  # Grafana - visualization and dashboards
+  grafana:
+    image: grafana/grafana:10.3.1
+    container_name: grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"   # Grafana UI (3001 to avoid conflict with frontend on 3000)
+    depends_on:
+      - tempo
+    networks:
+      - otel-network
+
+  # Conversation Viewer - Agent-friendly trace visualization
+  conversation-viewer:
+    image: nginx:alpine
+    container_name: conversation-viewer
+    volumes:
+      - ./conversation-viewer.html:/usr/share/nginx/html/index.html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "3002:80"     # Conversation viewer UI
+    depends_on:
+      - tempo
+    networks:
+      - otel-network
+
+networks:
+  otel-network:
+    driver: bridge
+
+volumes:
+  tempo-data:
+  grafana-data:

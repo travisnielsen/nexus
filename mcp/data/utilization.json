@@ -1,0 +1,64 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.yourorg.com/fedex/flight-utilization-forecast-dummy.schema.json",
+  "title": "FedEx Flight Utilization Forecast Record",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "LEG_ORIG_SCHED_OUT_ZULU_TMSTP": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Scheduled OUT (departure) timestamp at the leg origin in Zulu/UTC time (ISO 8601 with offset)."
+    },
+    "LEG_CARGO_WGT": {
+      "type": "number",
+      "description": "Observed/actual cargo weight for the leg (as provided by the source)."
+    },
+    "LEG_MAX_OP_PAYLD_WGT": {
+      "type": "number",
+      "description": "Maximum operational payload weight for the leg (capacity limit as provided by the source)."
+    },
+    "LEG_LAST_UPDATE_ZULU_TMSTP": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp (Zulu/UTC) indicating when this leg record was last updated (ISO 8601 with offset)."
+    },
+    "ds": {
+      "type": "string",
+      "description": "Datestamp used for the forecast record (as provided; appears as an Excel-style date string)."
+    },
+    "predict_total_weight": {
+      "type": "number",
+      "description": "Forecasted total weight for the leg (model output)."
+    },
+    "predict_cube_ft": {
+      "type": "number",
+      "description": "Forecasted total cube (volume) in cubic feet for the leg (model output)."
+    },
+    "wb_key_flight_number": {
+      "type": "integer",
+      "description": "Flight number identifier associated with the forecast record."
+    },
+    "leg_orig": {
+      "type": "string",
+      "description": "Leg origin location/airport code (e.g., 'TLC')."
+    },
+    "leg_dest": {
+      "type": "string",
+      "description": "Leg destination location/airport code (e.g., 'MEM')."
+    },
+    "predict_type": {
+      "type": "string",
+      "description": "Forecast type/category label (e.g., 'LT' in the sample)."
+    }
+  },
+  "required": [
+    "LEG_ORIG_SCHED_OUT_ZULU_TMSTP",
+    "wb_key_flight_number",
+    "leg_orig",
+    "leg_dest",
+    "predict_total_weight",
+    "predict_cube_ft"
+  ]
+}

@@ -1,0 +1,414 @@
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.yourorg.com/fedex/oneview-dummy.schema.json",
+  "title": "FedEx OneView Dummy Record",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "wb_key_flight_number": {
+      "type": "integer",
+      "description": "Primary flight identifier (flight number) used as part of the Waybill/Workbook key."
+    },
+    "wb_key_flight_zulu_date": {
+      "type": "string",
+      "description": "Flight date in Zulu/UTC context as provided in source (Excel date string). Example: 12/02/2025."
+    },
+    "wb_leg_leg_number": {
+      "type": "integer",
+      "description": "Leg sequence number for the flight (e.g., 1 for first leg)."
+    },
+    "wb_container_position_code": {
+      "type": "string",
+      "description": "Container position code indicating where the container is placed on the aircraft (e.g., '10L')."
+    },
+    "wb_leg_equipment_code": {
+      "type": "integer",
+      "description": "Equipment code for the aircraft/leg (numeric code from source)."
+    },
+    "wb_leg_aircraft_make_model_description": {
+      "type": "string",
+      "description": "Aircraft make/model description for the leg (e.g., 'B777F')."
+    },
+    "wb_leg_aircraft_config_series_code": {
+      "type": "string",
+      "description": "Aircraft configuration/series code (single-letter code in sample)."
+    },
+    "wb_leg_iata_destination_code": {
+      "type": "string",
+      "description": "IATA destination airport code for the leg (e.g., 'MEM')."
+    },
+    "wb_leg_iata_station_code": {
+      "type": "string",
+      "description": "IATA station code associated with the leg (e.g., 'STN')."
+    },
+    "wb_leg_master_cons_number": {
+      "type": "string",
+      "description": "Master consolidation number for the leg (identifier string from source)."
+    },
+    "wb_container_adg_idg_cd": {
+      "type": "string",
+      "description": "Hazmat/commodity classification code indicating ADG/IDG category (single-letter in sample)."
+    },
+    "wb_container_compartment_location_code": {
+      "type": "string",
+      "description": "Compartment/location code where the container is loaded (numeric string in sample)."
+    },
+    "wb_container_container_number": {
+      "type": "string",
+      "description": "ULD/container number identifier (e.g., 'AMJ72670FX')."
+    },
+    "wb_container_container_scan_code": {
+      "type": "string",
+      "description": "Scan code associated with the container (identifier string)."
+    },
+    "wb_container_container_weight": {
+      "type": "number",
+      "description": "Container weight as provided by source system (units not explicitly stated)."
+    },
+    "wb_container_cube_percent": {
+      "type": "number",
+      "description": "Cube utilization percentage for the container (as a percent value)."
+    },
+    "wb_container_height_code": {
+      "type": "string",
+      "description": "Container height code (numeric string in sample)."
+    },
+    "wb_container_iata_container_destination_code": {
+      "type": "string",
+      "description": "IATA destination code for the container's destination."
+    },
+    "wb_container_iata_package_destination_code": {
+      "type": "string",
+      "description": "IATA destination code for packages within the container (if applicable)."
+    },
+    "wb_container_load_code": {
+      "type": "string",
+      "description": "Load code describing the load category/type for the container."
+    },
+    "wb_container_package_service_code": {
+      "type": "string",
+      "description": "Service code for packages associated with the container."
+    },
+    "wb_container_position_remark_description": {
+      "type": "string",
+      "description": "Free-text remark/description about the container position."
+    },
+    "wb_container_sequence_number": {
+      "type": "integer",
+      "description": "Sequence number for the container record within the leg/flight."
+    },
+
+    "total_pkg_count": {
+      "type": "integer",
+      "description": "Total package count associated with the record/container."
+    },
+    "bag_count": {
+      "type": "integer",
+      "description": "Count of bagged items (bags) in the load."
+    },
+    "loose": {
+      "type": "integer",
+      "description": "Count of loose items (not bagged) in the load."
+    },
+    "bagged": {
+      "type": "integer",
+      "description": "Count of bagged items (explicit bagged quantity field)."
+    },
+
+    "actual_weight_pkg_count": {
+      "type": "integer",
+      "description": "Package count with actual weight data present."
+    },
+    "actual_volume_pkg_count": {
+      "type": "integer",
+      "description": "Package count with actual volume data present."
+    },
+    "est_volume_pkg_count": {
+      "type": "integer",
+      "description": "Package count with estimated volume data present."
+    },
+    "null_volume_pkg_count": {
+      "type": "integer",
+      "description": "Package count where volume is null/missing."
+    },
+
+    "HWT_pkg_count": {
+      "type": "integer",
+      "description": "Package count classified as HWT category."
+    },
+    "DOC_pkg_count": {
+      "type": "integer",
+      "description": "Package count classified as DOC category."
+    },
+    "Box_pkg_count": {
+      "type": "integer",
+      "description": "Package count classified as BOX category."
+    },
+
+    "HWT_wgt_lb": {
+      "type": "number",
+      "description": "Weight in pounds for HWT category packages."
+    },
+    "DOC_wgt_lb": {
+      "type": "number",
+      "description": "Weight in pounds for DOC category packages."
+    },
+    "BOX_wgt_lb": {
+      "type": "number",
+      "description": "Weight in pounds for BOX category packages."
+    },
+
+    "HWT_act_volume_cuft": {
+      "type": "number",
+      "description": "Actual volume (cubic feet) for HWT category packages."
+    },
+    "DOC_act_volume_cuft": {
+      "type": "number",
+      "description": "Actual volume (cubic feet) for DOC category packages."
+    },
+    "BOX_act_volume_cuft": {
+      "type": "number",
+      "description": "Actual volume (cubic feet) for BOX category packages."
+    },
+
+    "HWT_est_volume_cuft": {
+      "type": "number",
+      "description": "Estimated volume (cubic feet) for HWT category packages."
+    },
+    "DOC_est_volume_cuft": {
+      "type": "number",
+      "description": "Estimated volume (cubic feet) for DOC category packages."
+    },
+    "BOX_est_volume_cuft": {
+      "type": "number",
+      "description": "Estimated volume (cubic feet) for BOX category packages."
+    },
+
+    "ADG_pkg_count": {
+      "type": "integer",
+      "description": "Package count classified as ADG (dangerous goods) category."
+    },
+    "ADG_volume_cuft": {
+      "type": "number",
+      "description": "Volume (cubic feet) for ADG category packages."
+    },
+    "ADG_wgt_lb": {
+      "type": "number",
+      "description": "Weight (pounds) for ADG category packages."
+    },
+
+    "nonstackable_pkg_count": {
+      "type": "integer",
+      "description": "Package count classified as non-stackable."
+    },
+    "nonstackable_volume_cuft": {
+      "type": "number",
+      "description": "Volume (cubic feet) for non-stackable packages."
+    },
+    "nonstackable_wgt_lb": {
+      "type": "number",
+      "description": "Weight (pounds) for non-stackable packages."
+    },
+
+    "cons_start_datetime_utc": {
+      "type": "string",
+      "description": "Consolidation start datetime in UTC context as provided (string timestamp)."
+    },
+    "cons_end_datetime_utc": {
+      "type": "string",
+      "description": "Consolidation end datetime in UTC context as provided (string timestamp)."
+    },
+    "cons_start_datetime_local": {
+      "type": "string",
+      "description": "Consolidation start datetime in local time context as provided (string timestamp)."
+    },
+    "cons_end_datetime_local": {
+      "type": "string",
+      "description": "Consolidation end datetime in local time context as provided (string timestamp)."
+    },
+
+    "cons_create_employee_nbr": {
+      "type": "string",
+      "description": "Employee number(s) associated with creation of the consolidation record (may contain multiple IDs)."
+    },
+    "buildup_location": {
+      "type": "string",
+      "description": "Buildup location identifier/code (e.g., 'STNRT')."
+    },
+    "LEG_TYPE_CD": {
+      "type": "string",
+      "description": "Leg type code from source (single-letter in sample)."
+    },
+
+    "uld_char_uld_avg_tare_wgt": {
+      "type": "number",
+      "description": "Average tare weight for the ULD type (units not explicitly stated)."
+    },
+    "uld_char_actual_stack_eff_cube": {
+      "type": "number",
+      "description": "Actual stack efficiency cube value for the ULD characteristics."
+    },
+    "uld_char_uld_typ_fde_nbr": {
+      "type": "string",
+      "description": "ULD type FDE number (identifier)."
+    },
+    "uld_char_match_rate_cube": {
+      "type": "number",
+      "description": "Match rate cube metric for ULD characteristics."
+    },
+    "uld_char_uld_max_weight": {
+      "type": "number",
+      "description": "Maximum allowable weight for the ULD type."
+    },
+
+    "recmd_pos_uld_typ_cd": {
+      "type": "string",
+      "description": "Recommended position ULD type code (e.g., 'AMJ')."
+    },
+    "recmd_pos_cube_ft_qty": {
+      "type": "number",
+      "description": "Recommended cube feet quantity for the position."
+    },
+    "recmd_pos_uld_fde_nbr": {
+      "type": "string",
+      "description": "Recommended position ULD FDE number."
+    },
+    "recmd_pos_watson_uld_cnt_qty": {
+      "type": "number",
+      "description": "Recommended ULD count quantity (Watson/optimizer output as labeled in source)."
+    },
+
+    "acrft_deck_pos_desc": {
+      "type": "string",
+      "description": "Aircraft deck position description (e.g., 'UPPER')."
+    },
+    "acrft_compt_pos_desc": {
+      "type": "string",
+      "description": "Aircraft compartment position description (e.g., 'UPPER')."
+    },
+
+    "buildup_market_loc_cd": {
+      "type": "string",
+      "description": "Buildup market location code (e.g., 'STN')."
+    },
+    "buildup_airport_cd": {
+      "type": "string",
+      "description": "Buildup airport code (e.g., 'STN')."
+    },
+    "buildup_district_name": {
+      "type": "string",
+      "description": "Buildup district name/label from source."
+    },
+    "buildup_country_cd": {
+      "type": "string",
+      "description": "Buildup country code (e.g., 'GB')."
+    },
+    "buildup_region_name": {
+      "type": "string",
+      "description": "Buildup region name/label from source."
+    },
+    "buildup_globl_rgn_cd": {
+      "type": "string",
+      "description": "Global region code for buildup region (e.g., 'EU')."
+    },
+
+    "total_filled_uld_cu_ft": {
+      "type": "number",
+      "description": "Total filled ULD volume in cubic feet."
+    },
+    "Total_Pkg_WGT": {
+      "type": "number",
+      "description": "Total package weight (units implied by other fields; not explicitly stated)."
+    },
+    "VOID_MT_FLAG": {
+      "type": "string",
+      "description": "Flag indicating void/empty condition as provided (e.g., 'N')."
+    },
+
+    "acrft_cuft": {
+      "type": "number",
+      "description": "Aircraft available/related cubic feet metric from source."
+    },
+    "aircraft_bulk_target": {
+      "type": "number",
+      "description": "Bulk target value for the aircraft/load plan (units not explicitly stated)."
+    },
+
+    "Box_Fgt_flag": {
+      "type": "string",
+      "description": "Flag indicating BOX freight status (e.g., 'BOX')."
+    },
+    "Box_tot_volume_cuft": {
+      "type": "number",
+      "description": "Total volume in cubic feet for BOX freight."
+    },
+
+    "BYP_Flag": {
+      "type": "string",
+      "description": "Bypass flag as provided (e.g., 'N')."
+    },
+    "Container_type": {
+      "type": "string",
+      "description": "Container type identifier (e.g., 'AMJ')."
+    },
+    "DG_Base_FLAG": {
+      "type": "string",
+      "description": "Dangerous goods base flag as provided (e.g., 'N')."
+    },
+    "Vol_data_Flag": {
+      "type": "string",
+      "description": "Flag indicating volume data status as provided."
+    },
+    "Exclusion_Flag": {
+      "type": "string",
+      "description": "Flag indicating exclusion status as provided (e.g., 'N')."
+    },
+
+    "leg_type_def": {
+      "type": "string",
+      "description": "Leg type definition/label from source (e.g., 'Regular')."
+    },
+    "net_weight_container": {
+      "type": "number",
+      "description": "Net weight of the container (units not explicitly stated)."
+    },
+
+    "DOC_Cuft_calculation": {
+      "type": "number",
+      "description": "Calculated DOC cubic feet value as provided."
+    },
+    "total_calculated_cuft": {
+      "type": "number",
+      "description": "Total calculated cubic feet value as provided."
+    },
+
+    "Bulk_opportunity": {
+      "type": "number",
+      "description": "Bulk opportunity metric (value in sample is 0)."
+    },
+    "bypass_cuft": {
+      "type": "number",
+      "description": "Bypass cubic feet metric (value in sample is 0)."
+    },
+    "HWT_tot_volume_cuft": {
+      "type": "number",
+      "description": "Total volume in cubic feet for HWT category."
+    },
+
+    "container_product_type": {
+      "type": "string",
+      "description": "Container product type code (e.g., 'IP')."
+    },
+    "container_type_cat": {
+      "type": "string",
+      "description": "Container type category code (e.g., 'IP')."
+    }
+  },
+  "required": [
+    "wb_key_flight_number",
+    "wb_key_flight_zulu_date",
+    "wb_leg_leg_number",
+    "wb_container_container_number"
+  ]
+}

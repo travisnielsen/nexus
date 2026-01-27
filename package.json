@@ -1,0 +1,15 @@
+{
+  "name": "dataagent-ag-ui",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "dev:debug": "npm run dev:debug --prefix frontend",
+    "dev:ui": "npm run dev:ui --prefix frontend",
+    "dev:agent": "npm run dev:agent --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "start": "npm run start --prefix frontend",
+    "lint": "npm run lint --prefix frontend",
+    "install:all": "npm install --prefix frontend"
+  }
+}

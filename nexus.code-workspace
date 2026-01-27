@@ -1,0 +1,13 @@
+{
+    "folders": [
+        { "path": ".", "name": "root" },
+        { "path": "backend", "name": "backend" },
+        { "path": "mcp", "name": "mcp" },
+        { "path": "agent-a2a", "name": "agent-a2a" },
+        { "path": "frontend", "name": "frontend" }
+    ],
+    "settings": {
+        "python.analysis.autoSearchPaths": true,
+        "python.analysis.diagnosticMode": "workspace"
+    }
+}

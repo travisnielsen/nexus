@@ -1,0 +1,31 @@
+# Grafana Datasource Provisioning
+# Automatically configures Tempo as a data source
+
+apiVersion: 1
+
+datasources:
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    url: http://tempo:3200
+    isDefault: true
+    version: 1
+    editable: false
+    jsonData:
+      httpMethod: GET
+      tracesToLogsV2:
+        # Link traces to logs (if you add Loki later)
+        datasourceUid: ''
+      serviceMap:
+        datasourceUid: ''
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      lokiSearch:
+        datasourceUid: ''
+      traceQuery:
+        timeShiftEnabled: true
+        spanStartTimeShift: '1h'
+        spanEndTimeShift: '-1h'

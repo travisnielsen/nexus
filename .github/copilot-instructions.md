@@ -1,0 +1,459 @@
+# GitHub Copilot Instructions
+
+This document provides context for GitHub Copilot to understand the project structure, conventions, and architecture.
+
+## Project Overview
+
+This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for monitoring flight shipment capacity and utilization. It combines:
+
+- **Microsoft Agent Framework (MAF)** for agent orchestration
+- **CopilotKit** for the conversational UI experience
+- **AG-UI protocol** for agent-frontend communication
+- **A2A protocol** for agent-to-agent communication
+- **MCP (Model Context Protocol)** for data access via DuckDB
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Frontend (Next.js)                         │
+│                   CopilotKit React Components                        │
+│                         Port: 3000                                   │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │ AG-UI Protocol (SSE)
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Backend (FastAPI + MAF)                         │
+│                   Logistics Agent + Tools                            │
+│                         Port: 8000                                   │
+└─────────────────────────────────┬───────────────────────────────────┘
+                                  │ HTTP (REST)
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                        MCP Server (Starlette)                        │
+│                   Flight Data (DuckDB + REST)                        │
+│                         Port: 8001                                   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Directory Structure
+
+```
+/
+├── frontend/               # Next.js 16 + React 19 + CopilotKit
+│   ├── src/
+│   │   ├── app/           # Next.js App Router
+│   │   │   ├── page.tsx   # Main dashboard page
+│   │   │   └── api/copilotkit/route.ts  # CopilotKit runtime proxy
+│   │   ├── components/    # React components
+│   │   └── lib/           # Types, hooks, utilities
+│   └── package.json
+│
+├── backend/                # FastAPI + Microsoft Agent Framework
+│   ├── main.py            # FastAPI app, REST endpoints, agent setup
+│   ├── clients.py         # Chat client factory (Responses/Assistants API)
+│   ├── monitoring.py      # OpenTelemetry observability setup
+│   ├── Dockerfile         # Production Dockerfile (for ACR/Azure deployment)
+│   ├── Dockerfile.local   # Local dev Dockerfile (includes Azure CLI)
+│   ├── patches/           # Critical workarounds (must import first)
+│   │   ├── __init__.py        # Patch config and apply_all_patches()
+│   │   ├── pydantic_schema.py # Pydantic SchemaError workaround
+│   │   ├── deepcopy_rlock.py  # Azure credential deepcopy fix
+│   │   ├── agui_event_stream.py # AG-UI event stream fixes
+│   │   └── conversation_id_injection.py # Telemetry conversation ID patches
+│   ├── agents/
+│   │   ├── logistics_agent.py  # Agent configuration and state schema
+│   │   ├── prompts/       # System prompt templates
+│   │   │   └── logistics_agent.md  # Agent system prompt (loaded at runtime)
+│   │   ├── tools/         # Agent tool implementations (LLM-callable)
+│   │   │   ├── __init__.py
+│   │   │   ├── filter_tools.py        # Dashboard filter tools (filter_flights, reset_filters)
+│   │   │   ├── analysis_tools.py      # Flight analysis tools (analyze_flights)
+│   │   │   ├── chart_tools.py         # Historical/predicted data tools
+│   │   │   └── recommendation_tools.py # A2A recommendations tool (get_recommendations)
+│   │   └── utils/         # Utility modules (not LLM-callable)
+│   │       ├── __init__.py
+│   │       ├── mcp_client.py      # HTTP client for MCP server
+│   │       └── data_helpers.py    # Shared data access functions
+│   ├── middleware/        # Auth and thread management
+│   │   ├── auth.py        # Azure AD authentication
+│   │   ├── responses_api.py   # Responses API thread middleware
+│   │   └── assistants_api.py  # Assistants API thread middleware
+│   └── pyproject.toml     # Python dependencies (uv)
+│
+├── mcp/                    # MCP Server (Model Context Protocol)
+│   ├── main.py            # Starlette app with DuckDB + SSE transport
+│   ├── auth.py            # Entra ID authentication for MCP
+│   ├── data/              # Flight data JSON files (source of truth)
+│   │   ├── flights.json   # Flight and historical data
+│   │   ├── oneview.json   # OneView integration data
+│   │   └── utilization.json # Utilization schema
+│   └── pyproject.toml
+│
+├── agent-a2a/             # A2A Recommendations Agent
+│   ├── main.py            # A2A FastAPI application
+│   └── pyproject.toml
+│
+├── infra/                 # Terraform infrastructure (Azure)
+└── scripts/               # Setup and run scripts
+```
+
+## Technology Stack
+
+### Frontend
+- **Next.js 16** with App Router and Turbopack
+- **React 19** with hooks
+- **TypeScript 5**
+- **Tailwind CSS 4**
+- **CopilotKit 1.50** for conversational UI
+- **AG-UI Client** (`@ag-ui/client`) for agent communication
+- **MSAL React** for Azure AD authentication
+
+### Backend
+- **Python 3.12+** with `uv` package manager
+- **FastAPI** for REST API and SSE endpoints
+- **Microsoft Agent Framework (MAF)** for agent orchestration:
+  - `agent-framework-core` - Core agent functionality
+  - `agent-framework-ag-ui` - AG-UI protocol support
+  - `agent-framework-azure-ai` - Azure AI Foundry integration
+  - `agent-framework-a2a` - A2A protocol support
+- **Azure AI Foundry** for LLM (GPT-4o)
+- **Azure AD** authentication (optional)
+- **OpenTelemetry** for observability
+
+### MCP Server
+- **FastMCP** with Starlette for HTTP/SSE transport
+- **DuckDB** for SQL query capabilities on JSON data
+- Exposes REST API, MCP tools, and MCP resources
+
+### A2A Agent
+- **a2a-sdk** for A2A protocol support
+- Recommendations generation agent
+
+## Key Patterns and Conventions
+
+### Agent Tools
+
+Agent tools are defined in `backend/agents/tools/`. Each tool:
+1. Uses the `@ai_function` decorator from MAF with `name` and `description`
+2. Uses `Annotated` type hints with `Field` for parameter descriptions
+3. Returns structured dict data for UI state updates
+
+Current tools in `logistics_agent.py`:
+
+| Tool | Purpose |
+|------|---------|
+| `filter_flights` | Filter dashboard by route, utilization, risk (additive filtering) |
+| `reset_filters` | Clear all filters and show all flights |
+| `analyze_flights` | Answer questions about displayed data (reads filter from ContextVar) |
+| `get_recommendations` | Get AI-powered recommendations via A2A agent |
+| `get_historical_payload` | Get historical payload data for charts |
+| `get_predicted_payload` | Get predicted payload data for charts |
+
+**System Prompt**: Loaded from `backend/agents/prompts/logistics_agent.md` at runtime.
+
+Example tool pattern:
+```python
+from agent_framework import ai_function
+from pydantic import Field
+from typing import Annotated
+
+@ai_function(
+    name="my_tool",
+    description="Description for the LLM to understand when to use this tool.",
+)
+def my_tool(
+    param: Annotated[str, Field(description="Parameter description")],
+) -> dict:
+    """Implementation docstring."""
+    return {"result": data}
+```
+
+### State Management
+
+The frontend maintains local display state and syncs filter context to the backend:
+- `displayFlights` - Local state for flight data (fetched via REST API)
+- `displayHistorical` - Local state for chart data
+- `displayFilter` - Current filter criteria (tracked locally, exposed via `useCopilotReadable`)
+
+**Note**: This app does NOT use `predict_state_config`. The frontend fetches data via REST API when tools complete, using `useRenderToolCall` to observe tool execution. This avoids race conditions from state sync loops.
+
+### Data Access
+
+All flight data flows through the MCP server (source of truth):
+1. **MCP Server** (`mcp/`) - Hosts all data with DuckDB for SQL queries
+2. **MCP Client** (`backend/agents/utils/mcp_client.py`) - HTTP client using `httpx`
+3. **Data Helpers** (`backend/agents/utils/data_helpers.py`) - Shared data access for agent tools
+4. **Backend REST API** - Proxies MCP data to frontend
+
+The MCP server provides:
+- REST endpoints: `/api/flights`, `/api/flights/{id}`, `/api/summary`, `/api/historical`, `/api/predictions`, `/api/routes`
+- MCP SSE endpoint: `/sse` (for MCP protocol)
+- MCP tools: `get_tables`, `query_data`
+
+**Note**: The backend has NO local data files. All data comes from MCP.
+
+### Filter Architecture
+
+Filters use an additive pattern with context synchronization:
+1. Frontend sends current filter state via `useCopilotReadable` as context
+2. Backend patches sync this to `current_active_filter` ContextVar (in `agui_event_stream.py`)
+3. `filter_flights` merges new filters with existing (additive)
+4. `reset_filters` clears all filters and the ContextVar
+5. Frontend's `useRenderToolCall` triggers REST fetch when tool starts
+6. `analyze_flights` auto-reads filter from ContextVar - does not require LLM to pass filter params
+
+### Authentication
+
+Authentication uses Azure AD (Entra ID):
+- Frontend: MSAL React with `@azure/msal-browser`
+- Backend: `fastapi-azure-auth` middleware
+- MCP: Optional Entra ID auth via `mcp/auth.py`
+- Can be disabled with `AUTH_ENABLED=false` for development
+
+### Environment Variables
+
+Backend (`.env` in `/backend`):
+```env
+AZURE_AI_PROJECT_ENDPOINT=https://...
+AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
+AZURE_AI_API_TYPE=responses  # or "assistants"
+AZURE_AD_CLIENT_ID=...
+AZURE_AD_TENANT_ID=...
+AUTH_ENABLED=false  # Development only (default: true)
+MCP_SERVER_URL=http://localhost:8001
+RECOMMENDATIONS_AGENT_URL=http://localhost:5002
+AGENT_FRAMEWORK_LOG_LEVEL=WARNING  # DEBUG for verbose logging
+
+# Telemetry
+ENABLE_INSTRUMENTATION=true
+APPLICATIONINSIGHTS_CONNECTION_STRING=...  # Azure Monitor
+ENABLE_SENSITIVE_DATA=true  # Log prompts/responses (dev only)
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317  # Alternative: Aspire/Tempo
+```
+
+Frontend (`.env.local` in `/frontend`):
+```env
+NEXT_PUBLIC_AZURE_AD_CLIENT_ID=...
+NEXT_PUBLIC_AZURE_AD_TENANT_ID=...
+NEXT_PUBLIC_AUTH_ENABLED=false  # Development only (default: true)
+```
+
+## Common Tasks
+
+### Adding a New Agent Tool
+
+1. Create or update a file in `backend/agents/tools/` (naming convention: `*_tools.py`)
+2. Define the tool function with `@ai_function` decorator (with `name` and `description`)
+3. Use `Annotated[type, Field(description="...")]` for parameters
+4. Export from `backend/agents/tools/__init__.py`
+5. Import in `backend/agents/logistics_agent.py`
+6. Add to the agent's tool list in `create_logistics_agent()`
+
+**Note**: Utility functions that are NOT LLM-callable should go in `backend/agents/utils/` instead.
+
+### Adding a New Frontend Action
+
+Frontend actions allow the LLM to update UI state:
+
+```typescript
+useCopilotAction({
+  name: "myAction",
+  parameters: [{
+    name: "param",
+    description: "Parameter description",
+    required: true,
+  }],
+  handler({ param }) {
+    // Update React state
+  },
+});
+```
+
+### Running the Application
+
+```bash
+# Install dependencies
+npm install
+
+# Start all services (frontend + backend + MCP)
+npm run dev
+
+# Or run with Docker Compose (recommended for full stack testing)
+docker compose up --build
+
+# Or start individually:
+# Frontend: cd frontend && npm run dev
+# Backend: cd backend && uv run uvicorn main:app --port 8000 --reload
+# MCP: cd mcp && uv run uvicorn main:app --port 8001 --reload
+```
+
+### Docker Development
+
+The project includes Docker Compose for local development:
+
+- **`docker-compose.yml`** - Orchestrates all 4 services (mcp, agent-a2a, backend, frontend)
+- **`Dockerfile.local`** - Backend with Azure CLI for credential pass-through
+- **`Dockerfile`** - Production build (no Azure CLI, uses Managed Identity)
+
+Docker Compose mounts `~/.azure` from the host to enable `AzureCliCredential` in containers.
+
+## Code Style Guidelines
+
+### Python
+- Use type hints for all function parameters and return values
+- Use `from __future__ import annotations` for forward references
+- Follow PEP 8 naming conventions
+- Use `logging` module (not print statements)
+- Use `async/await` for I/O operations
+
+### TypeScript/React
+- Use functional components with hooks
+- Define interfaces for all data structures
+- Use `"use client"` directive for client components
+- Prefer named exports over default exports for components
+- Use Tailwind CSS for styling
+
+### General
+- Keep functions focused and single-purpose
+- Write descriptive docstrings/comments for complex logic
+- Handle errors gracefully with proper error messages
+- Use environment variables for configuration
+
+## Important Notes
+
+1. **MCP is required** - The backend requires the MCP server to be running for flight data
+2. **A2A is optional** - Recommendations work without the A2A agent (fallback to mock data)
+3. **Patches must load first** - `backend/patches/` package must be imported before other modules
+4. **AG-UI protocol** - Agent communication uses Server-Sent Events (SSE)
+5. **Thread management** - Uses `ResponsesApiThreadMiddleware` or `AssistantsApiThreadMiddleware` based on `AZURE_AI_API_TYPE`. Both use a shared ContextVar to map CopilotKit threadId to Azure thread IDs for telemetry correlation.
+6. **Filter state** - Frontend tracks `activeFilter` locally; synced to backend via `useCopilotReadable` context
+7. **Additive filters** - `filter_flights` merges with existing filters; use `reset_filters` to clear first
+8. **Monitoring** - OpenTelemetry configured in `monitoring.py`; supports Azure Monitor and OTLP exporters
+9. **System prompts** - Agent instructions stored in `backend/agents/prompts/` as markdown files for easy editing
+
+## Known Issues and Workarounds
+
+### Duplicate Tool Calls (Assistants API)
+Both the Assistants API and Responses API sometimes send duplicate tool calls with different run IDs. The `agui_event_stream` patch suppresses duplicates by tracking tool names within a request.
+
+### Clear Button Behavior
+The Clear button (`✕ Clear` in the filter bar) **bypasses the LLM entirely** for reliability:
+1. Directly resets `displayFilter` to `DEFAULT_FILTER`
+2. Refetches all flights via REST API
+3. LLM is informed of the new state via `useCopilotReadable` context on next interaction
+
+This ensures filter clearing is deterministic and doesn't depend on LLM interpretation.
+
+### Streaming and UI Interactions
+If a user interacts with the UI (e.g., clicks Clear) while the agent is streaming a response, a "Thread already running" error may occur. This is a known limitation of the current architecture.
+
+## Monitoring and Observability
+
+The backend uses OpenTelemetry for distributed tracing, configured in `backend/monitoring.py`.
+
+### Configuration
+
+Enable observability by setting environment variables:
+
+```env
+# Enable OpenTelemetry instrumentation
+ENABLE_INSTRUMENTATION=true
+
+# Telemetry mode: "appinsights" (default) or "otlp"
+TELEMETRY_MODE=appinsights
+
+# Azure Monitor (for TELEMETRY_MODE=appinsights)
+APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=...
+
+# OTLP endpoint (for TELEMETRY_MODE=otlp)
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
+# Enable console exporters for debugging
+ENABLE_CONSOLE_EXPORTERS=true
+
+# Log prompts and responses (development only - sensitive data!)
+ENABLE_SENSITIVE_DATA=true
+```
+
+### Telemetry Backends
+
+| Mode | Configuration | Use Case |
+|------|---------------|----------|
+| `appinsights` | `APPLICATIONINSIGHTS_CONNECTION_STRING` | Production monitoring, Azure Application Insights |
+| `otlp` | `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` | Local dev with Aspire Dashboard, Jaeger, or Grafana Tempo |
+| (any) | `ENABLE_CONSOLE_EXPORTERS=true` | Debugging, quick trace inspection |
+
+### Instrumentation Coverage
+
+The `monitoring.py` module configures:
+- **Azure SDK tracing** - Traces Azure AI Foundry/Inference API calls
+- **FastAPI tracing** - Traces HTTP requests to the backend
+- **Agent Framework tracing** - Traces agent workflows and tool execution
+- **Conversation ID injection** - Adds `gen_ai.conversation_id` to all spans for correlation
+
+### Sample Queries
+
+**Azure Monitor (KQL)**:
+```kql
+// All spans for a conversation
+dependencies
+| where customDimensions.gen_ai_conversation_id == "your-thread-id"
+| order by timestamp asc
+```
+
+**Grafana Tempo (TraceQL)**:
+```traceql
+{ span.gen_ai.conversation_id = "your-thread-id" }
+```
+
+## Thread Mapping and Telemetry
+
+### Thread ID Architecture
+
+CopilotKit generates a UUID `threadId` on the frontend for conversation continuity. This ID flows through the system:
+
+1. **Frontend**: CopilotKit generates `threadId` (e.g., `a24ea2c1-fd51-4354-af5e-f5f8ab9e3bcf`)
+2. **AG-UI Protocol**: Sent in SSE request body as `threadId`
+3. **Backend Middleware**: Extracted and stored in shared ContextVar (`_current_agui_thread_id`)
+4. **Azure AI Foundry**:
+   - **Responses API**: Uses CopilotKit threadId directly as `previous_response_id` chain
+   - **Assistants API**: Maps to Azure thread ID (`thread_abc123...`), stores mapping in `_agui_to_azure_thread_map`
+5. **Telemetry**: CopilotKit threadId injected as `gen_ai.conversation_id` for correlation
+
+### Telemetry Correlation
+
+All telemetry spans include `gen_ai.conversation_id` (the CopilotKit threadId) for querying:
+
+```kql
+// Find all telemetry for a conversation
+dependencies
+| where customDimensions.gen_ai_conversation_id == "a24ea2c1-fd51-4354-af5e-f5f8ab9e3bcf"
+```
+
+**Telemetry Backends Supported**:
+- **Azure Monitor/Application Insights**: Via `azure-monitor-opentelemetry`
+- **Aspire Dashboard**: Via OTLP exporter (local dev)
+- **Grafana Tempo**: Via OTLP exporter (supports TraceQL queries by conversation_id)
+
+**Note**: Each HTTP POST to `/logistics` creates a new `operation_Id` (trace). Use `gen_ai.conversation_id` to correlate all requests in a conversation.
+
+### Patches Package (`backend/patches/`)
+The patches package applies critical workarounds. Each patch is in its own file:
+
+| Patch | File | Purpose |
+|-------|------|----------|
+| Pydantic SchemaError | `pydantic_schema.py` | Fixes Azure OpenAI SDK compatibility with pydantic 2.11+ |
+| Deepcopy RLock | `deepcopy_rlock.py` | Handles Azure ManagedIdentityCredential objects that can't be deepcopied |
+| AG-UI Event Stream | `agui_event_stream.py` | Buffers orphaned text messages, deduplicates tool calls, suppresses MESSAGES_SNAPSHOT, syncs activeFilter context |
+| Conversation ID (Responses) | `conversation_id_injection.py` | Injects `gen_ai.conversation_id` into Responses API telemetry spans |
+| Conversation ID (Assistants) | `conversation_id_injection.py` | Injects `gen_ai.conversation_id` into Assistants API telemetry spans |
+| Tool Execution Span | `conversation_id_injection.py` | Adds `gen_ai.conversation_id` to agent-framework tool execution spans |
+
+Patches can be disabled via environment variables:
+- `PATCH_PYDANTIC_SCHEMA=false`
+- `PATCH_DEEPCOPY_RLOCK=false`
+- `PATCH_AGUI_TEXT_MESSAGE_END=false`
+- `PATCH_CONVERSATION_ID_INJECTION=false`
+- `PATCH_ASSISTANTS_CONVERSATION_ID=false`
+- `PATCH_TOOL_EXECUTION_SPAN=false`

@@ -1,0 +1,125 @@
+# Docker Compose for local development
+# Starts all application services for testing and debugging
+#
+# Usage:
+#   docker compose --env-file frontend/.env.local up --build    # Use frontend env vars for build
+#   docker compose up -d                                         # Start in detached mode
+#   docker compose logs -f backend                               # Follow logs for a specific service
+#   docker compose down                                          # Stop all services
+#
+# For monitoring (Grafana, Tempo, OTEL Collector), use:
+#   cd monitoring && docker compose up -d
+
+services:
+  # MCP Server - Flight data API with DuckDB
+  mcp:
+    build:
+      context: ./mcp
+      dockerfile: Dockerfile
+    container_name: nexus-mcp
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./mcp/.env
+    environment:
+      # Override for Docker
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8001
+      - AUTH_ENABLED=false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - nexus-network
+
+  # A2A Recommendations Agent
+  agent-a2a:
+    build:
+      context: ./agent-a2a
+      dockerfile: Dockerfile
+    container_name: nexus-a2a
+    ports:
+      - "5002:5002"
+    env_file:
+      - ./agent-a2a/.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - nexus-network
+
+  # Backend API - FastAPI + Agent Framework
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.local
+    container_name: nexus-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount Azure CLI credentials for DefaultAzureCredential
+      # Note: Not read-only because Azure CLI needs to write session files (az.sess)
+      - ${HOME}/.azure:/root/.azure
+    env_file:
+      # Load environment from backend/.env (Azure AI, auth, telemetry settings)
+      - ./backend/.env
+    environment:
+      # Override service URLs to use Docker service names
+      - MCP_SERVER_URL=http://mcp:8001
+      - MCP_AUTH_ENABLED=false
+      - RECOMMENDATIONS_AGENT_URL=http://agent-a2a:5002
+      # Telemetry - connect to host for monitoring stack
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+    depends_on:
+      mcp:
+        condition: service_healthy
+      agent-a2a:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - nexus-network
+
+  # Frontend - Next.js
+  # NOTE: NEXT_PUBLIC_* vars are baked at build time.
+  # Run with: docker compose --env-file frontend/.env.local up --build
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Build args read from --env-file or shell environment
+        NEXT_PUBLIC_AZURE_AD_CLIENT_ID: ${NEXT_PUBLIC_AZURE_AD_CLIENT_ID:-}
+        NEXT_PUBLIC_AZURE_AD_TENANT_ID: ${NEXT_PUBLIC_AZURE_AD_TENANT_ID:-}
+        NEXT_PUBLIC_AUTH_ENABLED: ${NEXT_PUBLIC_AUTH_ENABLED:-true}
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING: ${NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING:-}
+        AGENT_API_BASE_URL: http://backend:8000
+    container_name: nexus-frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env.local
+    environment:
+      # Runtime overrides (only affects server-side code)
+      - NODE_ENV=production
+      - AGENT_API_BASE_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - nexus-network
+
+networks:
+  nexus-network:
+    driver: bridge
