@@ -40,16 +40,8 @@ jobs:
           AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID || '' }}
           AUTH_ENABLED: ${{ vars.NEXT_PUBLIC_AUTH_ENABLED || 'true' }}
           API_URL: ${{ vars.AGENT_API_BASE_URL || '' }}
-          # Base64 encode the connection string at the GitHub Actions level to avoid shell parsing issues
-          APPINSIGHTS_RAW: ${{ vars.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING || '' }}
         with:
           inlineScript: |
-            # Encode connection string to base64 (done via env var to avoid inline semicolon issues)
-            APPINSIGHTS_B64=""
-            if [ -n "$APPINSIGHTS_RAW" ]; then
-              APPINSIGHTS_B64=$(printf '%s' "$APPINSIGHTS_RAW" | base64 -w 0)
-            fi
-            
             az acr build \
               --registry "${{ env.REGISTRY }}" \
               --image "${{ env.IMAGE_NAME }}:${{ github.sha }}" \
@@ -59,7 +51,6 @@ jobs:
               --build-arg "NEXT_PUBLIC_AZURE_AD_TENANT_ID=${AD_TENANT_ID}" \
               --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${AUTH_ENABLED}" \
               --build-arg "NEXT_PUBLIC_API_URL=${API_URL}" \
-              --build-arg "NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING_B64=${APPINSIGHTS_B64}" \
               --build-arg "AGENT_API_BASE_URL=${API_URL}" \
               ./frontend
 
