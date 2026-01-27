@@ -35,6 +35,8 @@ jobs:
 
       - name: Build and push image using ACR Tasks
         uses: azure/cli@v2
+        env:
+          APPINSIGHTS_CONN_STR: ${{ vars.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING }}
         with:
           inlineScript: |
             az acr build \
@@ -46,7 +48,7 @@ jobs:
               --build-arg NEXT_PUBLIC_AZURE_AD_TENANT_ID=${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }} \
               --build-arg NEXT_PUBLIC_AUTH_ENABLED=${{ vars.NEXT_PUBLIC_AUTH_ENABLED || 'true' }} \
               --build-arg NEXT_PUBLIC_API_URL=${{ vars.AGENT_API_BASE_URL }} \
-              --build-arg NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING="${{ vars.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING }}" \
+              --build-arg "NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING=${APPINSIGHTS_CONN_STR}" \
               --build-arg AGENT_API_BASE_URL=${{ vars.AGENT_API_BASE_URL }} \
               ./frontend
 
