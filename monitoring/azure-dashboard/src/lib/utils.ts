@@ -1,4 +1,4 @@
-import type { ParsedSpan, TreeNode } from '../../../trace-dashboard/src/lib/types'
+import type { ParsedSpan, TreeNode } from './types'
 
 /**
  * Build a hierarchical tree structure from flat span data
