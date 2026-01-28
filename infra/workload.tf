@@ -797,6 +797,8 @@ module "dashboard_storage" {
   account_replication_type      = "LRS"
   public_network_access_enabled = true
   shared_access_key_enabled     = true
+  https_traffic_only_enabled    = true
+  allow_nested_items_to_be_public = true  # Required for static website public access
   tags                          = local.tags
 
   # Enable static website hosting
@@ -805,6 +807,12 @@ module "dashboard_storage" {
       index_document     = "index.html"
       error_404_document = "index.html"  # SPA fallback
     }
+  }
+
+  # No network rules - allow public access for static website
+  # (The $web container needs to be publicly accessible)
+  network_rules = {
+    default_action = "Allow"
   }
 
   # Role assignments for blob upload access and firewall management
