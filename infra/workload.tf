@@ -807,7 +807,7 @@ module "dashboard_storage" {
     }
   }
 
-  # Role assignments for blob upload access
+  # Role assignments for blob upload access and firewall management
   role_assignments = {
     storage_blob_contributor = {
       role_definition_id_or_name = "Storage Blob Data Contributor"
@@ -815,6 +815,10 @@ module "dashboard_storage" {
     }
     github_actions_blob_contributor = {
       role_definition_id_or_name = "Storage Blob Data Contributor"
+      principal_id               = var.github_actions_principal_id
+    }
+    github_actions_contributor = {
+      role_definition_id_or_name = "Contributor"
       principal_id               = var.github_actions_principal_id
     }
   }
