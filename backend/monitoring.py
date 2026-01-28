@@ -55,7 +55,12 @@ def configure_observability() -> None:
 
 
 def _configure_azure_monitor(connection_string: str) -> None:
-    """Configure Azure Monitor for production telemetry."""
+    """Configure Azure Monitor for production telemetry.
+    
+    Note: configure_azure_monitor() sets up a TracerProvider with an Azure Monitor exporter.
+    The Agent Framework's enable_instrumentation() then uses this global TracerProvider
+    for all its spans. We previously added a second exporter which caused duplicate spans.
+    """
     try:
         from azure.monitor.opentelemetry import (  # type: ignore[import-not-found]
             configure_azure_monitor,
@@ -63,12 +68,16 @@ def _configure_azure_monitor(connection_string: str) -> None:
         from agent_framework.observability import create_resource, enable_instrumentation
 
         enable_sensitive = os.getenv("ENABLE_SENSITIVE_DATA", "false").lower() == "true"
+        
+        # Create resource for Azure Monitor
+        resource = create_resource()
 
         # Configure Azure Monitor with instrumentation options
+        # This sets up the global TracerProvider with an Azure Monitor exporter
         # Enable azure_sdk to trace Azure AI Foundry/Inference calls
         configure_azure_monitor(
             connection_string=connection_string,
-            resource=create_resource(),
+            resource=resource,
             enable_live_metrics=True,
             instrumentation_options={
                 "azure_sdk": {"enabled": True},  # Trace Azure SDK calls (AI Foundry)
@@ -79,6 +88,7 @@ def _configure_azure_monitor(connection_string: str) -> None:
         )
         
         # Enable Agent Framework instrumentation for workflow/executor tracing
+        # This uses the global TracerProvider that Azure Monitor configured above
         # Note: This may cause "Failed to detach context" warnings in SSE streaming
         # scenarios, but the spans are still captured and exported correctly.
         enable_instrumentation(enable_sensitive_data=enable_sensitive)
@@ -102,15 +112,36 @@ def _configure_azure_monitor(connection_string: str) -> None:
 
 def _configure_otlp_exporters() -> None:
     """Configure OTLP exporters for local development (Aspire Dashboard, Jaeger, etc.)."""
-    from agent_framework.observability import configure_otel_providers
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from agent_framework.observability import create_resource, enable_instrumentation
 
     enable_sensitive = os.getenv("ENABLE_SENSITIVE_DATA", "false").lower() == "true"
+    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
     
-    # Reads OTEL_EXPORTER_OTLP_ENDPOINT from environment
-    # For console exporters, set ENABLE_CONSOLE_EXPORTERS=true in environment
-    configure_otel_providers(enable_sensitive_data=enable_sensitive)
+    # Create resource and tracer provider
+    resource = create_resource()
+    tracer_provider = TracerProvider(resource=resource)
+    
+    # Add OTLP exporter if endpoint is configured
+    if otlp_endpoint:
+        otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+        tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+    
+    # Optionally add console exporter for debugging
+    if os.getenv("ENABLE_CONSOLE_EXPORTERS", "false").lower() == "true":
+        from opentelemetry.sdk.trace.export import ConsoleSpanExporter
+        tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+    
+    # Set as global tracer provider
+    trace.set_tracer_provider(tracer_provider)
+    
+    # Enable Agent Framework instrumentation
+    enable_instrumentation(enable_sensitive_data=enable_sensitive)
     
     # Suppress the noisy context detach error logs (they're harmless warnings)
     logging.getLogger("opentelemetry.context").setLevel(logging.CRITICAL)
 
-    logger.info("OpenTelemetry configured with OTLP exporters")
+    logger.info("OpenTelemetry configured with OTLP exporters (endpoint=%s)", otlp_endpoint)

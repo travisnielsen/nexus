@@ -30,3 +30,8 @@ variable "mcp_app_client_id" {
   type        = string
   description = "Azure AD App Registration client ID for the MCP server. Used for token validation when MCP auth is enabled."
 }
+
+variable "github_actions_principal_id" {
+  type        = string
+  description = "Object ID of the GitHub Actions service principal (github-actions-nexus) for RBAC assignments."
+}

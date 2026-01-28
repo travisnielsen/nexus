@@ -784,6 +784,43 @@ resource "azurerm_container_app" "mcp" {
   ]
 }
 
+#################################################################################
+# Storage Account for Azure Dashboard (Static Website)
+#################################################################################
+
+module "dashboard_storage" {
+  source  = "Azure/avm-res-storage-storageaccount/azurerm"
+  name                          = replace("${local.identifier}dashboard", "-", "")
+  resource_group_name           = azurerm_resource_group.shared_rg.name
+  location                      = azurerm_resource_group.shared_rg.location
+  account_tier                  = "Standard"
+  account_replication_type      = "LRS"
+  public_network_access_enabled = true
+  shared_access_key_enabled     = true
+  tags                          = local.tags
+
+  # Enable static website hosting
+  static_website = {
+    dashboard = {
+      index_document     = "index.html"
+      error_404_document = "index.html"  # SPA fallback
+    }
+  }
+
+  # Role assignments for blob upload access
+  role_assignments = {
+    storage_blob_contributor = {
+      role_definition_id_or_name = "Storage Blob Data Contributor"
+      principal_id               = data.azurerm_client_config.current.object_id
+    }
+    github_actions_blob_contributor = {
+      role_definition_id_or_name = "Storage Blob Data Contributor"
+      principal_id               = var.github_actions_principal_id
+    }
+  }
+}
+
+
 output "frontend_url" {
   value = "https://${azurerm_container_app.frontend.ingress[0].fqdn}"
 }
@@ -794,4 +831,15 @@ output "api_url" {
 
 output "mcp_url" {
   value = "https://${azurerm_container_app.mcp.ingress[0].fqdn}"
+}
+
+output "dashboard_storage_account_name" {
+  description = "Storage account name for the Azure Dashboard static website"
+  value       = module.dashboard_storage.name
+}
+
+output "dashboard_url" {
+  description = "URL for the Azure Dashboard static website"
+  value       = module.dashboard_storage.resource.primary_web_endpoint
+  sensitive   = true
 }

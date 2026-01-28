@@ -94,7 +94,30 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   ├── main.py            # A2A FastAPI application
 │   └── pyproject.toml
 │
+├── monitoring/             # Observability and tracing tools
+│   ├── azure-dashboard/   # Vite + React app for viewing App Insights traces
+│   │   ├── src/           # React components and MSAL auth
+│   │   ├── package.json   # Vite, React 18, MSAL, Tailwind
+│   │   └── vite.config.ts
+│   └── otel-dashboard/    # Local OpenTelemetry stack (Grafana Tempo)
+│       ├── docker-compose.yml
+│       └── grafana/       # Grafana dashboards
+│
 ├── infra/                 # Terraform infrastructure (Azure)
+│   ├── main.tf            # Resource group and data sources
+│   ├── workload.tf        # All Azure resources (Container Apps, Storage, AI Foundry)
+│   ├── variables.tf       # Input variables
+│   ├── outputs.tf         # Output values
+│   └── terraform.tfvars   # Variable values (not committed)
+│
+├── .github/
+│   ├── workflows/         # GitHub Actions CI/CD
+│   │   ├── deploy-api.yml      # Deploy backend to Container Apps
+│   │   ├── deploy-frontend.yml # Deploy Next.js frontend to Container Apps
+│   │   ├── deploy-mcp.yml      # Deploy MCP server to Container Apps
+│   │   └── deploy-dashboard.yml # Deploy azure-dashboard to Storage static website
+│   └── copilot-instructions.md  # This file
+│
 └── scripts/               # Setup and run scripts
 ```
 
@@ -297,6 +320,96 @@ The project includes Docker Compose for local development:
 - **`Dockerfile`** - Production build (no Azure CLI, uses Managed Identity)
 
 Docker Compose mounts `~/.azure` from the host to enable `AzureCliCredential` in containers.
+
+## Azure Infrastructure
+
+The project deploys to Azure using Terraform (`infra/`). All resources are created in a single resource group.
+
+### Azure Resources
+
+| Resource | Purpose |
+|----------|---------|
+| **Container Apps Environment** | Hosts backend, frontend, and MCP containers |
+| **Container App (API)** | Backend FastAPI + MAF agent (port 8000) |
+| **Container App (Frontend)** | Next.js dashboard (port 3000) |
+| **Container App (MCP)** | MCP server with DuckDB (port 8001) |
+| **Container Registry** | Stores Docker images for all services |
+| **Storage Account (AI)** | AI Foundry blob storage and NL2SQL data |
+| **Storage Account (Dashboard)** | Static website hosting for azure-dashboard |
+| **AI Foundry Hub + Project** | Azure AI services, model deployments, agent service |
+| **Cosmos DB** | Thread storage for AI Foundry agent service |
+| **AI Search** | Vector search for RAG scenarios |
+| **Application Insights** | Telemetry and distributed tracing |
+| **Log Analytics Workspace** | Centralized logging |
+
+### Terraform Variables
+
+Key variables in `terraform.tfvars`:
+
+| Variable | Description |
+|----------|-------------|
+| `subscription_id` | Azure subscription ID |
+| `region` | Primary Azure region (default: westus3) |
+| `region_aifoundry` | AI Foundry region (default: eastus2) |
+| `frontend_app_client_id` | App Registration for frontend auth |
+| `mcp_app_client_id` | App Registration for MCP auth |
+| `github_actions_principal_id` | Service principal object ID for GitHub Actions |
+| `auth_enabled` | Enable/disable Azure AD auth (default: true) |
+
+### Terraform Outputs
+
+| Output | Description |
+|--------|-------------|
+| `frontend_url` | Container App URL for Next.js frontend |
+| `api_url` | Container App URL for backend API |
+| `mcp_url` | Container App URL for MCP server |
+| `dashboard_url` | Static website URL for azure-dashboard |
+| `dashboard_storage_account_name` | Storage account name for dashboard deployment |
+| `appinsights_connection_string` | Application Insights connection string |
+
+## GitHub Actions Deployment
+
+Four workflows handle CI/CD deployment to Azure:
+
+| Workflow | Trigger Path | Deploys To |
+|----------|--------------|------------|
+| `deploy-api.yml` | `backend/**` | Container App (API) |
+| `deploy-frontend.yml` | `frontend/**` | Container App (Frontend) |
+| `deploy-mcp.yml` | `mcp/**` | Container App (MCP) |
+| `deploy-dashboard.yml` | `monitoring/azure-dashboard/**` | Storage static website |
+
+### Required GitHub Variables
+
+Configure these in Settings → Secrets and variables → Actions → Variables:
+
+| Variable | Description |
+|----------|-------------|
+| `AZURE_CLIENT_ID` | Service principal client ID |
+| `AZURE_TENANT_ID` | Azure AD tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
+| `AZURE_RESOURCE_GROUP` | Resource group name |
+| `AZURE_CONTAINER_REGISTRY` | ACR name (without .azurecr.io) |
+| `AZURE_FRONTEND_CONTAINER_APP_NAME` | Frontend container app name |
+| `AZURE_API_CONTAINER_APP_NAME` | API container app name |
+| `AZURE_MCP_CONTAINER_APP_NAME` | MCP container app name |
+| `AZURE_DASHBOARD_STORAGE_ACCOUNT` | Dashboard storage account name |
+| `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` | Frontend app registration client ID |
+| `NEXT_PUBLIC_AZURE_AD_TENANT_ID` | Tenant ID for frontend auth |
+| `NEXT_PUBLIC_AUTH_ENABLED` | Enable auth in frontend (true/false) |
+| `AGENT_API_BASE_URL` | Backend API URL for frontend |
+| `VITE_AZURE_CLIENT_ID` | Dashboard app registration client ID |
+| `VITE_LOG_ANALYTICS_WORKSPACE_ID` | Log Analytics workspace ID for dashboard |
+
+### Azure Dashboard Deployment
+
+The `monitoring/azure-dashboard` is a Vite + React app that queries Application Insights for trace visualization. It deploys to Azure Storage static website hosting.
+
+Environment variables are baked in at build time:
+```env
+VITE_AZURE_CLIENT_ID=...       # App Registration for MSAL auth
+VITE_AZURE_TENANT_ID=...       # Azure AD tenant
+VITE_LOG_ANALYTICS_WORKSPACE_ID=... # Log Analytics workspace to query
+```
 
 ## Code Style Guidelines
 

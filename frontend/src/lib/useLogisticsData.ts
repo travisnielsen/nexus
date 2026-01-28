@@ -178,8 +178,14 @@ export function useLogisticsData(initialLimit: number = 100, accessToken?: strin
     }
   }, [getHeaders]);
 
-  // Initial data load on mount
+  // Initial data load on mount (wait for auth token if auth is enabled)
   useEffect(() => {
+    // If auth is enabled, wait for the access token before fetching
+    if (isAuthEnabled && !accessToken) {
+      console.log('[useLogisticsData] Waiting for access token...');
+      return;
+    }
+
     const loadInitialData = async () => {
       console.log('[useLogisticsData] Loading initial data...');
       
@@ -194,7 +200,7 @@ export function useLogisticsData(initialLimit: number = 100, accessToken?: strin
     };
 
     loadInitialData();
-  }, [fetchFlights, fetchHistorical, fetchSummary, initialLimit]);
+  }, [fetchFlights, fetchHistorical, fetchSummary, initialLimit, accessToken]);
 
   const isLoading = isLoadingFlights || isLoadingHistorical;
 
