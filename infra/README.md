@@ -103,7 +103,8 @@ Key outputs:
 - `frontend_url` - URL for the deployed frontend
 - `api_url` - URL for the deployed API
 - `mcp_url` - URL for the deployed MCP server
-- `appinsights_connection_string` - Connection string for telemetry
+- `appinsights_instrumentation_key` - Instrumentation key for frontend telemetry
+- `appinsights_ingestion_endpoint` - Ingestion endpoint for frontend telemetry
 
 ## Cleaning Up
 

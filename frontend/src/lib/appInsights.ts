@@ -21,12 +21,47 @@ export const reactPlugin = new ReactPlugin();
 let appInsights: ApplicationInsights | null = null;
 
 /**
+ * Build a connection string from individual components.
+ * This is more robust for deployment as it avoids shell escaping issues.
+ */
+function buildConnectionString(): string | undefined {
+  // First check if a full connection string is provided
+  const fullConnString = process.env.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING;
+  if (fullConnString && fullConnString.includes('InstrumentationKey=')) {
+    return fullConnString;
+  }
+
+  // Otherwise, build from individual components
+  const instrumentationKey = process.env.NEXT_PUBLIC_APPINSIGHTS_INSTRUMENTATION_KEY;
+  if (!instrumentationKey) {
+    return undefined;
+  }
+
+  // Ingestion endpoint is optional - SDK has defaults
+  const ingestionEndpoint = process.env.NEXT_PUBLIC_APPINSIGHTS_INGESTION_ENDPOINT;
+  
+  let connString = `InstrumentationKey=${instrumentationKey}`;
+  if (ingestionEndpoint) {
+    connString += `;IngestionEndpoint=${ingestionEndpoint}`;
+  }
+  
+  return connString;
+}
+
+/**
  * Initialize Application Insights with the connection string.
  * Call this once at app startup.
+ * 
+ * Connection string can be provided either:
+ * 1. As a full connection string via NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING
+ * 2. As individual components via NEXT_PUBLIC_APPINSIGHTS_INSTRUMENTATION_KEY
+ *    and optionally NEXT_PUBLIC_APPINSIGHTS_INGESTION_ENDPOINT
  */
-export function initializeAppInsights(connectionString: string | undefined): ApplicationInsights | null {
+export function initializeAppInsights(connectionStringOverride?: string): ApplicationInsights | null {
+  const connectionString = connectionStringOverride || buildConnectionString();
+  
   if (!connectionString) {
-    console.warn('[AppInsights] No connection string provided, telemetry disabled');
+    console.warn('[AppInsights] No connection string or instrumentation key provided, telemetry disabled');
     return null;
   }
 

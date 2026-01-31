@@ -381,7 +381,8 @@ Key variables in `terraform.tfvars`:
 | `mcp_url` | Container App URL for MCP server |
 | `dashboard_url` | Static website URL for azure-dashboard |
 | `dashboard_storage_account_name` | Storage account name for dashboard deployment |
-| `appinsights_connection_string` | Application Insights connection string |
+| `appinsights_instrumentation_key` | Application Insights instrumentation key (GUID) |
+| `appinsights_ingestion_endpoint` | Application Insights ingestion endpoint URL |
 
 ## GitHub Actions Deployment
 
@@ -412,6 +413,7 @@ Configure these in Settings → Secrets and variables → Actions → Variables:
 | `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` | Frontend app registration client ID |
 | `NEXT_PUBLIC_AZURE_AD_TENANT_ID` | Tenant ID for frontend auth |
 | `NEXT_PUBLIC_AUTH_ENABLED` | Enable auth in frontend (true/false) |
+| `NEXT_PUBLIC_APPINSIGHTS_INGESTION_ENDPOINT` | App Insights ingestion endpoint (optional) |
 | `AGENT_API_BASE_URL` | Backend API URL for frontend |
 | `VITE_AZURE_CLIENT_ID` | Dashboard app registration client ID |
 | `VITE_LOG_ANALYTICS_WORKSPACE_ID` | Log Analytics workspace ID for dashboard |

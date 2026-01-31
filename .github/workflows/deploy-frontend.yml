@@ -41,7 +41,10 @@ jobs:
           AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}
           AUTH_ENABLED: ${{ vars.NEXT_PUBLIC_AUTH_ENABLED || 'true' }}
           API_URL: ${{ vars.AGENT_API_BASE_URL }}
-          APPINSIGHTS_CONN: ${{ secrets.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING }}
+          # Use instrumentation key (simple GUID) instead of full connection string
+          # to avoid shell escaping issues with semicolons
+          APPINSIGHTS_KEY: ${{ secrets.NEXT_PUBLIC_APPINSIGHTS_INSTRUMENTATION_KEY }}
+          APPINSIGHTS_ENDPOINT: ${{ vars.NEXT_PUBLIC_APPINSIGHTS_INGESTION_ENDPOINT }}
         with:
           inlineScript: |
             az acr build \
@@ -54,7 +57,8 @@ jobs:
               --build-arg NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
               --build-arg NEXT_PUBLIC_API_URL="$API_URL" \
               --build-arg AGENT_API_BASE_URL="$API_URL" \
-              --build-arg NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING="$APPINSIGHTS_CONN" \
+              --build-arg NEXT_PUBLIC_APPINSIGHTS_INSTRUMENTATION_KEY="$APPINSIGHTS_KEY" \
+              --build-arg NEXT_PUBLIC_APPINSIGHTS_INGESTION_ENDPOINT="$APPINSIGHTS_ENDPOINT" \
               ./frontend
 
       - name: Deploy to Azure Container Apps

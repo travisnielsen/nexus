@@ -19,22 +19,6 @@
         {
             "path": "frontend",
             "name": "frontend"
-        },
-        {
-            "path": "infra",
-            "name": "infra"
-        },
-        {
-            "path": "monitoring",
-            "name": "monitoring"
-        },
-        {
-            "path": "scripts",
-            "name": "scripts"
-        },
-        {
-            "path": ".github",
-            "name": "github"
         }
     ],
     "settings": {

@@ -16,11 +16,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const isAuthEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true";
 
   // Initialize Application Insights for distributed tracing
+  // The function will automatically build connection string from env vars
   useEffect(() => {
-    const connectionString = process.env.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING;
-    if (connectionString) {
-      initializeAppInsights(connectionString);
-    }
+    initializeAppInsights();
   }, []);
 
   // Skip MSAL provider when auth is disabled

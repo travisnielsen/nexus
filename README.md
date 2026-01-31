@@ -103,8 +103,9 @@ NEXT_PUBLIC_AZURE_AD_CLIENT_ID=<frontend-app-registration-client-id>
 NEXT_PUBLIC_AZURE_AD_TENANT_ID=<your-tenant-id>
 NEXT_PUBLIC_AUTH_ENABLED=false
 
-# Telemetry (optional)
-NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING=<from-terraform-output>
+# Telemetry (optional) - use instrumentation key instead of full connection string
+NEXT_PUBLIC_APPINSIGHTS_INSTRUMENTATION_KEY=<from-terraform-output>
+NEXT_PUBLIC_APPINSIGHTS_INGESTION_ENDPOINT=<optional-ingestion-endpoint>
 ```
 
 ### 3. Run the Application
