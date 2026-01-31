@@ -126,9 +126,9 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 - **React 19** with hooks
 - **TypeScript 5**
 - **Tailwind CSS 4**
-- **CopilotKit 1.50** for conversational UI
-- **AG-UI Client** (`@ag-ui/client`) for agent communication
-- **MSAL React** for Azure AD authentication
+- **CopilotKit 1.51** for conversational UI
+- **AG-UI Client** (`@ag-ui/client@0.0.42`) for agent communication (version pinned via npm overrides)
+- **MSAL v5** (`@azure/msal-browser@5.1.0`, `@azure/msal-react@5.0.3`) for Azure AD authentication
 
 ### Backend
 - **Python 3.12+** with `uv` package manager
@@ -296,16 +296,26 @@ useCopilotAction({
 # Install dependencies
 npm install
 
-# Start all services (frontend + backend + MCP)
+# Start all services (frontend + backend + MCP + A2A)
 npm run dev
+```
 
-# Or run with Docker Compose (recommended for full stack testing)
-docker compose up --build
+This starts four concurrent processes with colored output:
+- **[ui]** Next.js frontend on http://localhost:3000
+- **[mcp]** MCP server on http://localhost:8001
+- **[a2a]** A2A agent on http://localhost:5002
+- **[api]** Backend API on http://localhost:8000
+
+```bash
+# Or run with Docker Compose
+# Note: --env-file is required to bake NEXT_PUBLIC_* vars into the frontend build
+docker compose --env-file frontend/.env.local up --build
 
 # Or start individually:
-# Frontend: cd frontend && npm run dev
+# Frontend: cd frontend && npm run dev:ui
 # Backend API: cd backend/api && uv run uvicorn main:app --port 8000 --reload
-# MCP: cd backend/mcp && uv run uvicorn main:app --port 8001 --reload
+# MCP: cd backend/mcp && uv run uvicorn main:rest_app --port 8001 --reload
+# A2A: cd backend/agent-a2a && uv run uvicorn main:app --port 5002 --reload
 ```
 
 ### Docker Development
@@ -315,8 +325,17 @@ The project includes Docker Compose for local development:
 - **`docker-compose.yml`** - Orchestrates all 4 services (mcp, agent-a2a, backend, frontend)
 - **`Dockerfile.local`** - Backend with Azure CLI for credential pass-through
 - **`Dockerfile`** - Production build (no Azure CLI, uses Managed Identity)
+- **`.dockerignore`** - Each backend project has a `.dockerignore` to exclude local `.venv` directories
 
-Docker Compose mounts `~/.azure` from the host to enable `AzureCliCredential` in containers.
+**Important**: Docker Compose mounts `~/.azure` from the host to enable `AzureCliCredential` in containers.
+
+**Building with environment variables**:
+Next.js requires `NEXT_PUBLIC_*` variables at build time (they're baked into the client bundle):
+```bash
+# Always use --env-file for Docker builds
+docker compose --env-file frontend/.env.local up --build
+```
+If you skip `--env-file`, authentication will fail because the frontend uses placeholder values.
 
 ## Azure Infrastructure
 

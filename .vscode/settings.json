@@ -1,6 +1,50 @@
 {
-    "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+    // Python settings for multi-project workspace
+    // Each backend project has its own .venv - VS Code auto-detects via workspace folders
+    "python.defaultInterpreterPath": "${workspaceFolder}/backend/api/.venv/bin/python",
     "python.analysis.extraPaths": [
-        "${workspaceFolder}/backend"
-    ]
+        "${workspaceFolder}/backend/api",
+        "${workspaceFolder}/backend/mcp",
+        "${workspaceFolder}/backend/agent-a2a"
+    ],
+    "python.analysis.autoSearchPaths": true,
+    // TypeScript/JavaScript settings
+    "typescript.preferences.importModuleSpecifier": "relative",
+    "typescript.tsdk": "frontend/node_modules/typescript/lib",
+    // Editor settings
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    // File associations
+    "files.associations": {
+        "*.env.*": "dotenv",
+        ".env": "dotenv"
+    },
+    // Search exclusions (improve performance)
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/.venv": true,
+        "**/__pycache__": true,
+        "**/dist": true,
+        "**/.next": true
+    },
+    // Files to hide from explorer (optional - uncomment to use)
+    // "files.exclude": {
+    //     "**/__pycache__": true,
+    //     "**/.pytest_cache": true
+    // },
+    // Tailwind CSS IntelliSense
+    "tailwindCSS.experimental.classRegex": [
+        [
+            "className\\s*=\\s*[\"']([^\"']*)[\"']",
+            "([^\"']*)"
+        ]
+    ],
+    // Terminal settings
+    "terminal.integrated.cwd": "${workspaceFolder}"
 }
