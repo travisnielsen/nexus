@@ -1,10 +1,41 @@
 {
     "folders": [
-        { "path": ".", "name": "root" },
-        { "path": "backend/api", "name": "backend-api" },
-        { "path": "backend/mcp", "name": "backend-mcp" },
-        { "path": "backend/agent-a2a", "name": "backend-a2a" },
-        { "path": "frontend", "name": "frontend" }
+        {
+            "path": ".",
+            "name": "root"
+        },
+        {
+            "path": "backend/api",
+            "name": "backend-api"
+        },
+        {
+            "path": "backend/mcp",
+            "name": "backend-mcp"
+        },
+        {
+            "path": "backend/agent-a2a",
+            "name": "backend-a2a"
+        },
+        {
+            "path": "frontend",
+            "name": "frontend"
+        },
+        {
+            "path": "infra",
+            "name": "infra"
+        },
+        {
+            "path": "monitoring",
+            "name": "monitoring"
+        },
+        {
+            "path": "scripts",
+            "name": "scripts"
+        },
+        {
+            "path": ".github",
+            "name": "github"
+        }
     ],
     "settings": {
         "python.analysis.autoSearchPaths": true,
