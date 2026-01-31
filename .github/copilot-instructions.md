@@ -57,8 +57,6 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   ├── Dockerfile.local   # Local dev Dockerfile (includes Azure CLI)
 │   ├── patches/           # Critical workarounds (must import first)
 │   │   ├── __init__.py        # Patch config and apply_all_patches()
-│   │   ├── pydantic_schema.py # Pydantic SchemaError workaround
-│   │   ├── deepcopy_rlock.py  # Azure credential deepcopy fix
 │   │   ├── agui_event_stream.py # AG-UI event stream fixes
 │   │   └── conversation_id_injection.py # Telemetry conversation ID patches
 │   ├── agents/
@@ -556,16 +554,12 @@ The patches package applies critical workarounds. Each patch is in its own file:
 
 | Patch | File | Purpose |
 |-------|------|----------|
-| Pydantic SchemaError | `pydantic_schema.py` | Fixes Azure OpenAI SDK compatibility with pydantic 2.11+ |
-| Deepcopy RLock | `deepcopy_rlock.py` | Handles Azure ManagedIdentityCredential objects that can't be deepcopied |
 | AG-UI Event Stream | `agui_event_stream.py` | Buffers orphaned text messages, deduplicates tool calls, suppresses MESSAGES_SNAPSHOT, syncs activeFilter context |
 | Conversation ID (Responses) | `conversation_id_injection.py` | Injects `gen_ai.conversation_id` into Responses API telemetry spans |
 | Conversation ID (Assistants) | `conversation_id_injection.py` | Injects `gen_ai.conversation_id` into Assistants API telemetry spans |
 | Tool Execution Span | `conversation_id_injection.py` | Adds `gen_ai.conversation_id` to agent-framework tool execution spans |
 
 Patches can be disabled via environment variables:
-- `PATCH_PYDANTIC_SCHEMA=false`
-- `PATCH_DEEPCOPY_RLOCK=false`
 - `PATCH_AGUI_TEXT_MESSAGE_END=false`
 - `PATCH_CONVERSATION_ID_INJECTION=false`
 - `PATCH_ASSISTANTS_CONVERSATION_ID=false`

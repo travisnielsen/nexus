@@ -70,7 +70,7 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.39.0" },
     { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.39.0" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.48b0" },
-    { name = "pydantic", specifier = ">=2.11.3" },
+    { name = "pydantic", specifier = ">=2.12.0" },
     { name = "python-dotenv" },
     { name = "uvicorn", specifier = ">=0.27.0" },
 ]

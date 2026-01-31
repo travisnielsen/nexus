@@ -49,8 +49,6 @@ backend/
 │   └── assistants_api.py   # Assistants API thread middleware
 └── patches/                # Critical workarounds (must import first)
     ├── __init__.py
-    ├── pydantic_schema.py  # Pydantic SchemaError workaround
-    ├── deepcopy_rlock.py   # Azure credential deepcopy fix
     └── agui_event_stream.py # AG-UI event stream fixes
 ```
 
@@ -137,11 +135,7 @@ The `patches/` package applies critical workarounds that must load before other 
 
 | Patch | Purpose |
 |-------|---------|
-| `pydantic_schema.py` | Fixes Azure OpenAI SDK compatibility with pydantic 2.11+ |
-| `deepcopy_rlock.py` | Handles Azure ManagedIdentityCredential deepcopy issues |
 | `agui_event_stream.py` | Buffers orphaned text messages, deduplicates tool calls, syncs context |
 
 Patches can be disabled via environment variables:
-- `PATCH_PYDANTIC_SCHEMA=false`
-- `PATCH_DEEPCOPY_RLOCK=false`
 - `PATCH_AGUI_TEXT_MESSAGE_END=false`

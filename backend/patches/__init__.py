@@ -6,32 +6,23 @@ patches are applied before the affected libraries are loaded.
 
 PATCH CONFIGURATION:
 Patches can be enabled/disabled via environment variables:
-- PATCH_PYDANTIC_SCHEMA=true|false (default: true)
-- PATCH_DEEPCOPY_RLOCK=true|false (default: true)  
 - PATCH_AGUI_TEXT_MESSAGE_END=true|false (default: true)
 - PATCH_CONVERSATION_ID_INJECTION=true|false (default: true)
 - PATCH_TOOL_EXECUTION_SPAN=true|false (default: true)
 - PATCH_ASSISTANTS_CONVERSATION_ID=true|false (default: true)
 
 Available patches:
-1. Pydantic SchemaError fix - patches openai._types.HttpxRequestFiles to avoid
-   a pydantic-core bug with complex union types (pydantic issue #12704)
-   
-2. Deepcopy RLock fix - patches copy.deepcopy to handle Azure ManagedIdentityCredential
-   objects that contain threading RLocks which cannot be pickled/deepcopied
-   (Agent Framework issue #3247)
-
-3. AG-UI Event Stream fix - patches the AG-UI endpoint to handle text message
+1. AG-UI Event Stream fix - patches the AG-UI endpoint to handle text message
    buffering, tool call deduplication, and event stream cleanup
    (Agent Framework AG-UI compatibility with CopilotKit)
 
-4. Conversation ID Injection - patches Responses API instrumentor to inject
+2. Conversation ID Injection - patches Responses API instrumentor to inject
    gen_ai.conversation.id from CopilotKit threadId for Azure Foundry tracing
 
-5. Tool Execution Span - patches agent-framework's get_function_span to add
+3. Tool Execution Span - patches agent-framework's get_function_span to add
    gen_ai.conversation.id to tool execution spans
 
-6. Assistants API Conversation ID - patches Assistants API instrumentor to inject
+4. Assistants API Conversation ID - patches Assistants API instrumentor to inject
    gen_ai.conversation.id from CopilotKit threadId for consistent tracing
 """
 
@@ -78,23 +69,16 @@ def _get_api_type() -> str:
 class PatchConfig:
     """Configuration for which patches to apply."""
     
-    # Patch 1: Pydantic SchemaError - always needed for Azure OpenAI SDK
-    pydantic_schema: bool = True
-    
-    # Patch 2: Deepcopy RLock - disable by default, PR #3413 should fix this
-    # Re-enable with PATCH_DEEPCOPY_RLOCK=true if managed identity issues persist
-    deepcopy_rlock: bool = False
-    
-    # Patch 3: AG-UI Event Stream - needed for both Assistants and Responses API
+    # Patch 1: AG-UI Event Stream - needed for both Assistants and Responses API
     agui_event_stream: bool = True
     
-    # Patch 4: Conversation ID Injection - needed for Azure Foundry tracing
+    # Patch 2: Conversation ID Injection - needed for Azure Foundry tracing
     conversation_id_injection: bool = True
     
-    # Patch 5: Tool Execution Span - adds conversation_id to tool spans
+    # Patch 3: Tool Execution Span - adds conversation_id to tool spans
     tool_execution_span: bool = True
     
-    # Patch 6: Assistants API Conversation ID - adds gen_ai.conversation.id for Assistants API
+    # Patch 4: Assistants API Conversation ID - adds gen_ai.conversation.id for Assistants API
     assistants_conversation_id: bool = True
     
     # Track which patches were applied
@@ -104,8 +88,6 @@ class PatchConfig:
     def from_environment(cls) -> "PatchConfig":
         """Load patch configuration from environment variables."""
         config = cls(
-            pydantic_schema=_env_bool("PATCH_PYDANTIC_SCHEMA", True),
-            deepcopy_rlock=_env_bool("PATCH_DEEPCOPY_RLOCK", True),
             agui_event_stream=_env_bool("PATCH_AGUI_TEXT_MESSAGE_END", True),
             conversation_id_injection=_env_bool("PATCH_CONVERSATION_ID_INJECTION", True),
             tool_execution_span=_env_bool("PATCH_TOOL_EXECUTION_SPAN", True),
@@ -114,8 +96,6 @@ class PatchConfig:
         
         logger.debug(
             f"Patch config: "
-            f"pydantic_schema={config.pydantic_schema}, "
-            f"deepcopy_rlock={config.deepcopy_rlock}, "
             f"agui_event_stream={config.agui_event_stream}, "
             f"conversation_id_injection={config.conversation_id_injection}, "
             f"tool_execution_span={config.tool_execution_span}, "
@@ -147,8 +127,6 @@ def apply_all_patches() -> PatchConfig:
     Returns:
         PatchConfig with `applied` list populated with applied patch names.
     """
-    from .pydantic_schema import apply_pydantic_schema_patch
-    from .deepcopy_rlock import apply_deepcopy_rlock_patch
     from .agui_event_stream import apply_agui_event_stream_patch
     from .conversation_id_injection import (
         apply_conversation_id_injection_patch,
@@ -158,32 +136,22 @@ def apply_all_patches() -> PatchConfig:
     
     config = get_config()
     
-    # Patch 1: Pydantic SchemaError
-    if config.pydantic_schema:
-        if apply_pydantic_schema_patch():
-            config.applied.append("pydantic_schema")
-    
-    # Patch 2: Deepcopy RLock
-    if config.deepcopy_rlock:
-        if apply_deepcopy_rlock_patch():
-            config.applied.append("deepcopy_rlock")
-    
-    # Patch 3: AG-UI Event Stream
+    # Patch 1: AG-UI Event Stream
     if config.agui_event_stream:
         if apply_agui_event_stream_patch():
             config.applied.append("agui_event_stream")
     
-    # Patch 4: Conversation ID Injection for Azure Foundry tracing
+    # Patch 2: Conversation ID Injection for Azure Foundry tracing
     if config.conversation_id_injection:
         if apply_conversation_id_injection_patch():
             config.applied.append("conversation_id_injection")
     
-    # Patch 5: Tool Execution Span - adds conversation_id to tool spans
+    # Patch 3: Tool Execution Span - adds conversation_id to tool spans
     if config.tool_execution_span:
         if apply_tool_execution_span_patch():
             config.applied.append("tool_execution_span")
     
-    # Patch 6: Assistants API Conversation ID - adds gen_ai.conversation.id for Assistants API
+    # Patch 4: Assistants API Conversation ID - adds gen_ai.conversation.id for Assistants API
     if config.assistants_conversation_id:
         if apply_assistants_conversation_id_patch():
             config.applied.append("assistants_conversation_id")
