@@ -12,11 +12,6 @@ from .responses_api import (
     get_thread_response_store,
     get_current_agui_thread_id,
 )
-from .assistants_api import (
-    AssistantsApiThreadMiddleware,
-    get_assistant_thread_store,
-    clear_thread_mapping,
-)
 
 __all__ = [
     # Auth
@@ -29,8 +24,4 @@ __all__ = [
     "ResponsesApiThreadMiddleware",
     "get_thread_response_store",
     "get_current_agui_thread_id",
-    # Assistants API middleware
-    "AssistantsApiThreadMiddleware",
-    "get_assistant_thread_store",
-    "clear_thread_mapping",
 ]

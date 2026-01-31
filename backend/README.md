@@ -28,7 +28,7 @@ FastAPI-based backend for the Enterprise Data Agent. Uses Microsoft Agent Framew
 ```
 backend/
 ├── main.py                 # FastAPI app, REST endpoints, agent setup
-├── clients.py              # Chat client factory (Responses/Assistants API)
+├── clients.py              # Chat client factory (Responses API)
 ├── monitoring.py           # OpenTelemetry observability setup
 ├── pyproject.toml          # Python dependencies (uv)
 ├── agents/
@@ -45,8 +45,7 @@ backend/
 │       └── data_helpers.py         # Shared data access functions
 ├── middleware/
 │   ├── auth.py             # Azure AD authentication
-│   ├── responses_api.py    # Responses API thread middleware
-│   └── assistants_api.py   # Assistants API thread middleware
+│   └── responses_api.py    # Responses API thread middleware
 └── patches/                # Critical workarounds (must import first)
     ├── __init__.py
     └── agui_event_stream.py # AG-UI event stream fixes
@@ -100,7 +99,6 @@ Create a `.env` file:
 # Azure AI / Microsoft Foundry
 AZURE_AI_PROJECT_ENDPOINT=https://...
 AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
-AZURE_AI_API_TYPE=responses  # or "assistants"
 
 # Authentication (optional)
 AZURE_AD_CLIENT_ID=...

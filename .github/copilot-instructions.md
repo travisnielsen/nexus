@@ -51,7 +51,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │
 ├── backend/                # FastAPI + Microsoft Agent Framework
 │   ├── main.py            # FastAPI app, REST endpoints, agent setup
-│   ├── clients.py         # Chat client factory (Responses/Assistants API)
+│   ├── clients.py         # Chat client factory (Responses API)
 │   ├── monitoring.py      # OpenTelemetry observability setup
 │   ├── Dockerfile         # Production Dockerfile (for ACR/Azure deployment)
 │   ├── Dockerfile.local   # Local dev Dockerfile (includes Azure CLI)
@@ -75,8 +75,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   │       └── data_helpers.py    # Shared data access functions
 │   ├── middleware/        # Auth and thread management
 │   │   ├── auth.py        # Azure AD authentication
-│   │   ├── responses_api.py   # Responses API thread middleware
-│   │   └── assistants_api.py  # Assistants API thread middleware
+│   │   └── responses_api.py   # Responses API thread middleware
 │   └── pyproject.toml     # Python dependencies (uv)
 │
 ├── mcp/                    # MCP Server (Model Context Protocol)
@@ -238,7 +237,6 @@ Backend (`.env` in `/backend`):
 ```env
 AZURE_AI_PROJECT_ENDPOINT=https://...
 AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
-AZURE_AI_API_TYPE=responses  # or "assistants"
 AZURE_AD_CLIENT_ID=...
 AZURE_AD_TENANT_ID=...
 AUTH_ENABLED=false  # Development only (default: true)
@@ -437,7 +435,7 @@ VITE_LOG_ANALYTICS_WORKSPACE_ID=... # Log Analytics workspace to query
 2. **A2A is optional** - Recommendations work without the A2A agent (fallback to mock data)
 3. **Patches must load first** - `backend/patches/` package must be imported before other modules
 4. **AG-UI protocol** - Agent communication uses Server-Sent Events (SSE)
-5. **Thread management** - Uses `ResponsesApiThreadMiddleware` or `AssistantsApiThreadMiddleware` based on `AZURE_AI_API_TYPE`. Both use a shared ContextVar to map CopilotKit threadId to Azure thread IDs for telemetry correlation.
+5. **Thread management** - Uses `ResponsesApiThreadMiddleware` with a ContextVar to track CopilotKit threadId for telemetry correlation
 6. **Filter state** - Frontend tracks `activeFilter` locally; synced to backend via `useCopilotReadable` context
 7. **Additive filters** - `filter_flights` merges with existing filters; use `reset_filters` to clear first
 8. **Monitoring** - OpenTelemetry configured in `monitoring.py`; supports Azure Monitor and OTLP exporters
@@ -445,8 +443,8 @@ VITE_LOG_ANALYTICS_WORKSPACE_ID=... # Log Analytics workspace to query
 
 ## Known Issues and Workarounds
 
-### Duplicate Tool Calls (Assistants API)
-Both the Assistants API and Responses API sometimes send duplicate tool calls with different run IDs. The `agui_event_stream` patch suppresses duplicates by tracking tool names within a request.
+### Duplicate Tool Calls
+The Responses API sometimes sends duplicate tool calls with different run IDs. The `agui_event_stream` patch suppresses duplicates by tracking tool names within a request.
 
 ### Clear Button Behavior
 The Clear button (`✕ Clear` in the filter bar) **bypasses the LLM entirely** for reliability:
@@ -527,9 +525,7 @@ CopilotKit generates a UUID `threadId` on the frontend for conversation continui
 1. **Frontend**: CopilotKit generates `threadId` (e.g., `a24ea2c1-fd51-4354-af5e-f5f8ab9e3bcf`)
 2. **AG-UI Protocol**: Sent in SSE request body as `threadId`
 3. **Backend Middleware**: Extracted and stored in shared ContextVar (`_current_agui_thread_id`)
-4. **Azure AI Foundry**:
-   - **Responses API**: Uses CopilotKit threadId directly as `previous_response_id` chain
-   - **Assistants API**: Maps to Azure thread ID (`thread_abc123...`), stores mapping in `_agui_to_azure_thread_map`
+4. **Azure AI Foundry**: Uses CopilotKit threadId as `previous_response_id` chain for conversation continuity
 5. **Telemetry**: CopilotKit threadId injected as `gen_ai.conversation_id` for correlation
 
 ### Telemetry Correlation
@@ -556,11 +552,9 @@ The patches package applies critical workarounds. Each patch is in its own file:
 |-------|------|----------|
 | AG-UI Event Stream | `agui_event_stream.py` | Buffers orphaned text messages, deduplicates tool calls, suppresses MESSAGES_SNAPSHOT, syncs activeFilter context |
 | Conversation ID (Responses) | `conversation_id_injection.py` | Injects `gen_ai.conversation_id` into Responses API telemetry spans |
-| Conversation ID (Assistants) | `conversation_id_injection.py` | Injects `gen_ai.conversation_id` into Assistants API telemetry spans |
 | Tool Execution Span | `conversation_id_injection.py` | Adds `gen_ai.conversation_id` to agent-framework tool execution spans |
 
 Patches can be disabled via environment variables:
 - `PATCH_AGUI_TEXT_MESSAGE_END=false`
 - `PATCH_CONVERSATION_ID_INJECTION=false`
-- `PATCH_ASSISTANTS_CONVERSATION_ID=false`
 - `PATCH_TOOL_EXECUTION_SPAN=false`

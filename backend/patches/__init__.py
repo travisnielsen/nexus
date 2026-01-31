@@ -9,7 +9,6 @@ Patches can be enabled/disabled via environment variables:
 - PATCH_AGUI_TEXT_MESSAGE_END=true|false (default: true)
 - PATCH_CONVERSATION_ID_INJECTION=true|false (default: true)
 - PATCH_TOOL_EXECUTION_SPAN=true|false (default: true)
-- PATCH_ASSISTANTS_CONVERSATION_ID=true|false (default: true)
 
 Available patches:
 1. AG-UI Event Stream fix - patches the AG-UI endpoint to handle text message
@@ -21,9 +20,6 @@ Available patches:
 
 3. Tool Execution Span - patches agent-framework's get_function_span to add
    gen_ai.conversation.id to tool execution spans
-
-4. Assistants API Conversation ID - patches Assistants API instrumentor to inject
-   gen_ai.conversation.id from CopilotKit threadId for consistent tracing
 """
 
 from __future__ import annotations
@@ -49,27 +45,11 @@ def _env_bool(key: str, default: bool) -> bool:
     return default
 
 
-def _get_api_type() -> str:
-    """Detect or get the configured API type."""
-    # First check explicit environment variable
-    api_type = os.getenv("AZURE_AI_API_TYPE", "").lower()
-    if api_type in ("assistants", "responses"):
-        return api_type
-    
-    # Try to auto-detect from other environment variables
-    # If agent ID is set, it's likely Assistants API
-    if os.getenv("AZURE_AI_AGENT_ID"):
-        return "assistants"
-    
-    # Default to assistants since that's what we're testing
-    return "assistants"
-
-
 @dataclass
 class PatchConfig:
     """Configuration for which patches to apply."""
     
-    # Patch 1: AG-UI Event Stream - needed for both Assistants and Responses API
+    # Patch 1: AG-UI Event Stream - needed for CopilotKit compatibility
     agui_event_stream: bool = True
     
     # Patch 2: Conversation ID Injection - needed for Azure Foundry tracing
@@ -77,9 +57,6 @@ class PatchConfig:
     
     # Patch 3: Tool Execution Span - adds conversation_id to tool spans
     tool_execution_span: bool = True
-    
-    # Patch 4: Assistants API Conversation ID - adds gen_ai.conversation.id for Assistants API
-    assistants_conversation_id: bool = True
     
     # Track which patches were applied
     applied: list[str] = field(default_factory=list)
@@ -91,15 +68,13 @@ class PatchConfig:
             agui_event_stream=_env_bool("PATCH_AGUI_TEXT_MESSAGE_END", True),
             conversation_id_injection=_env_bool("PATCH_CONVERSATION_ID_INJECTION", True),
             tool_execution_span=_env_bool("PATCH_TOOL_EXECUTION_SPAN", True),
-            assistants_conversation_id=_env_bool("PATCH_ASSISTANTS_CONVERSATION_ID", True),
         )
         
         logger.debug(
             f"Patch config: "
             f"agui_event_stream={config.agui_event_stream}, "
             f"conversation_id_injection={config.conversation_id_injection}, "
-            f"tool_execution_span={config.tool_execution_span}, "
-            f"assistants_conversation_id={config.assistants_conversation_id}"
+            f"tool_execution_span={config.tool_execution_span}"
         )
         
         return config
@@ -131,7 +106,6 @@ def apply_all_patches() -> PatchConfig:
     from .conversation_id_injection import (
         apply_conversation_id_injection_patch,
         apply_tool_execution_span_patch,
-        apply_assistants_conversation_id_patch,
     )
     
     config = get_config()
@@ -150,11 +124,6 @@ def apply_all_patches() -> PatchConfig:
     if config.tool_execution_span:
         if apply_tool_execution_span_patch():
             config.applied.append("tool_execution_span")
-    
-    # Patch 4: Assistants API Conversation ID - adds gen_ai.conversation.id for Assistants API
-    if config.assistants_conversation_id:
-        if apply_assistants_conversation_id_patch():
-            config.applied.append("assistants_conversation_id")
     
     if config.applied:
         logger.info(f"Applied patches: {config.applied}")

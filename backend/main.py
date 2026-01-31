@@ -22,11 +22,9 @@ from pydantic import BaseModel
 
 from fastapi.middleware.cors import CORSMiddleware
 from agents import create_logistics_agent  # type: ignore
-from clients import get_api_type  # type: ignore
 from agent_framework._clients import ChatClientProtocol
 from middleware import (  # type: ignore
     ResponsesApiThreadMiddleware,
-    AssistantsApiThreadMiddleware,
     azure_scheme,
     azure_ad_settings,
     AzureADAuthMiddleware,
@@ -66,28 +64,22 @@ configure_observability()
 # These will be initialized in the lifespan handler
 chat_client: ChatClientProtocol = None  # type: ignore
 logistics_agent = None  # type: ignore
-api_type: str = ""
 
 
 async def _init_chat_client():
     """Initialize chat client and agent asynchronously.
     
-    This is called during application startup to allow async lookup
-    of existing agents in Azure AI Foundry.
+    This is called during application startup.
     """
-    global chat_client, logistics_agent, api_type
+    global chat_client, logistics_agent
     
-    # Use async builder to look up existing agents
-    from clients import build_chat_client_async  # type: ignore
-    chat_client, api_type = await build_chat_client_async()
+    # Build the Responses API client
+    from clients import build_responses_client  # type: ignore
+    chat_client = build_responses_client()
     
-    # Add the appropriate middleware based on API type
-    if api_type == "assistants":
-        logger.info("Using Assistants API with AssistantsApiThreadMiddleware")
-        chat_client.middleware = [AssistantsApiThreadMiddleware()]
-    else:
-        logger.info("Using Responses API with ResponsesApiThreadMiddleware")
-        chat_client.middleware = [ResponsesApiThreadMiddleware()]
+    # Add the Responses API middleware
+    logger.info("Using Responses API with ResponsesApiThreadMiddleware")
+    chat_client.middleware = [ResponsesApiThreadMiddleware()]
     
     logistics_agent = create_logistics_agent(chat_client)
 
