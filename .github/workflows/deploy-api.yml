@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'backend/**'
+      - 'backend/api/**'
   workflow_dispatch:
 
 env:
@@ -41,8 +41,8 @@ jobs:
               --registry ${{ env.REGISTRY }} \
               --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
               --image ${{ env.IMAGE_NAME }}:latest \
-              --file ./backend/Dockerfile \
-              ./backend
+              --file ./backend/api/Dockerfile \
+              ./backend/api
 
       - name: Deploy to Azure Container Apps
         uses: azure/cli@v2

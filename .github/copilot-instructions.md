@@ -49,47 +49,48 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   │   └── lib/           # Types, hooks, utilities
 │   └── package.json
 │
-├── backend/                # FastAPI + Microsoft Agent Framework
-│   ├── main.py            # FastAPI app, REST endpoints, agent setup
-│   ├── clients.py         # Chat client factory (Responses API)
-│   ├── monitoring.py      # OpenTelemetry observability setup
-│   ├── Dockerfile         # Production Dockerfile (for ACR/Azure deployment)
-│   ├── Dockerfile.local   # Local dev Dockerfile (includes Azure CLI)
-│   ├── patches/           # Critical workarounds (must import first)
-│   │   ├── __init__.py        # Patch config and apply_all_patches()
-│   │   ├── agui_event_stream.py # AG-UI event stream fixes
-│   │   └── conversation_id_injection.py # Telemetry conversation ID patches
-│   ├── agents/
-│   │   ├── logistics_agent.py  # Agent configuration and state schema
-│   │   ├── prompts/       # System prompt templates
-│   │   │   └── logistics_agent.md  # Agent system prompt (loaded at runtime)
-│   │   ├── tools/         # Agent tool implementations (LLM-callable)
-│   │   │   ├── __init__.py
-│   │   │   ├── filter_tools.py        # Dashboard filter tools (filter_flights, reset_filters)
-│   │   │   ├── analysis_tools.py      # Flight analysis tools (analyze_flights)
-│   │   │   ├── chart_tools.py         # Historical/predicted data tools
-│   │   │   └── recommendation_tools.py # A2A recommendations tool (get_recommendations)
-│   │   └── utils/         # Utility modules (not LLM-callable)
-│   │       ├── __init__.py
-│   │       ├── mcp_client.py      # HTTP client for MCP server
-│   │       └── data_helpers.py    # Shared data access functions
-│   ├── middleware/        # Auth and thread management
-│   │   ├── auth.py        # Azure AD authentication
-│   │   └── responses_api.py   # Responses API thread middleware
-│   └── pyproject.toml     # Python dependencies (uv)
-│
-├── mcp/                    # MCP Server (Model Context Protocol)
-│   ├── main.py            # Starlette app with DuckDB + SSE transport
-│   ├── auth.py            # Entra ID authentication for MCP
-│   ├── data/              # Flight data JSON files (source of truth)
-│   │   ├── flights.json   # Flight and historical data
-│   │   ├── oneview.json   # OneView integration data
-│   │   └── utilization.json # Utilization schema
-│   └── pyproject.toml
-│
-├── agent-a2a/             # A2A Recommendations Agent
-│   ├── main.py            # A2A FastAPI application
-│   └── pyproject.toml
+├── backend/                # All backend services
+│   ├── api/               # FastAPI + Microsoft Agent Framework (main API)
+│   │   ├── main.py            # FastAPI app, REST endpoints, agent setup
+│   │   ├── clients.py         # Chat client factory (Responses API)
+│   │   ├── monitoring.py      # OpenTelemetry observability setup
+│   │   ├── Dockerfile         # Production Dockerfile (for ACR/Azure deployment)
+│   │   ├── Dockerfile.local   # Local dev Dockerfile (includes Azure CLI)
+│   │   ├── patches/           # Critical workarounds (must import first)
+│   │   │   ├── __init__.py        # Patch config and apply_all_patches()
+│   │   │   ├── agui_event_stream.py # AG-UI event stream fixes
+│   │   │   └── conversation_id_injection.py # Telemetry conversation ID patches
+│   │   ├── agents/
+│   │   │   ├── logistics_agent.py  # Agent configuration and state schema
+│   │   │   ├── prompts/       # System prompt templates
+│   │   │   │   └── logistics_agent.md  # Agent system prompt (loaded at runtime)
+│   │   │   ├── tools/         # Agent tool implementations (LLM-callable)
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── filter_tools.py        # Dashboard filter tools (filter_flights, reset_filters)
+│   │   │   │   ├── analysis_tools.py      # Flight analysis tools (analyze_flights)
+│   │   │   │   ├── chart_tools.py         # Historical/predicted data tools
+│   │   │   │   └── recommendation_tools.py # A2A recommendations tool (get_recommendations)
+│   │   │   └── utils/         # Utility modules (not LLM-callable)
+│   │   │       ├── __init__.py
+│   │   │       ├── mcp_client.py      # HTTP client for MCP server
+│   │   │       └── data_helpers.py    # Shared data access functions
+│   │   ├── middleware/        # Auth and thread management
+│   │   │   ├── auth.py        # Azure AD authentication
+│   │   │   └── responses_api.py   # Responses API thread middleware
+│   │   └── pyproject.toml     # Python dependencies (uv)
+│   │
+│   ├── mcp/                # MCP Server (Model Context Protocol)
+│   │   ├── main.py            # Starlette app with DuckDB + SSE transport
+│   │   ├── auth.py            # Entra ID authentication for MCP
+│   │   ├── data/              # Flight data JSON files (source of truth)
+│   │   │   ├── flights.json   # Flight and historical data
+│   │   │   ├── oneview.json   # OneView integration data
+│   │   │   └── utilization.json # Utilization schema
+│   │   └── pyproject.toml
+│   │
+│   └── agent-a2a/          # A2A Recommendations Agent
+│       ├── main.py            # A2A FastAPI application
+│       └── pyproject.toml
 │
 ├── monitoring/             # Observability and tracing tools
 │   ├── azure-dashboard/   # Vite + React app for viewing App Insights traces
@@ -109,7 +110,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │
 ├── .github/
 │   ├── workflows/         # GitHub Actions CI/CD
-│   │   ├── deploy-api.yml      # Deploy backend to Container Apps
+│   │   ├── deploy-api.yml      # Deploy backend API to Container Apps
 │   │   ├── deploy-frontend.yml # Deploy Next.js frontend to Container Apps
 │   │   ├── deploy-mcp.yml      # Deploy MCP server to Container Apps
 │   │   └── deploy-dashboard.yml # Deploy azure-dashboard to Storage static website
@@ -154,7 +155,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 
 ### Agent Tools
 
-Agent tools are defined in `backend/agents/tools/`. Each tool:
+Agent tools are defined in `backend/api/agents/tools/`. Each tool:
 1. Uses the `@ai_function` decorator from MAF with `name` and `description`
 2. Uses `Annotated` type hints with `Field` for parameter descriptions
 3. Returns structured dict data for UI state updates
@@ -170,7 +171,7 @@ Current tools in `logistics_agent.py`:
 | `get_historical_payload` | Get historical payload data for charts |
 | `get_predicted_payload` | Get predicted payload data for charts |
 
-**System Prompt**: Loaded from `backend/agents/prompts/logistics_agent.md` at runtime.
+**System Prompt**: Loaded from `backend/api/agents/prompts/logistics_agent.md` at runtime.
 
 Example tool pattern:
 ```python
@@ -201,9 +202,9 @@ The frontend maintains local display state and syncs filter context to the backe
 ### Data Access
 
 All flight data flows through the MCP server (source of truth):
-1. **MCP Server** (`mcp/`) - Hosts all data with DuckDB for SQL queries
-2. **MCP Client** (`backend/agents/utils/mcp_client.py`) - HTTP client using `httpx`
-3. **Data Helpers** (`backend/agents/utils/data_helpers.py`) - Shared data access for agent tools
+1. **MCP Server** (`backend/mcp/`) - Hosts all data with DuckDB for SQL queries
+2. **MCP Client** (`backend/api/agents/utils/mcp_client.py`) - HTTP client using `httpx`
+3. **Data Helpers** (`backend/api/agents/utils/data_helpers.py`) - Shared data access for agent tools
 4. **Backend REST API** - Proxies MCP data to frontend
 
 The MCP server provides:
@@ -228,12 +229,12 @@ Filters use an additive pattern with context synchronization:
 Authentication uses Azure AD (Entra ID):
 - Frontend: MSAL React with `@azure/msal-browser`
 - Backend: `fastapi-azure-auth` middleware
-- MCP: Optional Entra ID auth via `mcp/auth.py`
+- MCP: Optional Entra ID auth via `backend/mcp/auth.py`
 - Can be disabled with `AUTH_ENABLED=false` for development
 
 ### Environment Variables
 
-Backend (`.env` in `/backend`):
+Backend API (`.env` in `/backend/api`):
 ```env
 AZURE_AI_PROJECT_ENDPOINT=https://...
 AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
@@ -262,14 +263,14 @@ NEXT_PUBLIC_AUTH_ENABLED=false  # Development only (default: true)
 
 ### Adding a New Agent Tool
 
-1. Create or update a file in `backend/agents/tools/` (naming convention: `*_tools.py`)
+1. Create or update a file in `backend/api/agents/tools/` (naming convention: `*_tools.py`)
 2. Define the tool function with `@ai_function` decorator (with `name` and `description`)
 3. Use `Annotated[type, Field(description="...")]` for parameters
-4. Export from `backend/agents/tools/__init__.py`
-5. Import in `backend/agents/logistics_agent.py`
+4. Export from `backend/api/agents/tools/__init__.py`
+5. Import in `backend/api/agents/logistics_agent.py`
 6. Add to the agent's tool list in `create_logistics_agent()`
 
-**Note**: Utility functions that are NOT LLM-callable should go in `backend/agents/utils/` instead.
+**Note**: Utility functions that are NOT LLM-callable should go in `backend/api/agents/utils/` instead.
 
 ### Adding a New Frontend Action
 
@@ -303,8 +304,8 @@ docker compose up --build
 
 # Or start individually:
 # Frontend: cd frontend && npm run dev
-# Backend: cd backend && uv run uvicorn main:app --port 8000 --reload
-# MCP: cd mcp && uv run uvicorn main:app --port 8001 --reload
+# Backend API: cd backend/api && uv run uvicorn main:app --port 8000 --reload
+# MCP: cd backend/mcp && uv run uvicorn main:app --port 8001 --reload
 ```
 
 ### Docker Development
@@ -369,9 +370,9 @@ Four workflows handle CI/CD deployment to Azure:
 
 | Workflow | Trigger Path | Deploys To |
 |----------|--------------|------------|
-| `deploy-api.yml` | `backend/**` | Container App (API) |
+| `deploy-api.yml` | `backend/api/**` | Container App (API) |
 | `deploy-frontend.yml` | `frontend/**` | Container App (Frontend) |
-| `deploy-mcp.yml` | `mcp/**` | Container App (MCP) |
+| `deploy-mcp.yml` | `backend/mcp/**` | Container App (MCP) |
 | `deploy-dashboard.yml` | `monitoring/azure-dashboard/**` | Storage static website |
 
 ### Required GitHub Variables
@@ -433,13 +434,13 @@ VITE_LOG_ANALYTICS_WORKSPACE_ID=... # Log Analytics workspace to query
 
 1. **MCP is required** - The backend requires the MCP server to be running for flight data
 2. **A2A is optional** - Recommendations work without the A2A agent (fallback to mock data)
-3. **Patches must load first** - `backend/patches/` package must be imported before other modules
+3. **Patches must load first** - `backend/api/patches/` package must be imported before other modules
 4. **AG-UI protocol** - Agent communication uses Server-Sent Events (SSE)
 5. **Thread management** - Uses `ResponsesApiThreadMiddleware` with a ContextVar to track CopilotKit threadId for telemetry correlation
 6. **Filter state** - Frontend tracks `activeFilter` locally; synced to backend via `useCopilotReadable` context
 7. **Additive filters** - `filter_flights` merges with existing filters; use `reset_filters` to clear first
 8. **Monitoring** - OpenTelemetry configured in `monitoring.py`; supports Azure Monitor and OTLP exporters
-9. **System prompts** - Agent instructions stored in `backend/agents/prompts/` as markdown files for easy editing
+9. **System prompts** - Agent instructions stored in `backend/api/agents/prompts/` as markdown files for easy editing
 
 ## Known Issues and Workarounds
 
@@ -459,7 +460,7 @@ If a user interacts with the UI (e.g., clicks Clear) while the agent is streamin
 
 ## Monitoring and Observability
 
-The backend uses OpenTelemetry for distributed tracing, configured in `backend/monitoring.py`.
+The backend uses OpenTelemetry for distributed tracing, configured in `backend/api/monitoring.py`.
 
 ### Configuration
 
@@ -545,7 +546,7 @@ dependencies
 
 **Note**: Each HTTP POST to `/logistics` creates a new `operation_Id` (trace). Use `gen_ai.conversation_id` to correlate all requests in a conversation.
 
-### Patches Package (`backend/patches/`)
+### Patches Package (`backend/api/patches/`)
 The patches package applies critical workarounds. Each patch is in its own file:
 
 | Patch | File | Purpose |

@@ -14,13 +14,13 @@ services:
   # MCP Server - Flight data API with DuckDB
   mcp:
     build:
-      context: ./mcp
+      context: ./backend/mcp
       dockerfile: Dockerfile
     container_name: nexus-mcp
     ports:
       - "8001:8001"
     env_file:
-      - ./mcp/.env
+      - ./backend/mcp/.env
     environment:
       # Override for Docker
       - MCP_HOST=0.0.0.0
@@ -38,13 +38,13 @@ services:
   # A2A Recommendations Agent
   agent-a2a:
     build:
-      context: ./agent-a2a
+      context: ./backend/agent-a2a
       dockerfile: Dockerfile
     container_name: nexus-a2a
     ports:
       - "5002:5002"
     env_file:
-      - ./agent-a2a/.env
+      - ./backend/agent-a2a/.env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
       interval: 30s
@@ -57,7 +57,7 @@ services:
   # Backend API - FastAPI + Agent Framework
   backend:
     build:
-      context: ./backend
+      context: ./backend/api
       dockerfile: Dockerfile.local
     container_name: nexus-backend
     ports:
@@ -67,8 +67,8 @@ services:
       # Note: Not read-only because Azure CLI needs to write session files (az.sess)
       - ${HOME}/.azure:/root/.azure
     env_file:
-      # Load environment from backend/.env (Azure AI, auth, telemetry settings)
-      - ./backend/.env
+      # Load environment from backend/api/.env (Azure AI, auth, telemetry settings)
+      - ./backend/api/.env
     environment:
       # Override service URLs to use Docker service names
       - MCP_SERVER_URL=http://mcp:8001

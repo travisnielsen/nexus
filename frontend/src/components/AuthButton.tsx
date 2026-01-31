@@ -1,6 +1,7 @@
 "use client";
 
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
+import { InteractionStatus } from "@azure/msal-browser";
 import { loginRequest } from "@/lib/msalConfig";
 
 /**
@@ -8,10 +9,16 @@ import { loginRequest } from "@/lib/msalConfig";
  * Must only be rendered when MsalProvider is present.
  */
 function AuthButtonWithMsal() {
-  const { instance, accounts } = useMsal();
+  const { instance, accounts, inProgress } = useMsal();
   const isAuthenticated = useIsAuthenticated();
 
   const handleSignIn = async () => {
+    // Prevent multiple concurrent login attempts
+    if (inProgress !== InteractionStatus.None) {
+      console.log("Login already in progress, skipping...");
+      return;
+    }
+    
     try {
       await instance.loginPopup(loginRequest);
     } catch (error) {
@@ -20,6 +27,12 @@ function AuthButtonWithMsal() {
   };
 
   const handleSignOut = async () => {
+    // Prevent logout if another interaction is in progress
+    if (inProgress !== InteractionStatus.None) {
+      console.log("Interaction in progress, skipping logout...");
+      return;
+    }
+    
     try {
       await instance.logoutPopup({
         postLogoutRedirectUri: window.location.origin,
@@ -33,11 +46,13 @@ function AuthButtonWithMsal() {
   if (isAuthenticated && accounts.length > 0) {
     const account = accounts[0];
     const displayName = account.name || account.username || "User";
+    const isInteracting = inProgress !== InteractionStatus.None;
 
     return (
       <button
         onClick={handleSignOut}
-        className="text-gray-300 hover:text-white transition-colors flex items-center gap-2"
+        disabled={isInteracting}
+        className={`text-gray-300 hover:text-white transition-colors flex items-center gap-2 ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         <span className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-medium">
           {displayName.charAt(0).toUpperCase()}
@@ -47,12 +62,15 @@ function AuthButtonWithMsal() {
     );
   }
 
+  const isInteracting = inProgress !== InteractionStatus.None;
+  
   return (
     <button
       onClick={handleSignIn}
-      className="text-gray-300 hover:text-white transition-colors"
+      disabled={isInteracting}
+      className={`text-gray-300 hover:text-white transition-colors ${isInteracting ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
-      Sign In
+      {isInteracting ? "Signing in..." : "Sign In"}
     </button>
   );
 }

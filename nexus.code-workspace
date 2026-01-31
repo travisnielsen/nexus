@@ -1,9 +1,9 @@
 {
     "folders": [
         { "path": ".", "name": "root" },
-        { "path": "backend", "name": "backend" },
-        { "path": "mcp", "name": "mcp" },
-        { "path": "agent-a2a", "name": "agent-a2a" },
+        { "path": "backend/api", "name": "backend-api" },
+        { "path": "backend/mcp", "name": "backend-mcp" },
+        { "path": "backend/agent-a2a", "name": "backend-a2a" },
         { "path": "frontend", "name": "frontend" }
     ],
     "settings": {

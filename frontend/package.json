@@ -3,40 +3,45 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:ui\" \"npm run dev:agent\" --names ui,agent --prefix-colors blue,green --kill-others",
+    "dev": "concurrently \"npm run dev:ui\" \"npm run dev:mcp\" \"npm run dev:a2a\" \"sleep 2 && npm run dev:api\" --names ui,mcp,a2a,api --prefix-colors blue,yellow,magenta,green --kill-others",
     "dev:debug": "LOG_LEVEL=debug npm run dev",
-    "dev:agent": "../scripts/run-agent.sh || ../scripts/run-agent.bat",
+    "dev:mcp": "cd ../backend/mcp && uv run uvicorn main:rest_app --host 0.0.0.0 --port 8001 --reload",
+    "dev:a2a": "cd ../backend/agent-a2a && uv run uvicorn main:app --host 0.0.0.0 --port 5002 --reload",
+    "dev:api": "cd ../backend/api && uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
+    "dev:backend": "concurrently \"npm run dev:mcp\" \"npm run dev:a2a\" \"sleep 2 && npm run dev:api\" --names mcp,a2a,api --prefix-colors yellow,magenta,green --kill-others",
     "dev:ui": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "install:agent": "../scripts/setup-agent.sh || ../scripts/setup-agent.bat",
-    "postinstall": "npm run install:agent"
+    "install:backend": "../scripts/setup-backend.sh || powershell -ExecutionPolicy Bypass -File ../scripts/setup-backend.ps1",
+    "postinstall": "npm run install:backend"
   },
   "dependencies": {
-    "@ag-ui/client": "^0.0.42",
-    "@azure/msal-browser": "^4.27.0",
-    "@azure/msal-react": "^3.0.23",
+    "@azure/msal-browser": "^5.1.0",
+    "@azure/msal-react": "^5.0.3",
     "@copilotkit/react-core": "^1.51.2",
     "@copilotkit/react-ui": "^1.51.2",
-    "@copilotkit/runtime": "^1.51.2",
+    "@copilotkit/runtime": "^1.51.3",
     "@microsoft/applicationinsights-react-js": "^19.3.8",
     "@microsoft/applicationinsights-web": "^3.3.11",
-    "next": "16.0.8",
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "zod": "^3.24.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
+    "@types/node": "^25.1.0",
+    "@types/react": "^19.2.10",
     "@types/react-dom": "^19",
     "concurrently": "^9.1.2",
     "eslint": "^9",
-    "eslint-config-next": "16.0.8",
+    "eslint-config-next": "^16.1.6",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@ag-ui/client": "0.0.42"
   }
 }

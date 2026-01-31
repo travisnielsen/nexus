@@ -1,301 +1,160 @@
-# Enterprise Data Agent
+# Nexus: Conversational Analytics Dashboard
 
-This is an agent-assited dashboard. It leverages [Microsoft Agent Framework](https://aka.ms/agent-framework) (MAF) as an agent orchestrator and [CopilotKit](https://www.copilotkit.ai/) for the core user experience. These two pieces work together using the MAF implementation of the AG-UI protocol in the [agent-framework-ag-ui](https://pypi.org/project/agent-framework-ag-ui/) package. The code used in this sample was originated from [this template](https://github.com/CopilotKit/with-microsoft-agent-framework-python) created by the CopilotKit team.
+An AI-powered logistics dashboard that combines conversational interfaces with real-time data visualization. Built with [Microsoft Agent Framework](https://aka.ms/agent-framework) for agent orchestration and [CopilotKit](https://www.copilotkit.ai/) for the conversational UI, connected via the [AG-UI protocol](https://pypi.org/project/agent-framework-ag-ui/).
 
-## Prerequisites
+![Demo](media/images/demo.gif)
 
-- Azure OpenAI credentials (for the Microsoft Agent Framework agent)
-- Python 3.12+
-- uv
-- Node.js 20+ 
-- Any of the following package managers:
-  - pnpm (recommended)
-  - npm
-  - yarn
-  - bun
+## Repository Structure
 
-It is assumed you have administrative permissions to an Azure subscription as well as the ability to register applications in Entra ID.
+| Directory | Description |
+|-----------|-------------|
+| [`backend/api`](backend/api/) | FastAPI + Microsoft Agent Framework (MAF) backend. Hosts the logistics agent, REST endpoints, and AG-UI SSE stream for CopilotKit communication. |
+| [`backend/mcp`](backend/mcp/) | MCP (Model Context Protocol) server. Provides flight data via DuckDB with both REST API and MCP protocol endpoints for AI agents. |
+| [`backend/agent-a2a`](backend/agent-a2a/) | A2A (Agent-to-Agent) recommendations agent. Provides logistics recommendations when called by the main agent. |
+| [`frontend`](frontend/) | Next.js 16 + React 19 dashboard with CopilotKit integration. Provides the conversational UI and data visualization. |
+| [`infra`](infra/) | Terraform infrastructure-as-code for Azure deployment. Provisions Container Apps, AI Foundry, and supporting resources. |
+| [`monitoring`](monitoring/) | Observability tools including an Azure dashboard for Application Insights traces and a local OpenTelemetry stack (Grafana Tempo). |
+| [`scripts`](scripts/) | Setup and utility scripts for app registration, environment configuration, and local development. |
 
-## Getting Started
+## Architecture
 
-### Deploy Azure Infrastructure
-
-Coming soon
-
-### Install dependencies
-
-Install dependencies using your preferred package manager:
-
-   ```bash
-   # Using pnpm (recommended)
-   pnpm install
-
-   # Using npm
-   npm install
-
-   # Using yarn
-   yarn install
-
-   # Using bun
-   bun install
-   ```
-
-   > **Note:** This automatically sets up the Python environment as well. If you have manual issues, you can run: `npm run install:agent`
-
-### Register an App ID in Entra ID
-
-This repo supports user-level authentication to the agent API, which supports enterprise security as well as documenting user feedback. The application can be created using: [create-chat-app.ps1](scripts/create-chat-app.ps1). Be sure to sign-into your Entra ID tenant using `az login` first.
-
-### Set environment variables
-
-Using the output from the application enrollment script, set up your agent credentials. The backend automatically uses Azure when the Azure env vars below are present. Create an `.env` file inside the `agent` folder with one of the following configurations:
-  
-   ```env
-   # Microsoft Foundry settings
-   AZURE_OPENAI_ENDPOINT=https://[your-resource].services.ai.azure.com/
-   AZURE_OPENAI_PROJECT_ENDPOINT=https://[your-resource].services.ai.azure.com/api/projects/[your-project]
-   AZURE_OPENAI_CHAT_DEPLOYMENT_NAME=gpt-4o
-
-   # Entra ID Authentication
-   AZURE_AD_CLIENT_ID=[your-app-id]
-   AZURE_AD_TENANT_ID=[your-tenant-id]
-   ```
-
-> [!IMPORTANT]
-> The Entra ID section is optional. When the two environment variables are set, the API will require a valid token issued by the source tenant with the correct target scope. If you don't require user-level authorization to the API, you can delete this section.
- 
-Next, create a new `.env.local` file within the `frontend` directory and populate the values. You can use the [.env.example](frontend/.env.example) as a reference.
-
-   ```env
-   NEXT_PUBLIC_AZURE_AD_CLIENT_ID=your-client-id-here
-   NEXT_PUBLIC_AZURE_AD_TENANT_ID=your-tenant-id-here
-   ```
-
-### Disabling Authentication (Development Only)
-
-For local development or testing purposes, you can disable authentication entirely by setting the `AUTH_ENABLED` environment variable to `false` on both the API and frontend.
-
-**API (.env file in the `backend` folder):**
-   ```env
-   AUTH_ENABLED=false
-   ```
-
-**Frontend (.env.local file in the `frontend` folder):**
-   ```env
-   NEXT_PUBLIC_AUTH_ENABLED=false
-   ```
-
-> [!WARNING]
-> Do NOT use `AUTH_ENABLED=false` in production environments. This setting allows anonymous access to the API without any authentication or authorization checks.
-
-### Start the development server
-
-The following commands can be used to start the enviroment locally:
-
-   ```bash
-   # Using pnpm
-   pnpm dev
-
-   # Using npm
-   npm run dev
-
-   # Using yarn
-   yarn dev
-
-   # Using bun
-   bun run dev
-   ```
-
-   This will start both the UI and the Microsoft Agent Framework server concurrently.
-
-## Available Scripts
-
-The following scripts can also be run using your preferred package manager:
-
-- `dev` – Starts both UI and agent servers in development mode
-- `dev:debug` – Starts development servers with debug logging enabled
-- `dev:ui` – Starts only the Next.js UI server
-- `dev:agent` – Starts only the Microsoft Agent Framework server
-- `build` – Builds the Next.js application for production
-- `start` – Starts the production server
-- `lint` – Runs ESLint for code linting
-- `install:agent` – Installs Python dependencies for the agent
-
-## AG-UI and CopilotKit Features
-
-This application demonstrates several key features from the [AG-UI protocol](https://docs.ag-ui.com/) and [CopilotKit](https://docs.copilotkit.ai/):
-
-| Feature | Used? | Details |
-|---------|-------|---------|
-| **Agentic Chat** | ✅ Yes | `useCopilotAction` with handlers like `reload_all_flights`, `fetch_flight_details` that the LLM calls to execute frontend logic |
-| **Backend Tool Rendering** | ✅ Yes | `useRenderToolCall` renders progress UI in the chat for backend tools (`filter_flights`, `analyze_flights`, `reset_filters`, `get_recommendations`, etc.) |
-| **Human in the Loop** | ⚠️ Partial | `HumanInTheLoopOrchestrator` is in the orchestrator chain but no tools currently require approval |
-| **Agentic Generative UI** | ❌ No | No long-running background tasks with streaming UI updates |
-| **Tool-based Generative UI** | ⚠️ Partial | `useCopilotAction` with `render` exists for `display_flights`, `display_flight_details`, `display_historical_data` but actions are disabled with minimal output |
-| **Shared State** | ⚠️ Partial | `useCoAgent` declares shared state but frontend uses local state + REST API instead |
-| **Predictive State Updates** | ❌ No | Not used - frontend fetches data via REST API when tools complete |
-
-### Feature Examples
-
-#### Agentic Chat (Frontend Actions)
-
-Frontend actions allow the LLM to invoke client-side handlers:
-
-```tsx
-useCopilotAction({
-  name: "reload_all_flights",
-  description: "Clear all filters and load ALL flights into dashboard.",
-  parameters: [{ name: "count", type: "number", required: false }],
-  handler: async ({ count }) => {
-    const flights = await refetchFlights({ limit: count || 100 });
-    setDisplayFlights(flights);
-    return `Dashboard now shows ${flights.length} flights.`;
-  },
-});
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Frontend (Next.js)                         │
+│                   CopilotKit React Components                        │
+│                         Port: 3000                                   │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │ AG-UI Protocol (SSE)
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Backend API (FastAPI + MAF)                     │
+│                   Logistics Agent + Tools                            │
+│                         Port: 8000                                   │
+└────────────────────────────────┬───────────────────────────────────┘
+                                 │ HTTP (REST)
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                        MCP Server (Starlette)                        │
+│                   Flight Data (DuckDB + REST)                        │
+│                         Port: 8001                                   │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Backend Tool Rendering
+## Documentation
 
-Render custom UI in the chat when backend tools execute:
+- **[Getting Started](media/docs/getting-started.md)** - Prerequisites, installation, configuration, and running the application locally
+- **[AG-UI and CopilotKit Features](media/docs/ag-ui-features.md)** - Overview of AG-UI protocol features demonstrated in this application
 
-```tsx
-useRenderToolCall({
-  name: "filter_flights",
-  render: ({ args, status }) => (
-    <div className="flex items-center gap-2 text-sm">
-      {status !== 'complete' ? (
-        <span>🔄 Fetching flights...</span>
-      ) : (
-        <span>✅ Loaded flights</span>
-      )}
-    </div>
-  ),
-});
+## Quickstart
+
+### 1. Deploy Azure Infrastructure
+
+The backend requires Azure AI Foundry for LLM access. Follow the steps in [infra/README.md](infra/README.md) to:
+
+1. Create Azure AD App Registrations for authentication
+2. Configure Terraform variables
+3. Deploy Azure resources (Container Apps, AI Foundry, Application Insights)
+
+> **Note**: For local development, you can set `auth_enabled = false` to skip authentication setup.
+
+### 2. Create Environment Files
+
+Create `.env` files for each module using the values from your Azure deployment:
+
+**backend/api/.env**
+```env
+# Azure AI Configuration (required)
+AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
+AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
+
+# Authentication (optional for local dev)
+AZURE_AD_CLIENT_ID=<frontend-app-registration-client-id>
+AZURE_AD_TENANT_ID=<your-tenant-id>
+AUTH_ENABLED=false
+
+# Service URLs
+MCP_SERVER_URL=http://localhost:8001
+RECOMMENDATIONS_AGENT_URL=http://localhost:5002
+
+# Telemetry (optional)
+ENABLE_INSTRUMENTATION=true
+APPLICATIONINSIGHTS_CONNECTION_STRING=<from-terraform-output>
 ```
 
-#### Shared State
-
-Bidirectional state sync between React and the Python agent:
-
-```tsx
-const { state, setState } = useCoAgent<LogisticsAgentState>({
-  name: "logistics_agent",
-  initialState: initialLogisticsState,
-});
-
-// React to tool completion via useRenderToolCall (not state sync)
-useRenderToolCall({
-  name: "filter_flights",
-  render: ({ status }) => {
-    if (status === 'complete') {
-      refetchFlights(mergedFilter);  // Fetch via REST API
-    }
-  },
-});
+**backend/mcp/.env**
+```env
+AUTH_ENABLED=false
 ```
 
-#### Backend Tools
-
-Python tools the LLM can invoke via the agent:
-
-```python
-@ai_function(
-    name="filter_flights",
-    description="Filter flights in the dashboard.",
-)
-def filter_flights(
-    route_from: Annotated[str | None, Field(description="Origin airport code")] = None,
-    route_to: Annotated[str | None, Field(description="Destination airport code")] = None,
-) -> dict:
-    return {"message": "Loading flights...", "activeFilter": {...}}
+**backend/agent-a2a/.env**
+```env
+# Azure AI Configuration (required)
+AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
+AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
 ```
 
-## Docker
+**frontend/.env.local**
+```env
+# API URL
+AGENT_API_BASE_URL=http://localhost:8000
 
-You can run the services using Docker. Each service has its own Dockerfile.
+# Authentication (optional for local dev)
+NEXT_PUBLIC_AZURE_AD_CLIENT_ID=<frontend-app-registration-client-id>
+NEXT_PUBLIC_AZURE_AD_TENANT_ID=<your-tenant-id>
+NEXT_PUBLIC_AUTH_ENABLED=false
 
-### Building Images
+# Telemetry (optional)
+NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING=<from-terraform-output>
+```
+
+### 3. Run the Application
+
+#### Option A: Using npm (recommended for development)
 
 ```bash
-# Build the backend (API) image
-docker build -t logistics-backend -f backend/Dockerfile backend/
+# Install all dependencies (frontend + backend)
+npm install
 
-# Build the frontend image
-docker build -t logistics-frontend -f frontend/Dockerfile frontend/
-
-# Build the A2A recommendations agent image
-docker build -t logistics-a2a-agent -f agent-a2a/Dockerfile agent-a2a/
+# Start all services concurrently
+npm run dev
 ```
 
-### Running Containers
+This starts:
+- **[ui]** Next.js frontend on http://localhost:3000
+- **[mcp]** MCP server on http://localhost:8001
+- **[a2a]** A2A agent on http://localhost:5002
+- **[api]** Backend API on http://localhost:8000
+
+#### Option B: Using Docker Compose
+
+Next.js requires `NEXT_PUBLIC_*` environment variables at **build time** (they're baked into the client bundle). Use `--env-file` to pass your frontend configuration:
 
 ```bash
-# Run the backend API (port 8000)
-docker run -d --name backend \
-  -p 8000:8000 \
-  -e AZURE_AI_PROJECT_ENDPOINT=https://[your-resource].services.ai.azure.com/api/projects/[your-project] \
-  -e AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4.1-mini \
-  -e AZURE_AD_CLIENT_ID=[your-client-id] \
-  -e AZURE_AD_TENANT_ID=[your-tenant-id] \
-  -e AUTH_ENABLED=false \
-  -e RECOMMENDATIONS_AGENT_URL=http://localhost:5002 \
-  logistics-backend
+# Build and start all services (with frontend env vars)
+docker compose --env-file frontend/.env.local up --build
 
-# Run the A2A recommendations agent (port 5002)
-docker run -d --name a2a-agent \
-  -p 5002:5002 \
-  -e AZURE_AI_PROJECT_ENDPOINT=https://[your-resource].services.ai.azure.com/api/projects/[your-project] \
-  -e AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4.1-mini \
-  logistics-a2a-agent
+# Or start in detached mode
+docker compose --env-file frontend/.env.local up -d --build
 
-# Run the frontend (port 3000)
-docker run -d --name frontend \
-  -p 3000:3000 \
-  -e NEXT_PUBLIC_API_URL=http://localhost:8000 \
-  logistics-frontend
+# View logs
+docker compose logs -f
+
+# Stop all services
+docker compose down
 ```
 
-### Docker Compose (Optional)
+> **Note**: If you skip `--env-file`, the frontend will use placeholder values and authentication will fail.
 
-For running all services together, you can use Docker Compose:
+### 4. Access the Application
 
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
-      - AZURE_OPENAI_CHAT_DEPLOYMENT_NAME=${AZURE_OPENAI_CHAT_DEPLOYMENT_NAME}
-      - RECOMMENDATIONS_AGENT_URL=http://a2a-agent:5002
-    depends_on:
-      - a2a-agent
+Open http://localhost:3000 in your browser. You should see the logistics dashboard with the chat interface.
 
-  a2a-agent:
-    build:
-      context: ./agent-a2a
-      dockerfile: Dockerfile
-    ports:
-      - "5002:5002"
+Try asking:
+- "Show me flights with low utilization"
+- "What routes have high risk?"
+- "Analyze the current data"
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-    depends_on:
-      - backend
-```
+## License
 
-Run with:
-```bash
-docker compose up -d
-```
+See [LICENSE](LICENSE) for details.
+

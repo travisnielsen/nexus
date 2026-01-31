@@ -52,9 +52,9 @@ pnpm-lock.yaml
 bun.lockb
 
 # python
-venv
-.venv
-__pycache__
+**/venv/
+**/.venv/
+**/__pycache__/
 *.egg-info/
 
 # vs code
