@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from agent_framework import ai_function
+from agent_framework import tool
 from pydantic import Field
 
 from ..utils import _get_all_flights, current_active_filter
@@ -24,7 +24,7 @@ from ..utils import _get_all_flights, current_active_filter
 logger = logging.getLogger(__name__)
 
 
-@ai_function(
+@tool(
     name="analyze_flights",
     description="""Answer questions about the flights currently displayed on the dashboard.
 

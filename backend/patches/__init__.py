@@ -81,8 +81,9 @@ class PatchConfig:
     # Patch 1: Pydantic SchemaError - always needed for Azure OpenAI SDK
     pydantic_schema: bool = True
     
-    # Patch 2: Deepcopy RLock - needed for Azure Managed Identity
-    deepcopy_rlock: bool = True
+    # Patch 2: Deepcopy RLock - disable by default, PR #3413 should fix this
+    # Re-enable with PATCH_DEEPCOPY_RLOCK=true if managed identity issues persist
+    deepcopy_rlock: bool = False
     
     # Patch 3: AG-UI Event Stream - needed for both Assistants and Responses API
     agui_event_stream: bool = True

@@ -9,13 +9,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from agent_framework import ai_function
+from agent_framework import tool
 from pydantic import Field
 
 from ..utils import get_historical_sync, get_predictions_sync
 
 
-@ai_function(
+@tool(
     name="get_predicted_payload",
     description="Get predicted payload data for upcoming flights. This updates the dashboard display automatically.",
 )
@@ -40,7 +40,7 @@ def get_predicted_payload(
     }
 
 
-@ai_function(
+@tool(
     name="get_historical_payload",
     description="Get historical payload data and predictions for trend analysis. This updates the dashboard chart.",
 )

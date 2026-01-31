@@ -13,7 +13,7 @@ import re
 from datetime import datetime
 from typing import Annotated
 
-from agent_framework import ai_function
+from agent_framework import tool
 from agent_framework_a2a import A2AAgent
 from pydantic import Field
 
@@ -94,7 +94,7 @@ async def call_recommendations_agent(query: str) -> str:
         raise
 
 
-@ai_function(
+@tool(
     name="get_recommendations",
     description="Display risk mitigation recommendations for a high-risk or critical flight. Shows interactive recommendations in the chat with feedback options. Use when user asks about recommendations, mitigation strategies, or what to do about a risky flight. Can also show optimization suggestions for under-utilized (low risk) flights.",
 )

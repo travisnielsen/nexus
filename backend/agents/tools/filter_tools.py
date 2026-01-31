@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from agent_framework import ai_function
+from agent_framework import tool
 from pydantic import Field
 
 from ..utils import current_active_filter
@@ -18,7 +18,7 @@ from ..utils import current_active_filter
 logger = logging.getLogger(__name__)
 
 
-@ai_function(
+@tool(
     name="filter_flights",
     description="Filter flights in the dashboard. Filters are ALWAYS additive - new filters combine with existing ones. Use reset_filters to clear all filters first.",
 )
@@ -99,7 +99,7 @@ def filter_flights(
     }
 
 
-@ai_function(
+@tool(
     name="reset_filters",
     description="UI ACTION: Remove all active filters from the dashboard. Use ONLY when user explicitly wants to CLEAR or RESET filters, NOT for questions about flights. Trigger words: 'clear filter', 'reset filter', 'remove filter', 'show unfiltered'.",
 )
