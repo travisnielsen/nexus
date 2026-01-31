@@ -37,11 +37,22 @@ jobs:
         uses: azure/cli@v2
         env:
           # Use env block to safely pass values with special characters (semicolons, etc.)
-          APPINSIGHTS_CONN: ${{ vars.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING }}
+          APPINSIGHTS_CONN: ${{ secrets.NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING }}
         with:
           inlineScript: |
             # Build the image with ACR Tasks
-            az acr build --registry "${{ env.REGISTRY }}" --image "${{ env.IMAGE_NAME }}:${{ github.sha }}" --image "${{ env.IMAGE_NAME }}:latest" --file ./frontend/Dockerfile --build-arg "NEXT_PUBLIC_AZURE_AD_CLIENT_ID=${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}" --build-arg "NEXT_PUBLIC_AZURE_AD_TENANT_ID=${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}" --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${{ vars.NEXT_PUBLIC_AUTH_ENABLED || 'true' }}" --build-arg "NEXT_PUBLIC_API_URL=${{ vars.AGENT_API_BASE_URL }}" --build-arg "AGENT_API_BASE_URL=${{ vars.AGENT_API_BASE_URL }}" --build-arg "NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING=$APPINSIGHTS_CONN" ./frontend
+            az acr build \
+              --registry "${{ env.REGISTRY }}" \
+              --image "${{ env.IMAGE_NAME }}:${{ github.sha }}" \
+              --image "${{ env.IMAGE_NAME }}:latest" \
+              --file ./frontend/Dockerfile \
+              --build-arg "NEXT_PUBLIC_AZURE_AD_CLIENT_ID=${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}" \
+              --build-arg "NEXT_PUBLIC_AZURE_AD_TENANT_ID=${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}" \
+              --build-arg "NEXT_PUBLIC_AUTH_ENABLED=${{ vars.NEXT_PUBLIC_AUTH_ENABLED || 'true' }}" \
+              --build-arg "NEXT_PUBLIC_API_URL=${{ vars.AGENT_API_BASE_URL }}" \
+              --build-arg "AGENT_API_BASE_URL=${{ vars.AGENT_API_BASE_URL }}" \
+              --build-arg "NEXT_PUBLIC_APPINSIGHTS_CONNECTION_STRING=$APPINSIGHTS_CONN" \
+              ./frontend
 
       - name: Deploy to Azure Container Apps
         uses: azure/cli@v2
