@@ -56,9 +56,9 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   │   ├── monitoring.py      # OpenTelemetry observability setup
 │   │   ├── Dockerfile         # Production Dockerfile (for ACR/Azure deployment)
 │   │   ├── Dockerfile.local   # Local dev Dockerfile (includes Azure CLI)
-│   │   ├── patches/           # Critical workarounds (must import first)
+│   │   ├── patches/           # Context sync & telemetry patches (must import first)
 │   │   │   ├── __init__.py        # Patch config and apply_all_patches()
-│   │   │   ├── agui_event_stream.py # AG-UI event stream fixes
+│   │   │   ├── agui_event_stream.py # AG-UI context sync (threadId, activeFilter, OTel)
 │   │   │   └── conversation_id_injection.py # Telemetry conversation ID patches
 │   │   ├── agents/
 │   │   │   ├── logistics_agent.py  # Agent configuration and state schema
@@ -466,7 +466,7 @@ VITE_LOG_ANALYTICS_WORKSPACE_ID=... # Log Analytics workspace to query
 ## Known Issues and Workarounds
 
 ### Duplicate Tool Calls
-The Responses API sometimes sends duplicate tool calls with different run IDs. The `agui_event_stream` patch suppresses duplicates by tracking tool names within a request.
+The Responses API sometimes sent duplicate tool calls with different run IDs. This was fixed natively in agent-framework >= 1.0.0b260210 (PR #3635). The `agui_event_stream` patch no longer needs to suppress duplicates.
 
 ### Clear Button Behavior
 The Clear button (`✕ Clear` in the filter bar) **bypasses the LLM entirely** for reliability:
@@ -568,15 +568,15 @@ dependencies
 **Note**: Each HTTP POST to `/logistics` creates a new `operation_Id` (trace). Use `gen_ai.conversation_id` to correlate all requests in a conversation.
 
 ### Patches Package (`backend/api/patches/`)
-The patches package applies critical workarounds. Each patch is in its own file:
+The patches package applies context synchronization and telemetry workarounds. Each patch is in its own file:
 
 | Patch | File | Purpose |
 |-------|------|----------|
-| AG-UI Event Stream | `agui_event_stream.py` | Buffers orphaned text messages, deduplicates tool calls, suppresses MESSAGES_SNAPSHOT, syncs activeFilter context |
+| AG-UI Context Sync | `agui_event_stream.py` | Extracts CopilotKit threadId, syncs activeFilter to ContextVar, sets OTel conversation_id span attributes |
 | Conversation ID (Responses) | `conversation_id_injection.py` | Injects `gen_ai.conversation_id` into Responses API telemetry spans |
 | Tool Execution Span | `conversation_id_injection.py` | Adds `gen_ai.conversation_id` to agent-framework tool execution spans |
 
 Patches can be disabled via environment variables:
-- `PATCH_AGUI_TEXT_MESSAGE_END=false`
+- `PATCH_AGUI_CONTEXT_SYNC=false`
 - `PATCH_CONVERSATION_ID_INJECTION=false`
 - `PATCH_TOOL_EXECUTION_SPAN=false`

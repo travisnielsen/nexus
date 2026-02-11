@@ -6,14 +6,15 @@ patches are applied before the affected libraries are loaded.
 
 PATCH CONFIGURATION:
 Patches can be enabled/disabled via environment variables:
-- PATCH_AGUI_TEXT_MESSAGE_END=true|false (default: true)
+- PATCH_AGUI_CONTEXT_SYNC=true|false (default: true)
 - PATCH_CONVERSATION_ID_INJECTION=true|false (default: true)
 - PATCH_TOOL_EXECUTION_SPAN=true|false (default: true)
 
 Available patches:
-1. AG-UI Event Stream fix - patches the AG-UI endpoint to handle text message
-   buffering, tool call deduplication, and event stream cleanup
-   (Agent Framework AG-UI compatibility with CopilotKit)
+1. AG-UI Context Sync - patches AgentFrameworkAgent.run_agent to extract
+   CopilotKit threadId, sync activeFilter to ContextVar, and set OpenTelemetry
+   conversation_id span attributes. (Event stream workarounds removed in
+   agent-framework >= 1.0.0b260210 via PR #3635.)
 
 2. Conversation ID Injection - patches Responses API instrumentor to inject
    gen_ai.conversation.id from CopilotKit threadId for Azure Foundry tracing
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 # PATCH CONFIGURATION
 # ============================================================================
 
+
 def _env_bool(key: str, default: bool) -> bool:
     """Get a boolean from environment variable."""
     val = os.getenv(key, "").lower()
@@ -48,35 +50,37 @@ def _env_bool(key: str, default: bool) -> bool:
 @dataclass
 class PatchConfig:
     """Configuration for which patches to apply."""
-    
-    # Patch 1: AG-UI Event Stream - needed for CopilotKit compatibility
+
+    # Patch 1: AG-UI Context Sync - threadId, activeFilter, OTel attributes
     agui_event_stream: bool = True
-    
+
     # Patch 2: Conversation ID Injection - needed for Azure Foundry tracing
     conversation_id_injection: bool = True
-    
+
     # Patch 3: Tool Execution Span - adds conversation_id to tool spans
     tool_execution_span: bool = True
-    
+
     # Track which patches were applied
     applied: list[str] = field(default_factory=list)
-    
+
     @classmethod
     def from_environment(cls) -> "PatchConfig":
         """Load patch configuration from environment variables."""
         config = cls(
-            agui_event_stream=_env_bool("PATCH_AGUI_TEXT_MESSAGE_END", True),
-            conversation_id_injection=_env_bool("PATCH_CONVERSATION_ID_INJECTION", True),
+            agui_event_stream=_env_bool("PATCH_AGUI_CONTEXT_SYNC", True),
+            conversation_id_injection=_env_bool(
+                "PATCH_CONVERSATION_ID_INJECTION", True
+            ),
             tool_execution_span=_env_bool("PATCH_TOOL_EXECUTION_SPAN", True),
         )
-        
+
         logger.debug(
             f"Patch config: "
             f"agui_event_stream={config.agui_event_stream}, "
             f"conversation_id_injection={config.conversation_id_injection}, "
             f"tool_execution_span={config.tool_execution_span}"
         )
-        
+
         return config
 
 
@@ -96,9 +100,10 @@ def get_config() -> PatchConfig:
 # PATCH APPLICATION
 # ============================================================================
 
+
 def apply_all_patches() -> PatchConfig:
     """Apply all configured patches and return the configuration.
-    
+
     Returns:
         PatchConfig with `applied` list populated with applied patch names.
     """
@@ -107,29 +112,29 @@ def apply_all_patches() -> PatchConfig:
         apply_conversation_id_injection_patch,
         apply_tool_execution_span_patch,
     )
-    
+
     config = get_config()
-    
-    # Patch 1: AG-UI Event Stream
+
+    # Patch 1: AG-UI Context Sync
     if config.agui_event_stream:
         if apply_agui_event_stream_patch():
             config.applied.append("agui_event_stream")
-    
+
     # Patch 2: Conversation ID Injection for Azure Foundry tracing
     if config.conversation_id_injection:
         if apply_conversation_id_injection_patch():
             config.applied.append("conversation_id_injection")
-    
+
     # Patch 3: Tool Execution Span - adds conversation_id to tool spans
     if config.tool_execution_span:
         if apply_tool_execution_span_patch():
             config.applied.append("tool_execution_span")
-    
+
     if config.applied:
         logger.info(f"Applied patches: {config.applied}")
     else:
         logger.info("No patches applied")
-    
+
     return config
 
 
