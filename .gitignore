@@ -57,5 +57,11 @@ bun.lockb
 **/__pycache__/
 *.egg-info/
 
+# terraform
+infra/backend.hcl
+infra/*.tfvars
+infra/.terraform/
+infra/*.tfstate*
+
 # vs code
 # .vscode/

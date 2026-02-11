@@ -10,14 +10,14 @@ from __future__ import annotations
 import logging
 import os
 import re
-from datetime import datetime
-from typing import Annotated
+from datetime import datetime, timezone
+from typing import Annotated, cast
 
 from agent_framework import tool
 from agent_framework_a2a import A2AAgent
 from pydantic import Field
 
-from ..utils import _get_flight_by_id_or_number, current_selected_flight
+from ..utils import get_flight_by_id_or_number, current_selected_flight
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ async def call_recommendations_agent(query: str) -> str:
         
         # Fallback: try to extract from messages
         if hasattr(response, 'messages') and response.messages:
-            texts = []
+            texts: list[str] = []
             for msg in response.messages:
                 if hasattr(msg, 'contents') and msg.contents:
                     for content in msg.contents:
@@ -103,7 +103,7 @@ async def get_recommendations(
         str | None,
         Field(description="ID or flight number of the flight to show recommendations for. If not provided, uses the currently selected flight from the UI."),
     ] = None,
-) -> dict:
+) -> dict[str, object]:
     """Generate and return recommendations for a flight by calling external A2A agent. Rendered as interactive card in chat."""
     
     # Determine which flight to analyze
@@ -111,7 +111,7 @@ async def get_recommendations(
     
     # Priority 1: Explicit flight_id parameter
     if flight_id:
-        flight = _get_flight_by_id_or_number(flight_id)
+        flight = get_flight_by_id_or_number(flight_id)
     
     # Priority 2: Currently selected flight from UI
     if not flight:
@@ -125,11 +125,11 @@ async def get_recommendations(
             "recommendations": [],
         }
     
-    flight_number = flight.get("flightNumber", "unknown")
-    risk_level = flight.get("riskLevel", "medium")
-    utilization = flight.get("utilizationPercent", 0)
-    route_from = flight.get("from", "?")
-    route_to = flight.get("to", "?")
+    flight_number: str = cast(str, flight.get("flightNumber", "unknown"))
+    risk_level: str = cast(str, flight.get("riskLevel", "medium"))
+    utilization: float = cast(float, flight.get("utilizationPercent", 0))
+    route_from: str = cast(str, flight.get("from", "?"))
+    route_to: str = cast(str, flight.get("to", "?"))
     route = f"{route_from} → {route_to}"
     
     # For medium risk, no recommendations needed
@@ -142,7 +142,7 @@ async def get_recommendations(
             "utilizationPercent": utilization,
             "recommendations": [],
             "message": f"Flight {flight_number} is at optimal utilization ({utilization:.1f}%). No action needed.",
-            "generatedAt": datetime.utcnow().isoformat() + "Z",
+            "generatedAt": datetime.now(timezone.utc).isoformat() + "Z",
         }
     
     # Build context for the A2A recommendations agent
@@ -159,7 +159,7 @@ async def get_recommendations(
         )
     
     # Call the A2A recommendations agent
-    recommendations = []
+    recommendations: list[dict[str, str]] = []
     try:
         logger.info("[get_recommendations] Calling A2A agent for flight %s", flight_number)
         response = await call_recommendations_agent(context)
@@ -229,5 +229,5 @@ async def get_recommendations(
         "riskLevel": risk_level,
         "utilizationPercent": utilization,
         "recommendations": recommendations,
-        "generatedAt": datetime.utcnow().isoformat() + "Z",
+        "generatedAt": datetime.now(timezone.utc).isoformat() + "Z",
     }

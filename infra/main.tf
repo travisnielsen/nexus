@@ -36,7 +36,7 @@ locals {
 
 # Resource Group
 resource "azurerm_resource_group" "shared_rg" {
-  name     = "ag-ui-${local.identifier}"
+  name     = "nexus-${local.identifier}"
   location = var.region
   tags     = local.tags
 }

@@ -521,6 +521,20 @@ resource "azurerm_role_assignment" "api_cosmos" {
   principal_id         = azurerm_user_assigned_identity.api_identity.principal_id
 }
 
+# Grant GitHub Actions service principal ACR Push access
+resource "azurerm_role_assignment" "gha_acr_push" {
+  scope                = module.container_registry.resource_id
+  role_definition_name = "AcrPush"
+  principal_id         = var.github_actions_principal_id
+}
+
+# Grant GitHub Actions service principal Contributor access at the resource group level
+resource "azurerm_role_assignment" "gha_contributor" {
+  scope                = azurerm_resource_group.shared_rg.id
+  role_definition_name = "Contributor"
+  principal_id         = var.github_actions_principal_id
+}
+
 resource "azurerm_container_app" "api" {
   name                         = "${local.identifier}-api"
   resource_group_name          = azurerm_resource_group.shared_rg.name
@@ -563,7 +577,7 @@ resource "azurerm_container_app" "api" {
 
     container {
       name   = "api"
-      image  = "${module.container_registry.resource.login_server}/logistics-agui:latest"
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"  # Placeholder; replaced by CI/CD
       cpu    = 1.0
       memory = "2Gi"
 
@@ -623,6 +637,10 @@ resource "azurerm_container_app" "api" {
         name  = "MCP_CLIENT_ID"
         value = var.mcp_app_client_id
       }
+      env {
+        name  = "RECOMMENDATIONS_AGENT_URL"
+        value = "https://${azurerm_container_app.a2a.ingress[0].fqdn}"
+      }
     }
   }
 
@@ -631,8 +649,15 @@ resource "azurerm_container_app" "api" {
     azurerm_role_assignment.api_ai_foundry_developer_containerapp,
     azurerm_role_assignment.api_search,
     azurerm_role_assignment.api_storage,
-    azurerm_container_app.mcp
+    azurerm_container_app.mcp,
+    azurerm_container_app.a2a
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image
+    ]
+  }
 }
 
 
@@ -682,7 +707,7 @@ resource "azurerm_container_app" "frontend" {
 
     container {
       name   = "frontend"
-      image  = "${module.container_registry.resource.login_server}/logistics-frontend:latest"
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"  # Placeholder; replaced by CI/CD
       cpu    = 0.5
       memory = "1Gi"
 
@@ -704,11 +729,13 @@ resource "azurerm_container_app" "frontend" {
     azurerm_role_assignment.api_acr_pull,
     azurerm_container_app.api
   ]
-}
 
-#################################################################################
-# Container App for MCP Server (Flight Data API)
-#################################################################################
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image
+    ]
+  }
+}
 
 resource "azurerm_container_app" "mcp" {
   name                         = "${local.identifier}-mcp"
@@ -752,7 +779,7 @@ resource "azurerm_container_app" "mcp" {
 
     container {
       name   = "mcp"
-      image  = "${module.container_registry.resource.login_server}/logistics-mcp:latest"
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"  # Placeholder; replaced by CI/CD
       cpu    = 0.5
       memory = "1Gi"
 
@@ -782,7 +809,80 @@ resource "azurerm_container_app" "mcp" {
   depends_on = [
     azurerm_role_assignment.api_acr_pull
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image
+    ]
+  }
 }
+
+
+#################################################################################
+# Container App for A2A Recommendations Agent
+#################################################################################
+
+resource "azurerm_container_app" "a2a" {
+  name                         = "${local.identifier}-a2a"
+  resource_group_name          = azurerm_resource_group.shared_rg.name
+  container_app_environment_id = module.container_app_environment.resource_id
+  revision_mode                = "Single"
+  tags                         = local.tags
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.api_identity.id]
+  }
+
+  registry {
+    server   = module.container_registry.resource.login_server
+    identity = azurerm_user_assigned_identity.api_identity.id
+  }
+
+  ingress {
+    external_enabled = false
+    target_port      = 5002
+    transport        = "http"
+
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+
+  template {
+    min_replicas = 1
+    max_replicas = 1
+
+    container {
+      name   = "a2a"
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"  # Placeholder; replaced by CI/CD
+      cpu    = 0.5
+      memory = "1Gi"
+
+      env {
+        name  = "AZURE_AI_PROJECT_ENDPOINT"
+        value = local.ai_project_endpoint
+      }
+
+      env {
+        name  = "AZURE_AI_MODEL_DEPLOYMENT_NAME"
+        value = "gpt-4.1-mini"
+      }
+    }
+  }
+
+  depends_on = [
+    azurerm_role_assignment.api_acr_pull
+  ]
+
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image
+    ]
+  }
+}
+
 
 #################################################################################
 # Storage Account for Azure Dashboard (Static Website)
@@ -843,6 +943,11 @@ output "api_url" {
 
 output "mcp_url" {
   value = "https://${azurerm_container_app.mcp.ingress[0].fqdn}"
+}
+
+output "a2a_url" {
+  description = "Internal URL for the A2A recommendations agent"
+  value       = "https://${azurerm_container_app.a2a.ingress[0].fqdn}"
 }
 
 output "dashboard_storage_account_name" {
