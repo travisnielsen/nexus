@@ -14,19 +14,20 @@ from __future__ import annotations
 
 import logging
 from contextvars import ContextVar
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # ContextVar to pass current filter from request to tools
 # This allows tools to automatically use the current dashboard filter
-current_active_filter: ContextVar[dict | None] = ContextVar("current_active_filter", default=None)
+current_active_filter: ContextVar[dict[str, Any] | None] = ContextVar("current_active_filter", default=None)
 
 # ContextVar to pass selected flight from request to tools
 # This allows tools to automatically analyze the selected flight when user asks about "this flight"
-current_selected_flight: ContextVar[dict | None] = ContextVar("current_selected_flight", default=None)
+current_selected_flight: ContextVar[dict[str, Any] | None] = ContextVar("current_selected_flight", default=None)
 
 
-def _get_all_flights() -> list[dict]:
+def _get_all_flights() -> list[dict[str, Any]]:
     """
     Get all flights from MCP server.
     
@@ -41,7 +42,7 @@ def _get_historical_data(
     days: int = 50,
     route: str | None = None,
     include_predictions: bool = True,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Get historical and prediction data from MCP server.
     
@@ -104,7 +105,7 @@ def _get_available_routes() -> list[dict]:
         return []
 
 
-def _get_flight_by_id_or_number(identifier: str) -> dict | None:
+def get_flight_by_id_or_number(identifier: str) -> dict[str, Any] | None:
     """
     Helper to find a flight by ID or flight number from MCP server.
     """

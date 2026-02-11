@@ -345,10 +345,11 @@ The project deploys to Azure using Terraform (`infra/`). All resources are creat
 
 | Resource | Purpose |
 |----------|---------|
-| **Container Apps Environment** | Hosts backend, frontend, and MCP containers |
+| **Container Apps Environment** | Hosts backend, frontend, MCP, and A2A containers |
 | **Container App (API)** | Backend FastAPI + MAF agent (port 8000) |
 | **Container App (Frontend)** | Next.js dashboard (port 3000) |
 | **Container App (MCP)** | MCP server with DuckDB (port 8001) |
+| **Container App (A2A)** | A2A recommendations agent (port 5002, internal only) |
 | **Container Registry** | Stores Docker images for all services |
 | **Storage Account (AI)** | AI Foundry blob storage and NL2SQL data |
 | **Storage Account (Dashboard)** | Static website hosting for azure-dashboard |
@@ -379,6 +380,7 @@ Key variables in `terraform.tfvars`:
 | `frontend_url` | Container App URL for Next.js frontend |
 | `api_url` | Container App URL for backend API |
 | `mcp_url` | Container App URL for MCP server |
+| `a2a_url` | Internal URL for the A2A recommendations agent |
 | `dashboard_url` | Static website URL for azure-dashboard |
 | `dashboard_storage_account_name` | Storage account name for dashboard deployment |
 | `appinsights_instrumentation_key` | Application Insights instrumentation key (GUID) |
@@ -386,13 +388,14 @@ Key variables in `terraform.tfvars`:
 
 ## GitHub Actions Deployment
 
-Four workflows handle CI/CD deployment to Azure:
+Five workflows handle CI/CD deployment to Azure:
 
 | Workflow | Trigger Path | Deploys To |
 |----------|--------------|------------|
 | `deploy-api.yml` | `backend/api/**` | Container App (API) |
 | `deploy-frontend.yml` | `frontend/**` | Container App (Frontend) |
 | `deploy-mcp.yml` | `backend/mcp/**` | Container App (MCP) |
+| `deploy-a2a.yml` | `backend/agent-a2a/**` | Container App (A2A) |
 | `deploy-dashboard.yml` | `monitoring/azure-dashboard/**` | Storage static website |
 
 ### Required GitHub Variables
@@ -409,6 +412,7 @@ Configure these in Settings → Secrets and variables → Actions → Variables:
 | `AZURE_FRONTEND_CONTAINER_APP_NAME` | Frontend container app name |
 | `AZURE_API_CONTAINER_APP_NAME` | API container app name |
 | `AZURE_MCP_CONTAINER_APP_NAME` | MCP container app name |
+| `AZURE_A2A_CONTAINER_APP_NAME` | A2A recommendations agent container app name |
 | `AZURE_DASHBOARD_STORAGE_ACCOUNT` | Dashboard storage account name |
 | `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` | Frontend app registration client ID |
 | `NEXT_PUBLIC_AZURE_AD_TENANT_ID` | Tenant ID for frontend auth |

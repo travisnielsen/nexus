@@ -1,0 +1,80 @@
+name: Deploy A2A Agent to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/agent-a2a/**'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}
+  IMAGE_NAME: logistics-a2a
+  CONTAINER_APP_NAME: ${{ vars.AZURE_A2A_CONTAINER_APP_NAME }}
+  RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push image using ACR Tasks
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az acr build \
+              --registry ${{ env.REGISTRY }} \
+              --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
+              --image ${{ env.IMAGE_NAME }}:latest \
+              --file ./backend/agent-a2a/Dockerfile \
+              ./backend/agent-a2a
+
+      - name: Deploy to Azure Container Apps
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image ${{ env.REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Verify deployment
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            # Wait for the new revision to be ready
+            echo "Waiting for deployment to complete..."
+            sleep 30
+            
+            # Get the container app URL
+            FQDN=$(az containerapp show \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --query "properties.configuration.ingress.fqdn" \
+              --output tsv)
+            
+            echo "Container App URL: https://$FQDN"
+            
+            # Health check
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$FQDN/health" || echo "000")
+            
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "✅ Health check passed (HTTP $HTTP_STATUS)"
+            else
+              echo "⚠️ Health check returned HTTP $HTTP_STATUS (may still be starting)"
+            fi

@@ -623,6 +623,10 @@ resource "azurerm_container_app" "api" {
         name  = "MCP_CLIENT_ID"
         value = var.mcp_app_client_id
       }
+      env {
+        name  = "RECOMMENDATIONS_AGENT_URL"
+        value = "https://${azurerm_container_app.a2a.ingress[0].fqdn}"
+      }
     }
   }
 
@@ -631,7 +635,8 @@ resource "azurerm_container_app" "api" {
     azurerm_role_assignment.api_ai_foundry_developer_containerapp,
     azurerm_role_assignment.api_search,
     azurerm_role_assignment.api_storage,
-    azurerm_container_app.mcp
+    azurerm_container_app.mcp,
+    azurerm_container_app.a2a
   ]
 }
 
@@ -784,6 +789,57 @@ resource "azurerm_container_app" "mcp" {
   ]
 }
 
+
+#################################################################################
+# Container App for A2A Recommendations Agent
+#################################################################################
+
+resource "azurerm_container_app" "a2a" {
+  name                         = "${local.identifier}-a2a"
+  resource_group_name          = azurerm_resource_group.shared_rg.name
+  container_app_environment_id = module.container_app_environment.resource_id
+  revision_mode                = "Single"
+  tags                         = local.tags
+
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.api_identity.id]
+  }
+
+  registry {
+    server   = module.container_registry.resource.login_server
+    identity = azurerm_user_assigned_identity.api_identity.id
+  }
+
+  ingress {
+    external_enabled = false
+    target_port      = 5002
+    transport        = "http"
+
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+
+  template {
+    min_replicas = 1
+    max_replicas = 1
+
+    container {
+      name   = "a2a"
+      image  = "${module.container_registry.resource.login_server}/logistics-a2a:latest"
+      cpu    = 0.5
+      memory = "1Gi"
+    }
+  }
+
+  depends_on = [
+    azurerm_role_assignment.api_acr_pull
+  ]
+}
+
+
 #################################################################################
 # Storage Account for Azure Dashboard (Static Website)
 #################################################################################
@@ -843,6 +899,11 @@ output "api_url" {
 
 output "mcp_url" {
   value = "https://${azurerm_container_app.mcp.ingress[0].fqdn}"
+}
+
+output "a2a_url" {
+  description = "Internal URL for the A2A recommendations agent"
+  value       = "https://${azurerm_container_app.a2a.ingress[0].fqdn}"
 }
 
 output "dashboard_storage_account_name" {
