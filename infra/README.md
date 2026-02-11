@@ -61,7 +61,29 @@ az ad sp create-for-rbac \
 # Note the Object ID - you'll need this for github_actions_principal_id
 ```
 
-## Step 2: Configure Variables
+## Step 2: Set Up Remote State Storage
+
+Terraform state is stored remotely in Azure Blob Storage so it can be shared across machines.
+
+### One-time setup (per Azure subscription)
+
+Create a resource group and storage account for state files:
+
+```bash
+az group create -n rg-terraform-state -l westus3
+az storage account create -n <unique-storage-account-name> -g rg-terraform-state -l westus3 --sku Standard_LRS
+az storage container create -n tfstate --account-name <unique-storage-account-name>
+```
+
+### Per-machine setup
+
+Create a `backend.hcl` file in this directory (not committed to source control):
+
+```hcl
+storage_account_name = "<unique-storage-account-name>"
+```
+
+## Step 3: Configure Variables
 
 Create a `terraform.tfvars` file (not committed to source control):
 
@@ -75,14 +97,14 @@ github_actions_principal_id = "<github-actions-sp-object-id>"
 auth_enabled                = true  # Set to false for development
 ```
 
-## Step 3: Deploy Infrastructure
+## Step 4: Deploy Infrastructure
 
 ```bash
 # Login to Azure
 az login
 
-# Initialize Terraform
-terraform init
+# Initialize Terraform (pass backend config)
+terraform init -backend-config=backend.hcl
 
 # Preview changes
 terraform plan
@@ -91,7 +113,7 @@ terraform plan
 terraform apply
 ```
 
-## Step 4: Note Output Values
+## Step 5: Note Output Values
 
 After deployment, Terraform outputs important values needed for configuration:
 

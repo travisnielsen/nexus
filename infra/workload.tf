@@ -521,6 +521,20 @@ resource "azurerm_role_assignment" "api_cosmos" {
   principal_id         = azurerm_user_assigned_identity.api_identity.principal_id
 }
 
+# Grant GitHub Actions service principal ACR Push access
+resource "azurerm_role_assignment" "gha_acr_push" {
+  scope                = module.container_registry.resource_id
+  role_definition_name = "AcrPush"
+  principal_id         = var.github_actions_principal_id
+}
+
+# Grant GitHub Actions service principal Contributor access at the resource group level
+resource "azurerm_role_assignment" "gha_contributor" {
+  scope                = azurerm_resource_group.shared_rg.id
+  role_definition_name = "Contributor"
+  principal_id         = var.github_actions_principal_id
+}
+
 resource "azurerm_container_app" "api" {
   name                         = "${local.identifier}-api"
   resource_group_name          = azurerm_resource_group.shared_rg.name
@@ -563,7 +577,7 @@ resource "azurerm_container_app" "api" {
 
     container {
       name   = "api"
-      image  = "${module.container_registry.resource.login_server}/logistics-agui:latest"
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"  # Placeholder; replaced by CI/CD
       cpu    = 1.0
       memory = "2Gi"
 
@@ -638,6 +652,12 @@ resource "azurerm_container_app" "api" {
     azurerm_container_app.mcp,
     azurerm_container_app.a2a
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image
+    ]
+  }
 }
 
 
@@ -687,7 +707,7 @@ resource "azurerm_container_app" "frontend" {
 
     container {
       name   = "frontend"
-      image  = "${module.container_registry.resource.login_server}/logistics-frontend:latest"
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"  # Placeholder; replaced by CI/CD
       cpu    = 0.5
       memory = "1Gi"
 
@@ -709,11 +729,13 @@ resource "azurerm_container_app" "frontend" {
     azurerm_role_assignment.api_acr_pull,
     azurerm_container_app.api
   ]
-}
 
-#################################################################################
-# Container App for MCP Server (Flight Data API)
-#################################################################################
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image
+    ]
+  }
+}
 
 resource "azurerm_container_app" "mcp" {
   name                         = "${local.identifier}-mcp"
@@ -757,7 +779,7 @@ resource "azurerm_container_app" "mcp" {
 
     container {
       name   = "mcp"
-      image  = "${module.container_registry.resource.login_server}/logistics-mcp:latest"
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"  # Placeholder; replaced by CI/CD
       cpu    = 0.5
       memory = "1Gi"
 
@@ -787,6 +809,12 @@ resource "azurerm_container_app" "mcp" {
   depends_on = [
     azurerm_role_assignment.api_acr_pull
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image
+    ]
+  }
 }
 
 
@@ -828,15 +856,31 @@ resource "azurerm_container_app" "a2a" {
 
     container {
       name   = "a2a"
-      image  = "${module.container_registry.resource.login_server}/logistics-a2a:latest"
+      image  = "mcr.microsoft.com/k8se/quickstart:latest"  # Placeholder; replaced by CI/CD
       cpu    = 0.5
       memory = "1Gi"
+
+      env {
+        name  = "AZURE_AI_PROJECT_ENDPOINT"
+        value = local.ai_project_endpoint
+      }
+
+      env {
+        name  = "AZURE_AI_MODEL_DEPLOYMENT_NAME"
+        value = "gpt-4.1-mini"
+      }
     }
   }
 
   depends_on = [
     azurerm_role_assignment.api_acr_pull
   ]
+
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image
+    ]
+  }
 }
 
 

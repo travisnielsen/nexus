@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'monitoring/azure-dashboard/**'
+      - "monitoring/azure-dashboard/**"
   workflow_dispatch:
 
 env:
@@ -19,7 +19,7 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,8 +27,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: monitoring/azure-dashboard/package-lock.json
 
       - name: Install dependencies
@@ -38,9 +38,9 @@ jobs:
       - name: Build
         working-directory: monitoring/azure-dashboard
         env:
-          VITE_AZURE_CLIENT_ID: ${{ vars.VITE_AZURE_CLIENT_ID }}
+          VITE_AZURE_CLIENT_ID: ${{ vars.AZURE_DASHBOARD_CLIENT_ID }}
           VITE_AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-          VITE_LOG_ANALYTICS_WORKSPACE_ID: ${{ vars.VITE_LOG_ANALYTICS_WORKSPACE_ID }}
+          VITE_LOG_ANALYTICS_WORKSPACE_ID: ${{ vars.LOG_ANALYTICS_WORKSPACE_ID }}
         run: npm run build
 
       - name: Login to Azure
@@ -97,5 +97,5 @@ jobs:
               --resource-group "${{ env.RESOURCE_GROUP }}" \
               --query "primaryEndpoints.web" \
               --output tsv)
-            
+
             echo "✅ Dashboard deployed to: $WEBSITE_URL"

@@ -1,4 +1,11 @@
 terraform {
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    container_name       = "tfstate"
+    key                  = "nexus.terraform.tfstate"
+    use_azuread_auth     = true
+  }
+
   required_version = ">= 1.0"
   required_providers {
     azurerm = {
