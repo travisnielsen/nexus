@@ -261,6 +261,11 @@ dependencies = [
     { name = "uvicorn" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "basedpyright" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "agent-framework-a2a", specifier = ">=1.0.0b260210" },
@@ -279,6 +284,9 @@ requires-dist = [
     { name = "python-dotenv" },
     { name = "uvicorn", specifier = ">=0.27.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "basedpyright", specifier = ">=1.29.0" }]
 
 [[package]]
 name = "asgiref"
@@ -423,6 +431,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d4/e1/f4b957d7f080c9f58b5d4e5a6b026fb745e7d6273d7f9147d26724f842df/azure_storage_blob-12.29.0b1.tar.gz", hash = "sha256:6fe4c61984178f970af36fdac47a67abcc9c80bbb5ac3c1c4947682d66626764", size = 612000, upload-time = "2026-01-27T16:30:30.356Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e7/1a/f356cbfbcd8c2a1cbe8e8edce4d4b0f9a776fcc91759e34e5b980897bb23/azure_storage_blob-12.29.0b1-py3-none-any.whl", hash = "sha256:64702c0c67b7ac709feb80aacb61183bb5960ad615d36c43e95fe197c9bf610c", size = 434480, upload-time = "2026-01-27T16:30:35.091Z" },
+]
+
+[[package]]
+name = "basedpyright"
+version = "1.37.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nodejs-wheel-binaries" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5a/15/8f335ed50b5fed4d7587e293c200bb498049f4a74d9913c58c26a42d3503/basedpyright-1.37.4.tar.gz", hash = "sha256:f818d8b56c1e7f639dfbdaf875aa6b0bd53eef08204389959027d3d7fb2017ed", size = 25238593, upload-time = "2026-02-04T02:57:15.893Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/b6/f075ecdc60a3e389c32934a98171b7f5c6f12250fc0030e12efc1102a557/basedpyright-1.37.4-py3-none-any.whl", hash = "sha256:bcf61d7d8dbd4570f346008fa591585bd605ce47a0561509899c276f2e53a450", size = 12299643, upload-time = "2026-02-04T02:57:19.915Z" },
 ]
 
 [[package]]
@@ -1172,6 +1192,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/0c/f7/addf1087b860ac60e6f382240f64fb99f8bfb532bb06f7c542b83c29ca61/multidict-6.7.1-cp314-cp314t-win_amd64.whl", hash = "sha256:497bde6223c212ba11d462853cfa4f0ae6ef97465033e7dc9940cdb3ab5b48e5", size = 53542, upload-time = "2026-01-26T02:46:08.809Z" },
     { url = "https://files.pythonhosted.org/packages/4c/81/4629d0aa32302ef7b2ec65c75a728cc5ff4fa410c50096174c1632e70b3e/multidict-6.7.1-cp314-cp314t-win_arm64.whl", hash = "sha256:2bbd113e0d4af5db41d5ebfe9ccaff89de2120578164f86a5d17d5a576d1e5b2", size = 44719, upload-time = "2026-01-26T02:46:11.146Z" },
     { url = "https://files.pythonhosted.org/packages/81/08/7036c080d7117f28a4af526d794aab6a84463126db031b007717c1a6676e/multidict-6.7.1-py3-none-any.whl", hash = "sha256:55d97cc6dae627efa6a6e548885712d4864b81110ac76fa4e534c03819fa4a56", size = 12319, upload-time = "2026-01-26T02:46:44.004Z" },
+]
+
+[[package]]
+name = "nodejs-wheel-binaries"
+version = "25.5.0rc0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/8d/d315beb8025de554e365e12d46a4a53fd0167ae58761e1702313dba1f1ce/nodejs_wheel_binaries-25.5.0rc0.tar.gz", hash = "sha256:da20b94e19d139b5d74a862c4c6a19a5e305aa10b3c9204d606c1de2c16ab7f3", size = 7898, upload-time = "2026-02-01T20:07:57.081Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5f/32/745b12d83ea394cfa1cda102a21a030d596606b6cd4e6aa69236cf80beea/nodejs_wheel_binaries-25.5.0rc0-py2.py3-none-macosx_13_0_arm64.whl", hash = "sha256:39a242bc1e953f975b93406254ecacb4f5b4afc5c3a0abc09b2f6cd696fb2a50", size = 56950403, upload-time = "2026-02-01T20:07:26.774Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/0f/670d981a0d8a1f9b6e13fd54f4dd637689f324d9e19cc6ede365d5420867/nodejs_wheel_binaries-25.5.0rc0-py2.py3-none-macosx_13_0_x86_64.whl", hash = "sha256:88977a1ce585bfda8134356337fb58d78270b348517ec49c238197ded2fbc0bd", size = 57181415, upload-time = "2026-02-01T20:07:31.602Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/26/36c6ca81c0d9136ecfc641315d6cfdbaec738da21792d235074587c48fd3/nodejs_wheel_binaries-25.5.0rc0-py2.py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:f4468d82b6141cbb21c268a12863db814fd9549de7964a8d4b881abb1c7eb5cf", size = 62306998, upload-time = "2026-02-01T20:07:36.295Z" },
+    { url = "https://files.pythonhosted.org/packages/23/b8/d710c0b5df60583c6ab335787c992a495c2c094a9ec07e95d94038dfffba/nodejs_wheel_binaries-25.5.0rc0-py2.py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:cea3a2cffe30905f850172b72f0988e151dfde46a280a8441628d73df2abf18d", size = 63019712, upload-time = "2026-02-01T20:07:40.047Z" },
+    { url = "https://files.pythonhosted.org/packages/92/e7/63436247aaec6e56494a771f9ef13453e5f4a4f9cdb48efcdd24e1c23596/nodejs_wheel_binaries-25.5.0rc0-py2.py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:2188eea8ec493fc2a4011ba58763a8fcf505d71d9c16cb532b679525259fbec0", size = 64441971, upload-time = "2026-02-01T20:07:43.75Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/22/0c838396637bb0460abd8b138c84eae60ff3bf094c8a0e7a1a6149b53288/nodejs_wheel_binaries-25.5.0rc0-py2.py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:baa1d24006a870a9819df3790ff3cab59b4f31621c5b2bccc6099b848bf2a2d7", size = 65258699, upload-time = "2026-02-01T20:07:47.149Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/cd/26bcd6c4e3a4816b6c0d99ad7c1903985f89209cdeb74aa48cc5b3a69915/nodejs_wheel_binaries-25.5.0rc0-py2.py3-none-win_amd64.whl", hash = "sha256:1b676ada26a3127b7cc82c0e8402d15a080f38f8cd1cad638b99426b22f8625e", size = 42789024, upload-time = "2026-02-01T20:07:50.779Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/e9/cc97ecd8b41a92f17afeaa9b51fc89abe3f41493568a449fcf7beb5df1f7/nodejs_wheel_binaries-25.5.0rc0-py2.py3-none-win_arm64.whl", hash = "sha256:6b4bda8da2166555e17fd08340e1d35c4ef2f4acbc3d2f8705033393f744a51b", size = 40265354, upload-time = "2026-02-01T20:07:53.597Z" },
 ]
 
 [[package]]

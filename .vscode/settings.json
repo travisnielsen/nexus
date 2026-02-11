@@ -47,5 +47,7 @@
     ],
     // Terminal settings
     "terminal.integrated.cwd": "${workspaceFolder}",
-    "python.analysis.typeCheckingMode": "off"
+    // Use basedpyright for type checking (disable built-in Pylance/pyright)
+    "python.analysis.typeCheckingMode": "off",
+    "basedpyright.analysis.typeCheckingMode": "standard"
 }
