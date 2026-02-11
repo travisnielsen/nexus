@@ -15,6 +15,11 @@ dependencies = [
     "cachetools>=5.3.0",
 ]
 
+[dependency-groups]
+dev = [
+    "basedpyright>=1.29.0",
+]
+
 [tool.uv]
 prerelease = "allow"
 

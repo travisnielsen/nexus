@@ -38,10 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s:%(name)s:%(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 logger = logging.getLogger(__name__)
 
 # Sample recommendations pool
@@ -68,7 +65,7 @@ def generate_recommendations(count: int = 3) -> str:
     """Generate random recommendations from the pool."""
     num_recommendations = min(max(count, 2), 5)  # Ensure 2-5 range
     selected = random.sample(RECOMMENDATIONS_POOL, num_recommendations)
-    formatted = "\n".join([f"{i+1}. {rec}" for i, rec in enumerate(selected)])
+    formatted = "\n".join([f"{i + 1}. {rec}" for i, rec in enumerate(selected)])
     return f"Here are {num_recommendations} recommendations:\n\n{formatted}"
 
 
@@ -82,7 +79,7 @@ class RecommendationsAgentExecutor(AgentExecutor):
     ) -> None:
         """Execute the agent and generate recommendations."""
         logger.info("Executing recommendations agent")
-        
+
         # Extract the user message from the request
         user_message = ""
         if context.message and context.message.parts:
@@ -90,15 +87,15 @@ class RecommendationsAgentExecutor(AgentExecutor):
                 if isinstance(part, TextPart):
                     user_message = part.text
                     break
-        
+
         logger.info(f"Received message: {user_message}")
-        
+
         # Generate recommendations
         recommendations = generate_recommendations(3)
-        
+
         # Create response message
-        response_parts: list[Part] = [TextPart(text=recommendations)]
-        
+        response_parts: list[Part] = [TextPart(text=recommendations)]  # pyright: ignore[reportAssignmentType]
+
         # Create artifact with the response
         artifact = Artifact(
             artifact_id=str(uuid.uuid4()),
@@ -106,7 +103,7 @@ class RecommendationsAgentExecutor(AgentExecutor):
             name="recommendations",
             description="Logistics recommendations",
         )
-        
+
         # Create completed task
         task = Task(
             id=context.task_id or "task-1",
@@ -114,10 +111,10 @@ class RecommendationsAgentExecutor(AgentExecutor):
             status=TaskStatus(state=TaskState.completed),
             artifacts=[artifact],
         )
-        
+
         # Send the completed task event
         await event_queue.enqueue_event(task)
-        
+
         logger.info("Recommendations generated and sent")
 
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
@@ -131,7 +128,7 @@ def create_agent_card() -> AgentCard:
         streaming=False,
         push_notifications=False,
     )
-    
+
     recommendations_skill = AgentSkill(
         id="recommendations",
         name="Recommendations",
@@ -143,7 +140,7 @@ def create_agent_card() -> AgentCard:
             "Provide suggestions for risk mitigation",
         ],
     )
-    
+
     return AgentCard(
         name="RecommendationsAgent",
         description="An A2A agent that provides logistics recommendations for capacity optimization and risk mitigation.",
@@ -159,25 +156,25 @@ def create_agent_card() -> AgentCard:
 def create_a2a_app() -> A2AFastAPIApplication:
     """Create the A2A FastAPI application."""
     agent_card = create_agent_card()
-    
+
     # Create the agent executor
     agent_executor = RecommendationsAgentExecutor()
-    
+
     # Create task store for managing tasks
     task_store = InMemoryTaskStore()
-    
+
     # Create the request handler
     request_handler = DefaultRequestHandler(
         agent_executor=agent_executor,
         task_store=task_store,
     )
-    
+
     # Create the A2A application
     a2a_app = A2AFastAPIApplication(
         agent_card=agent_card,
         http_handler=request_handler,
     )
-    
+
     return a2a_app
 
 

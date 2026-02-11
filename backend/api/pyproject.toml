@@ -22,5 +22,10 @@ dependencies = [
     "opentelemetry-exporter-otlp>=1.39.0",
 ]
 
+[dependency-groups]
+dev = [
+    "basedpyright>=1.29.0",
+]
+
 [tool.uv]
 prerelease = "allow"

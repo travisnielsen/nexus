@@ -50,10 +50,7 @@ from auth import EntraIDAuthMiddleware, is_auth_enabled, get_auth_config
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s:%(name)s:%(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 logger = logging.getLogger(__name__)
 
 # Server configuration
@@ -75,22 +72,22 @@ _FLIGHT_DATA_CACHE: dict = {}
 
 class LogisticsMCP:
     """MCP server for logistics flight data using DuckDB."""
-    
+
     def __init__(self):
         self._duckdb_conn: duckdb.DuckDBPyConnection | None = None
-    
+
     def init(self):
         """Initialize the DuckDB connection with flight data."""
         self._get_connection()
-    
+
     def _get_connection(self) -> duckdb.DuckDBPyConnection:
         """Get or create the DuckDB connection with loaded data."""
         if self._duckdb_conn is not None:
             return self._duckdb_conn
-        
+
         logger.info("Initializing DuckDB with JSON data files")
         self._duckdb_conn = duckdb.connect(":memory:")
-        
+
         # Load flights data - the JSON has structure {"flights": [...]}
         if FLIGHTS_FILE.exists():
             self._duckdb_conn.execute(f"""
@@ -115,9 +112,9 @@ class LogisticsMCP:
                     flight.sortTime as sortTime
                 FROM flights
             """)
-            count = self._duckdb_conn.execute("SELECT COUNT(*) FROM flights").fetchone()[0]
-            logger.info(f"Loaded {count} flights into DuckDB")
-        
+            count = self._duckdb_conn.execute("SELECT COUNT(*) FROM flights").fetchone()
+            logger.info(f"Loaded {count[0] if count else 0} flights into DuckDB")
+
         # Load oneview data if exists
         if ONEVIEW_FILE.exists():
             try:
@@ -125,11 +122,15 @@ class LogisticsMCP:
                     CREATE TABLE oneview AS 
                     SELECT * FROM read_json_auto('{ONEVIEW_FILE}')
                 """)
-                count = self._duckdb_conn.execute("SELECT COUNT(*) FROM oneview").fetchone()[0]
-                logger.info(f"Loaded {count} oneview records into DuckDB")
+                count = self._duckdb_conn.execute(
+                    "SELECT COUNT(*) FROM oneview"
+                ).fetchone()
+                logger.info(
+                    f"Loaded {count[0] if count else 0} oneview records into DuckDB"
+                )
             except Exception as e:
                 logger.warning(f"Could not load oneview.json: {e}")
-        
+
         # Load utilization data if exists
         if UTILIZATION_FILE.exists():
             try:
@@ -137,11 +138,15 @@ class LogisticsMCP:
                     CREATE TABLE utilization AS 
                     SELECT * FROM read_json_auto('{UTILIZATION_FILE}')
                 """)
-                count = self._duckdb_conn.execute("SELECT COUNT(*) FROM utilization").fetchone()[0]
-                logger.info(f"Loaded {count} utilization records into DuckDB")
+                count = self._duckdb_conn.execute(
+                    "SELECT COUNT(*) FROM utilization"
+                ).fetchone()
+                logger.info(
+                    f"Loaded {count[0] if count else 0} utilization records into DuckDB"
+                )
             except Exception as e:
                 logger.warning(f"Could not load utilization.json: {e}")
-        
+
         # Load historical data from flights.json (historicalData array)
         if FLIGHTS_FILE.exists():
             try:
@@ -149,7 +154,7 @@ class LogisticsMCP:
                 with open(FLIGHTS_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 historical = data.get("historicalData", [])
-                
+
                 if historical:
                     # Create table from the historical data
                     self._duckdb_conn.execute("""
@@ -161,7 +166,7 @@ class LogisticsMCP:
                             predicted BOOLEAN
                         )
                     """)
-                    
+
                     # Insert historical data
                     for record in historical:
                         self._duckdb_conn.execute(
@@ -171,47 +176,55 @@ class LogisticsMCP:
                                 record.get("route"),
                                 record.get("pounds"),
                                 record.get("cubicFeet"),
-                                record.get("predicted", False)
-                            ]
+                                record.get("predicted", False),
+                            ],
                         )
-                    
-                    count = self._duckdb_conn.execute("SELECT COUNT(*) FROM historical_data").fetchone()[0]
-                    logger.info(f"Loaded {count} historical records into DuckDB")
+
+                    count = self._duckdb_conn.execute(
+                        "SELECT COUNT(*) FROM historical_data"
+                    ).fetchone()
+                    logger.info(
+                        f"Loaded {count[0] if count else 0} historical records into DuckDB"
+                    )
             except Exception as e:
                 logger.warning(f"Could not load historical data: {e}")
-        
+
         return self._duckdb_conn
-    
+
     def get_tables(self) -> str:
         """Gets the list of all tables and their schemas."""
         try:
             conn = self._get_connection()
             result = conn.execute("SHOW TABLES").fetchall()
             tables = [row[0] for row in result]
-            
+
             # Get schema for each table
             table_info = {}
             for table in tables:
                 schema = conn.execute(f"DESCRIBE {table}").fetchall()
-                table_info[table] = [{"column": row[0], "type": row[1]} for row in schema]
-            
-            return json.dumps({
-                "tables": tables,
-                "schemas": table_info,
-            })
+                table_info[table] = [
+                    {"column": row[0], "type": row[1]} for row in schema
+                ]
+
+            return json.dumps(
+                {
+                    "tables": tables,
+                    "schemas": table_info,
+                }
+            )
         except Exception as e:
             logger.error(f"Error getting tables: {e}")
             return json.dumps({"error": str(e)})
-    
+
     def query_data(self, query: str) -> str:
         """Runs SQL queries on the flight data.
-        
+
         Args:
             query: SQL query to execute. Available tables: 'flights' with columns
                    (id, flightNumber, flightDate, origin, destination, currentPounds,
                    maxPounds, currentCubicFeet, maxCubicFeet, utilizationPercent,
                    riskLevel, sortTime).
-                   
+
         Returns:
             JSON string with columns and rows from the query result.
         """
@@ -220,26 +233,28 @@ class LogisticsMCP:
             result = conn.execute(query)
             colnames = [desc[0] for desc in result.description]
             rows = result.fetchall()
-            
+
             # Convert rows to serializable format
             serializable_rows = []
             for row in rows:
                 row_data = []
                 for val in row:
-                    if hasattr(val, 'isoformat'):
+                    if hasattr(val, "isoformat"):
                         val = val.isoformat()
                     row_data.append(val)
                 serializable_rows.append(row_data)
-            
-            return json.dumps({
-                "columns": colnames,
-                "rows": serializable_rows,
-                "row_count": len(rows),
-            })
+
+            return json.dumps(
+                {
+                    "columns": colnames,
+                    "rows": serializable_rows,
+                    "row_count": len(rows),
+                }
+            )
         except Exception as e:
             logger.error(f"Error executing query: {e}")
             return json.dumps({"error": str(e)})
-    
+
     def get_tables_resource(self) -> str:
         """Gets list of tables as a resource."""
         return self.get_tables()
@@ -248,6 +263,7 @@ class LogisticsMCP:
 # ============================================================================
 # REST API Functions (for direct HTTP access - used by MCP client)
 # ============================================================================
+
 
 def _load_flight_data() -> dict:
     """Load and cache flight data from the JSON file."""
@@ -280,46 +296,56 @@ def get_flights(
     """Get flights with filtering, sorting, and pagination."""
     data = _load_flight_data()
     all_flights = data.get("flights", [])
-    
+
     # Apply filters
     filtered = all_flights
-    
+
     if risk_level:
         filtered = [f for f in filtered if f.get("riskLevel") == risk_level]
-    
+
     if utilization:
         if utilization == "over":
             filtered = [f for f in filtered if f.get("utilizationPercent", 0) > 95]
         elif utilization == "near_capacity":
-            filtered = [f for f in filtered if 85 <= f.get("utilizationPercent", 0) <= 95]
+            filtered = [
+                f for f in filtered if 85 <= f.get("utilizationPercent", 0) <= 95
+            ]
         elif utilization == "under":
             filtered = [f for f in filtered if f.get("utilizationPercent", 0) < 50]
         elif utilization == "optimal":
-            filtered = [f for f in filtered if 50 <= f.get("utilizationPercent", 0) < 85]
-    
+            filtered = [
+                f for f in filtered if 50 <= f.get("utilizationPercent", 0) < 85
+            ]
+
     if route_from:
-        filtered = [f for f in filtered if f.get("from", "").upper() == route_from.upper()]
-    
+        filtered = [
+            f for f in filtered if f.get("from", "").upper() == route_from.upper()
+        ]
+
     if route_to:
         filtered = [f for f in filtered if f.get("to", "").upper() == route_to.upper()]
-    
+
     if date_from:
         filtered = [f for f in filtered if f.get("flightDate", "") >= date_from]
-    
+
     if date_to:
         filtered = [f for f in filtered if f.get("flightDate", "") <= date_to]
-    
+
     # Sort
     if sort_by and filtered:
         filtered = sorted(
             filtered,
-            key=lambda x: x.get(sort_by, 0) if isinstance(x.get(sort_by), (int, float)) else str(x.get(sort_by, "")),
-            reverse=sort_desc
+            key=lambda x: (
+                x.get(sort_by, 0)
+                if isinstance(x.get(sort_by), (int, float))
+                else str(x.get(sort_by, ""))
+            ),
+            reverse=sort_desc,
         )
-    
+
     total = len(filtered)
-    paginated = filtered[offset:offset + limit]
-    
+    paginated = filtered[offset : offset + limit]
+
     return {
         "flights": paginated,
         "total": total,
@@ -332,7 +358,7 @@ def get_flights(
             "route_to": route_to,
             "date_from": date_from,
             "date_to": date_to,
-        }
+        },
     }
 
 
@@ -340,13 +366,13 @@ def get_flight_by_id(flight_id: str) -> dict[str, Any]:
     """Get a specific flight by ID or flight number."""
     data = _load_flight_data()
     all_flights = data.get("flights", [])
-    
+
     search = flight_id.upper().replace(" ", "").replace("-", "")
     for flight in all_flights:
         flight_num = flight.get("flightNumber", "").upper().replace("-", "")
         if flight.get("id") == flight_id or flight_num == search:
             return {"flight": flight}
-    
+
     return {"flight": None, "error": f"Flight {flight_id} not found"}
 
 
@@ -354,34 +380,36 @@ def get_flight_summary() -> dict[str, Any]:
     """Get a summary of all available flight data."""
     data = _load_flight_data()
     flights = data.get("flights", [])
-    
+
     risk_counts = {"low": 0, "medium": 0, "high": 0, "critical": 0}
     route_counts: dict[str, int] = {}
     total_utilization = 0
-    
+
     for f in flights:
         risk = f.get("riskLevel", "unknown")
         if risk in risk_counts:
             risk_counts[risk] += 1
-        
+
         route = f"{f.get('from', '?')} → {f.get('to', '?')}"
         route_counts[route] = route_counts.get(route, 0) + 1
         total_utilization += f.get("utilizationPercent", 0)
-    
+
     avg_utilization = total_utilization / len(flights) if flights else 0
-    
+
     airports = set()
     for f in flights:
         airports.add(f.get("from", ""))
         airports.add(f.get("to", ""))
     airports.discard("")
-    
+
     return {
         "totalFlights": len(flights),
         "riskBreakdown": risk_counts,
         "averageUtilization": round(avg_utilization, 1),
         "uniqueRoutes": len(route_counts),
-        "topRoutes": sorted(route_counts.items(), key=lambda x: x[1], reverse=True)[:10],
+        "topRoutes": sorted(route_counts.items(), key=lambda x: x[1], reverse=True)[
+            :10
+        ],
         "airports": sorted(list(airports)),
         "flightsAtRisk": risk_counts["high"] + risk_counts["critical"],
         "underUtilizedFlights": risk_counts["low"],
@@ -394,39 +422,43 @@ def get_historical_data(
     include_predictions: bool = True,
 ) -> dict[str, Any]:
     """Get historical payload data with optional route filtering.
-    
+
     Args:
         days: Number of historical days to retrieve (default: 7)
         route: Optional route filter (e.g., 'LAX → ORD' or 'LAX-ORD')
         include_predictions: Whether to include prediction data (default: True)
-    
+
     Returns:
         Dict with historical data, predictions, and summary statistics
     """
     _load_flight_data()  # Ensure data is loaded
     all_data = _HISTORICAL_DATA_CACHE.copy()
-    
+
     # Filter by route if specified
     if route:
         # Normalize route format
-        normalized = route.replace("-", " → ").replace("->", " → ").replace(" - ", " → ")
+        normalized = (
+            route.replace("-", " → ").replace("->", " → ").replace(" - ", " → ")
+        )
         all_data = [d for d in all_data if d.get("route") == normalized]
-    
+
     # Separate historical and predicted data
     historical = [d for d in all_data if not d.get("predicted", False)]
     predictions = [d for d in all_data if d.get("predicted", False)]
-    
+
     # Sort by date (descending for historical to get most recent first)
     historical = sorted(historical, key=lambda x: x.get("date", ""), reverse=True)
     predictions = sorted(predictions, key=lambda x: x.get("date", ""))
-    
+
     # Limit historical to requested number of unique days (not records)
     if historical:
-        unique_dates = sorted(set(d.get("date", "") for d in historical), reverse=True)[:days]
+        unique_dates = sorted(set(d.get("date", "") for d in historical), reverse=True)[
+            :days
+        ]
         historical = [d for d in historical if d.get("date", "") in unique_dates]
         # Re-sort ascending for display
         historical = sorted(historical, key=lambda x: x.get("date", ""))
-    
+
     # Calculate statistics
     if historical:
         avg_pounds = sum(d.get("pounds", 0) for d in historical) // len(historical)
@@ -436,9 +468,11 @@ def get_historical_data(
         avg_pounds = 0
         avg_cubic = 0
         unique_hist_dates = 0
-    
-    unique_pred_dates = len(set(d.get("date", "") for d in predictions)) if predictions else 0
-    
+
+    unique_pred_dates = (
+        len(set(d.get("date", "") for d in predictions)) if predictions else 0
+    )
+
     result = {
         "historical": historical,
         "predictions": predictions if include_predictions else [],
@@ -450,7 +484,7 @@ def get_historical_data(
             "route": route,
         },
     }
-    
+
     return result
 
 
@@ -459,30 +493,32 @@ def get_predictions(
     route: str | None = None,
 ) -> dict[str, Any]:
     """Get predicted payload data for future flights.
-    
+
     Args:
         days: Number of prediction days to retrieve (default: 7)
         route: Optional route filter (e.g., 'LAX → ORD')
-    
+
     Returns:
         Dict with prediction data
     """
     _load_flight_data()  # Ensure data is loaded
     all_data = _HISTORICAL_DATA_CACHE.copy()
-    
+
     # Filter by route if specified
     if route:
-        normalized = route.replace("-", " → ").replace("->", " → ").replace(" - ", " → ")
+        normalized = (
+            route.replace("-", " → ").replace("->", " → ").replace(" - ", " → ")
+        )
         all_data = [d for d in all_data if d.get("route") == normalized]
-    
+
     # Get only predictions
     predictions = [d for d in all_data if d.get("predicted", False)]
     predictions = sorted(predictions, key=lambda x: x.get("date", ""))
     predictions = predictions[:days]
-    
+
     # Get unique routes in predictions
     routes = list(set(d.get("route", "") for d in predictions))
-    
+
     return {
         "predictions": predictions,
         "totalPredictions": len(predictions),
@@ -497,7 +533,7 @@ def get_predictions(
 def get_available_routes() -> dict[str, Any]:
     """Get list of all available routes in historical data."""
     _load_flight_data()  # Ensure data is loaded
-    
+
     routes: dict[str, dict] = {}
     for record in _HISTORICAL_DATA_CACHE:
         route = record.get("route", "")
@@ -513,19 +549,23 @@ def get_available_routes() -> dict[str, Any]:
             else:
                 routes[route]["historical_count"] += 1
                 routes[route]["total_pounds"] += record.get("pounds", 0)
-    
+
     route_list = []
     for route, stats in routes.items():
         avg_pounds = stats["total_pounds"] // max(1, stats["historical_count"])
-        route_list.append({
-            "route": route,
-            "historicalRecords": stats["historical_count"],
-            "predictionRecords": stats["prediction_count"],
-            "averagePounds": avg_pounds,
-        })
-    
+        route_list.append(
+            {
+                "route": route,
+                "historicalRecords": stats["historical_count"],
+                "predictionRecords": stats["prediction_count"],
+                "averagePounds": avg_pounds,
+            }
+        )
+
     return {
-        "routes": sorted(route_list, key=lambda x: x["historicalRecords"], reverse=True),
+        "routes": sorted(
+            route_list, key=lambda x: x["historicalRecords"], reverse=True
+        ),
         "totalRoutes": len(route_list),
     }
 
@@ -533,6 +573,7 @@ def get_available_routes() -> dict[str, Any]:
 # ============================================================================
 # REST API Endpoints (Starlette)
 # ============================================================================
+
 
 async def rest_get_historical(request: Request) -> JSONResponse:
     """REST endpoint for getting historical data."""
@@ -595,14 +636,16 @@ async def rest_get_summary(request: Request) -> JSONResponse:
 async def health_check(request: Request) -> JSONResponse:
     """Health check endpoint."""
     data = _load_flight_data()
-    return JSONResponse({
-        "status": "healthy",
-        "server": "logistics-mcp",
-        "transport": "http/sse",
-        "flights_loaded": len(data.get("flights", [])),
-        "historical_records": len(_HISTORICAL_DATA_CACHE),
-        "auth_enabled": is_auth_enabled(),
-    })
+    return JSONResponse(
+        {
+            "status": "healthy",
+            "server": "logistics-mcp",
+            "transport": "http/sse",
+            "flights_loaded": len(data.get("flights", [])),
+            "historical_records": len(_HISTORICAL_DATA_CACHE),
+            "auth_enabled": is_auth_enabled(),
+        }
+    )
 
 
 # Create Starlette app with REST routes
@@ -629,11 +672,11 @@ rest_app.add_middleware(EntraIDAuthMiddleware)
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     logger.info(f"Starting Logistics MCP Server on {MCP_HOST}:{MCP_PORT}")
     logger.info(f"REST API: http://{MCP_HOST}:{MCP_PORT}/api/flights")
-    
+
     # Pre-load flight data
     _load_flight_data()
-    
+
     uvicorn.run(rest_app, host=MCP_HOST, port=MCP_PORT)

@@ -26,16 +26,12 @@ import uuid
 
 # OpenTelemetry for setting conversation_id span attribute
 try:
-    from opentelemetry import trace, baggage, context as otel_context
-    from opentelemetry.trace import SpanKind
+    from opentelemetry import trace
 
     HAS_OTEL = True
 except ImportError:
     HAS_OTEL = False
     trace = None  # type: ignore
-    baggage = None  # type: ignore
-    otel_context = None  # type: ignore
-    SpanKind = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +43,7 @@ def _get_tracer():
     """Get or create the tracer for conversation tracking."""
     global _tracer
     if _tracer is None and HAS_OTEL:
-        _tracer = trace.get_tracer("logistics-agent", "1.0.0")
+        _tracer = trace.get_tracer("logistics-agent", "1.0.0")  # pyright: ignore[reportOptionalMemberAccess]
     return _tracer
 
 
@@ -179,7 +175,7 @@ def apply_agui_event_stream_patch() -> bool:
             # The attribute name follows OpenTelemetry GenAI semantic conventions
             # ===================================================================
             if HAS_OTEL:
-                current_span = trace.get_current_span()
+                current_span = trace.get_current_span()  # pyright: ignore[reportOptionalMemberAccess]
                 if current_span and current_span.is_recording():
                     current_span.set_attribute("gen_ai.conversation.id", thread_id)
                     current_span.set_attribute("conversation_id", thread_id)

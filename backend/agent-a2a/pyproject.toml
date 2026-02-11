@@ -12,6 +12,11 @@ dependencies = [
     "python-dotenv",
 ]
 
+[dependency-groups]
+dev = [
+    "basedpyright>=1.29.0",
+]
+
 [tool.uv]
 prerelease = "allow"
 

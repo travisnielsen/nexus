@@ -11,8 +11,7 @@ import json
 import os
 import logging
 from contextlib import asynccontextmanager
-from typing import Optional, Any
-from pathlib import Path
+from typing import Optional
 
 import uvicorn
 from agent_framework_ag_ui import add_agent_framework_fastapi_endpoint
@@ -23,6 +22,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from agents import create_logistics_agent  # type: ignore
 from agent_framework import SupportsChatGetResponse
+from agent_framework_ag_ui import AgentFrameworkAgent
 from middleware import (  # type: ignore
     ResponsesApiThreadMiddleware,
     azure_scheme,
@@ -63,8 +63,8 @@ AUTH_CONFIGURED = bool(
 configure_observability()
 
 # These will be initialized in the lifespan handler
-chat_client: SupportsChatGetResponse = None  # type: ignore
-logistics_agent = None  # type: ignore
+chat_client: SupportsChatGetResponse | None = None
+logistics_agent: AgentFrameworkAgent | None = None
 
 
 async def _init_chat_client():
@@ -81,7 +81,7 @@ async def _init_chat_client():
 
     # Add the Responses API middleware
     logger.info("Using Responses API with ResponsesApiThreadMiddleware")
-    chat_client.middleware = [ResponsesApiThreadMiddleware()]
+    chat_client.middleware = [ResponsesApiThreadMiddleware()]  # pyright: ignore[reportAttributeAccessIssue]
 
     logistics_agent = create_logistics_agent(chat_client)
 
@@ -101,7 +101,7 @@ async def lifespan(_app: FastAPI):
     # NOTE: This must happen here because the agent is created asynchronously
     add_agent_framework_fastapi_endpoint(
         app=_app,
-        agent=logistics_agent,
+        agent=logistics_agent,  # pyright: ignore[reportArgumentType]
         path="/logistics",
     )
     logger.info("Registered AG-UI endpoint at /logistics")

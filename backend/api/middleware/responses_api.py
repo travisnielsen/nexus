@@ -12,7 +12,7 @@ from typing import Callable, Awaitable
 from collections.abc import AsyncIterable
 import logging
 
-from agent_framework._types import ChatResponse, ChatResponseUpdate, Content, Role
+from agent_framework._types import ChatResponse, ChatResponseUpdate, Content
 from agent_framework._middleware import ChatMiddleware, ChatContext
 
 # OpenTelemetry for setting conversation_id span attribute
@@ -22,6 +22,7 @@ try:
     HAS_OTEL = True
 except ImportError:
     HAS_OTEL = False
+    trace = None  # type: ignore[assignment]
 
 
 logger = logging.getLogger(__name__)
@@ -93,7 +94,7 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
         # Set conversation_id as OpenTelemetry span attribute for Azure Foundry tracing
         # This enables conversation correlation in Azure Foundry traces
         if agui_thread_id and HAS_OTEL:
-            current_span = trace.get_current_span()
+            current_span = trace.get_current_span()  # pyright: ignore[reportOptionalMemberAccess]
             if current_span and current_span.is_recording():
                 current_span.set_attribute("gen_ai.conversation.id", agui_thread_id)
                 current_span.set_attribute("conversation_id", agui_thread_id)
@@ -110,9 +111,9 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
         for i, msg in enumerate(context.messages or []):
             role = getattr(msg, "role", "unknown")
             contents_info = []
-            if hasattr(msg, "content") and msg.content:
+            if hasattr(msg, "content") and msg.content:  # pyright: ignore[reportAttributeAccessIssue]
                 for c in (
-                    msg.content if isinstance(msg.content, list) else [msg.content]
+                    msg.content if isinstance(msg.content, list) else [msg.content]  # pyright: ignore[reportAttributeAccessIssue]
                 ):
                     c_type = type(c).__name__
                     if hasattr(c, "call_id"):
@@ -142,7 +143,7 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
             # context.options is a dict in the new agent-framework API
             if context.options is None:
                 context.options = {}
-            context.options["conversation_id"] = stored_response_id
+            context.options["conversation_id"] = stored_response_id  # pyright: ignore[reportIndexIssue]
 
             # Filter messages to only send the last user message - server has the history via conversation_id
             # This prevents KeyError on call_id_to_id for tool calls from previous turns
@@ -156,7 +157,7 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
             )
             if context.options is None:
                 context.options = {}
-            context.options["conversation_id"] = None
+            context.options["conversation_id"] = None  # pyright: ignore[reportIndexIssue]
 
             # Filter out tool calls/results that would cause call_id_to_id errors
             # This removes TOOL messages and ASSISTANT messages with FunctionCallContent
@@ -171,11 +172,11 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
         await call_next(context)
 
         # For streaming responses, capture the response_id after the stream completes
-        if context.is_streaming and context.result is not None:
+        if context.is_streaming and context.result is not None:  # pyright: ignore[reportAttributeAccessIssue]
             if hasattr(context.result, "__aiter__"):
                 # Wrap only to capture response_id
                 # Type narrow: we've verified it's an AsyncIterable via hasattr check
-                context.result = self._capture_response_id(
+                context.result = self._capture_response_id(  # pyright: ignore[reportAttributeAccessIssue]
                     context.result,  # type: ignore[arg-type]
                     agui_thread_id,
                 )
@@ -292,11 +293,11 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
         last_msg = messages[-1]
         last_role = getattr(last_msg, "role", None)
 
-        if last_role == Role.TOOL:
+        if last_role == "tool":
             # This is a tool result from CopilotKit - send only this message
             # Azure is waiting for this to continue the conversation
-            context.messages.clear()
-            context.messages.append(last_msg)
+            context.messages.clear()  # pyright: ignore[reportAttributeAccessIssue]
+            context.messages.append(last_msg)  # pyright: ignore[reportAttributeAccessIssue]
             logger.debug(
                 "[ResponsesApiThreadMiddleware] Continuation: sending tool result only: %d -> %d",
                 original_count,
@@ -309,15 +310,15 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
         for i in range(len(messages) - 1, -1, -1):
             msg = messages[i]
             role = getattr(msg, "role", None)
-            if role == Role.USER:
+            if role == "user":
                 last_user_idx = i
                 break
 
         if last_user_idx >= 0:
             # Only send the last user message - server has the rest
             last_user_msg = messages[last_user_idx]
-            context.messages.clear()
-            context.messages.append(last_user_msg)
+            context.messages.clear()  # pyright: ignore[reportAttributeAccessIssue]
+            context.messages.append(last_user_msg)  # pyright: ignore[reportAttributeAccessIssue]
             logger.debug(
                 "[ResponsesApiThreadMiddleware] Continuation: sending last user message only: %d -> %d",
                 original_count,
@@ -376,18 +377,18 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
             )
 
             # Always keep user messages
-            if role == Role.USER:
+            if role == "user":
                 logger.debug("[ResponsesApiThreadMiddleware]     -> KEEP (user)")
                 filtered.append(msg)
                 continue
 
             # Skip tool messages entirely
-            if role == Role.TOOL:
+            if role == "tool":
                 logger.debug("[ResponsesApiThreadMiddleware]     -> REMOVE (tool role)")
                 continue
 
             # For assistant messages, check if they contain tool calls or tool results
-            if role == Role.ASSISTANT:
+            if role == "assistant":
                 has_tool_related = False
                 msg_contents = getattr(msg, "contents", None) or getattr(
                     msg, "content", None
@@ -425,8 +426,8 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
             filtered.append(msg)
 
         if len(filtered) != original_count:
-            context.messages.clear()
-            context.messages.extend(filtered)
+            context.messages.clear()  # pyright: ignore[reportAttributeAccessIssue]
+            context.messages.extend(filtered)  # pyright: ignore[reportAttributeAccessIssue]
             logger.debug(
                 "[ResponsesApiThreadMiddleware] Fresh start filter: %d -> %d messages",
                 original_count,
