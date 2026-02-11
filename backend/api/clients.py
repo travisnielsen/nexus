@@ -10,7 +10,7 @@ import os
 import logging
 
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
-from agent_framework._clients import ChatClientProtocol
+from agent_framework import SupportsChatGetResponse
 from agent_framework import azure as _azure
 
 
@@ -30,14 +30,14 @@ def _get_model_deployment_name() -> str:
     return os.getenv("AZURE_AI_MODEL_DEPLOYMENT_NAME", "gpt-4o-mini")
 
 
-def build_responses_client() -> ChatClientProtocol:
+def build_responses_client() -> SupportsChatGetResponse:
     """Build AzureAIClient for Foundry Agent Service Responses API.
     
     This client uses the azure.ai.projects SDK and communicates via
     response_id chaining for conversation continuity.
     
     Returns:
-        ChatClientProtocol: Configured AzureAIClient instance
+        SupportsChatGetResponse: Configured AzureAIClient instance
     """
     logger.info("Building AzureAIClient (Foundry Agent Service - Responses API)")
     

@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from agent_framework import ChatAgent, ChatClientProtocol
+from agent_framework import Agent, SupportsChatGetResponse
 from agent_framework_ag_ui import AgentFrameworkAgent
 
 # Import all tools from the tools package
@@ -97,12 +97,12 @@ def _load_system_prompt() -> str:
     return prompt_path.read_text().strip()
 
 
-def create_logistics_agent(chat_client: ChatClientProtocol) -> AgentFrameworkAgent:
+def create_logistics_agent(chat_client: SupportsChatGetResponse) -> AgentFrameworkAgent:
     """Instantiate the Logistics demo agent backed by Microsoft Agent Framework."""
-    base_agent = ChatAgent(
+    base_agent = Agent(
+        client=chat_client,
         name="logistics-agent",
         instructions=_load_system_prompt(),
-        chat_client=chat_client,
         tools=[
             # Dashboard filter tools - these set activeFilter in state
             # The frontend's useRenderToolCall triggers immediate REST fetch on tool start

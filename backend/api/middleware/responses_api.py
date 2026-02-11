@@ -44,12 +44,6 @@ _thread_response_store: dict[str, str] = {}
 # This allows the middleware to access the thread_id without modifying kwargs
 _current_agui_thread_id: ContextVar[str | None] = ContextVar("current_agui_thread_id", default=None)
 
-# ContextVar to signal that the response ended with a frontend-only tool call
-# When this is True, we should NOT store the response_id because Azure is waiting
-# for a tool result that will never come (frontend handles it locally)
-_ended_with_frontend_tool: ContextVar[bool] = ContextVar("ended_with_frontend_tool", default=False)
-
-
 # Frontend-only tools that are handled by CopilotKit, not the backend
 # These tools don't send results back to Azure, so we shouldn't continue
 # a conversation that ended with one of these tool calls
@@ -72,10 +66,6 @@ def get_current_agui_thread_id() -> ContextVar[str | None]:
     return _current_agui_thread_id
 
 
-def get_ended_with_frontend_tool() -> ContextVar[bool]:
-    """Get the ContextVar for frontend tool detection."""
-    return _ended_with_frontend_tool
-
 class ResponsesApiThreadMiddleware(ChatMiddleware):
     """Chat middleware that manages response ID mapping for v2 Responses API.
     
@@ -91,7 +81,7 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
     async def process(
         self,
         context: ChatContext,
-        next: Callable[[ChatContext], Awaitable[None]],  # noqa: A002 - required by base class
+        call_next: Callable[[ChatContext], Awaitable[None]],
     ) -> None:
         """Process the chat request, managing response ID mapping."""
         # Get the AG-UI thread_id from ContextVar (set by AG-UI framework's orchestrator)
@@ -150,7 +140,7 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
         logger.debug("[ResponsesApiThreadMiddleware] After filtering: %d messages", len(context.messages) if context.messages else 0)
         
         # Call the next middleware/handler
-        await next(context)
+        await call_next(context)
         
         # For streaming responses, capture the response_id after the stream completes
         if context.is_streaming and context.result is not None:
@@ -362,74 +352,3 @@ class ResponsesApiThreadMiddleware(ChatMiddleware):
             logger.debug("[ResponsesApiThreadMiddleware] Fresh start filter: %d -> %d messages", original_count, len(filtered))
 
 
-async def deduplicate_tool_calls(
-    stream: AsyncIterable[ChatResponseUpdate],
-    agui_thread_id: str | None,
-) -> AsyncIterable[ChatResponseUpdate]:
-    """Wrap a streaming response to deduplicate tool call events.
-    
-    The v2 Responses API can emit the same tool call multiple times in a response,
-    which causes AG-UI to throw "TOOL_CALL_START already in progress" errors.
-    
-    This wrapper tracks seen tool call IDs and filters out duplicates while
-    preserving all other update properties (especially finish_reason which is
-    required for AG-UI to properly close text messages).
-    
-    NOTE: This function is currently unused - the AG-UI framework's orchestrator
-    handles deduplication at the event level instead.
-    """
-    seen_tool_call_ids: set[str] = set()
-    last_response_id: str | None = None
-    
-    async for update in stream:
-        # Track the response_id for thread mapping
-        if update.response_id:
-            last_response_id = update.response_id
-        if update.conversation_id:
-            last_response_id = update.conversation_id
-        
-        # Filter out duplicate tool calls from contents
-        if update.contents:
-            filtered_contents = []
-            has_duplicates = False
-            
-            for content in update.contents:
-                if _is_function_call(content):
-                    call_id = content.call_id
-                    if call_id and call_id in seen_tool_call_ids:
-                        logger.debug("[Dedup] Filtering duplicate tool call: %s", call_id)
-                        has_duplicates = True
-                        continue
-                    if call_id:
-                        seen_tool_call_ids.add(call_id)
-                filtered_contents.append(content)
-            
-            # Only modify the update if we actually filtered something
-            if has_duplicates:
-                # If no contents left but update has important metadata, still yield it
-                # (finish_reason is critical for AG-UI to close text messages properly)
-                if not filtered_contents and not update.finish_reason:
-                    continue
-                
-                # Create new update with filtered contents
-                update = ChatResponseUpdate(
-                    role=update.role,
-                    contents=filtered_contents if filtered_contents else None,
-                    response_id=update.response_id,
-                    conversation_id=update.conversation_id,
-                    message_id=update.message_id,
-                    model_id=update.model_id,
-                    finish_reason=update.finish_reason,
-                    raw_representation=update.raw_representation,
-                    created_at=update.created_at,
-                    author_name=update.author_name,
-                    additional_properties=update.additional_properties,
-                )
-        
-        yield update
-    
-    # After streaming completes, store the response_id for thread mapping
-    if agui_thread_id and last_response_id:
-        if last_response_id.startswith(("resp_", "conv_")):
-            _thread_response_store[agui_thread_id] = last_response_id
-            logger.debug("[Dedup] Stored response_id %s for thread %s", last_response_id, agui_thread_id)

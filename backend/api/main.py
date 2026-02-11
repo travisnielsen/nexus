@@ -22,7 +22,7 @@ from pydantic import BaseModel
 
 from fastapi.middleware.cors import CORSMiddleware
 from agents import create_logistics_agent  # type: ignore
-from agent_framework._clients import ChatClientProtocol
+from agent_framework import SupportsChatGetResponse
 from middleware import (  # type: ignore
     ResponsesApiThreadMiddleware,
     azure_scheme,
@@ -62,7 +62,7 @@ AUTH_CONFIGURED = bool(
 configure_observability()
 
 # These will be initialized in the lifespan handler
-chat_client: ChatClientProtocol = None  # type: ignore
+chat_client: SupportsChatGetResponse = None  # type: ignore
 logistics_agent = None  # type: ignore
 
 

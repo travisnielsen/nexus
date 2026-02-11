@@ -6,14 +6,15 @@ patches are applied before the affected libraries are loaded.
 
 PATCH CONFIGURATION:
 Patches can be enabled/disabled via environment variables:
-- PATCH_AGUI_TEXT_MESSAGE_END=true|false (default: true)
+- PATCH_AGUI_CONTEXT_SYNC=true|false (default: true)
 - PATCH_CONVERSATION_ID_INJECTION=true|false (default: true)
 - PATCH_TOOL_EXECUTION_SPAN=true|false (default: true)
 
 Available patches:
-1. AG-UI Event Stream fix - patches the AG-UI endpoint to handle text message
-   buffering, tool call deduplication, and event stream cleanup
-   (Agent Framework AG-UI compatibility with CopilotKit)
+1. AG-UI Context Sync - patches AgentFrameworkAgent.run_agent to extract
+   CopilotKit threadId, sync activeFilter to ContextVar, and set OpenTelemetry
+   conversation_id span attributes. (Event stream workarounds removed in
+   agent-framework >= 1.0.0b260210 via PR #3635.)
 
 2. Conversation ID Injection - patches Responses API instrumentor to inject
    gen_ai.conversation.id from CopilotKit threadId for Azure Foundry tracing
@@ -49,7 +50,7 @@ def _env_bool(key: str, default: bool) -> bool:
 class PatchConfig:
     """Configuration for which patches to apply."""
     
-    # Patch 1: AG-UI Event Stream - needed for CopilotKit compatibility
+    # Patch 1: AG-UI Context Sync - threadId, activeFilter, OTel attributes
     agui_event_stream: bool = True
     
     # Patch 2: Conversation ID Injection - needed for Azure Foundry tracing
@@ -65,7 +66,7 @@ class PatchConfig:
     def from_environment(cls) -> "PatchConfig":
         """Load patch configuration from environment variables."""
         config = cls(
-            agui_event_stream=_env_bool("PATCH_AGUI_TEXT_MESSAGE_END", True),
+            agui_event_stream=_env_bool("PATCH_AGUI_CONTEXT_SYNC", True),
             conversation_id_injection=_env_bool("PATCH_CONVERSATION_ID_INJECTION", True),
             tool_execution_span=_env_bool("PATCH_TOOL_EXECUTION_SPAN", True),
         )
@@ -110,7 +111,7 @@ def apply_all_patches() -> PatchConfig:
     
     config = get_config()
     
-    # Patch 1: AG-UI Event Stream
+    # Patch 1: AG-UI Context Sync
     if config.agui_event_stream:
         if apply_agui_event_stream_patch():
             config.applied.append("agui_event_stream")
