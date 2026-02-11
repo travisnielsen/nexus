@@ -32,19 +32,19 @@ def _get_model_deployment_name() -> str:
 
 def build_responses_client() -> SupportsChatGetResponse:
     """Build AzureAIClient for Foundry Agent Service Responses API.
-    
+
     This client uses the azure.ai.projects SDK and communicates via
     response_id chaining for conversation continuity.
-    
+
     Returns:
         SupportsChatGetResponse: Configured AzureAIClient instance
     """
     logger.info("Building AzureAIClient (Foundry Agent Service - Responses API)")
-    
+
     client = _azure.AzureAIClient(
         credential=AsyncDefaultAzureCredential(),
         project_endpoint=_get_project_endpoint(),
         model_deployment_name=_get_model_deployment_name(),
     )
-    
+
     return client

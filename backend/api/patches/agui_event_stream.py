@@ -28,6 +28,7 @@ import uuid
 try:
     from opentelemetry import trace, baggage, context as otel_context
     from opentelemetry.trace import SpanKind
+
     HAS_OTEL = True
 except ImportError:
     HAS_OTEL = False
@@ -41,6 +42,7 @@ logger = logging.getLogger(__name__)
 # Tracer for creating conversation spans
 _tracer = None
 
+
 def _get_tracer():
     """Get or create the tracer for conversation tracking."""
     global _tracer
@@ -51,35 +53,35 @@ def _get_tracer():
 
 def apply_agui_event_stream_patch() -> bool:
     """Patch AgentFrameworkAgent.run_agent to sync context from CopilotKit.
-    
+
     This patch applies project-specific context synchronization:
     - Extracts threadId from CopilotKit context for ResponsesApiThreadMiddleware
     - Syncs activeFilter from CopilotKit context to ContextVar for analyze_flights
     - Sets OpenTelemetry conversation_id for tracing correlation
-    
+
     Event stream workarounds (buffering, dedup, snapshot suppression) have been
     removed — agent-framework >= 1.0.0b260210 fixes these natively (PR #3635).
-    
+
     Returns:
         True if patch was applied, False otherwise.
     """
     try:
         from agent_framework_ag_ui._agent import AgentFrameworkAgent
-        
+
         # Import ContextVar to set filter at request start
         from agents.utils import current_active_filter
-        
+
         # Import thread ID ContextVar for Responses API middleware
         from middleware.responses_api import get_current_agui_thread_id
-        
+
         _original_run_agent = AgentFrameworkAgent.run_agent
-        
+
         async def patched_run_agent(self, input_data: dict):
             """Wrapped run_agent that:
             1. Sets AG-UI thread_id ContextVar for ResponsesApiThreadMiddleware
             2. Syncs activeFilter from CopilotKit context to ContextVar for analyze_flights
             3. Sets OpenTelemetry conversation_id span attribute for tracing
-            
+
             The event stream is passed through unmodified — framework fixes in
             agent-framework >= 1.0.0b260210 handle TEXT_MESSAGE_END, MESSAGES_SNAPSHOT,
             and tool call deduplication natively.
@@ -90,53 +92,68 @@ def apply_agui_event_stream_patch() -> bool:
             # The Responses API uses response_id chains for conversation continuity.
             # Each LLM call: pass previous response_id → get new response_id.
             # ===================================================================
-            logger.debug("[AGUI-PATCH] Full input_data dump: %s", json.dumps(input_data, default=str)[:2000])
-            
+            logger.debug(
+                "[AGUI-PATCH] Full input_data dump: %s",
+                json.dumps(input_data, default=str)[:2000],
+            )
+
             # Parse context list for threadId and activeFilter
             context_list = input_data.get("context", [])
             context_thread_id = None
-            
+
             if context_list:
-                logger.debug("[AGUI-PATCH] Context present: %s items", len(context_list))
+                logger.debug(
+                    "[AGUI-PATCH] Context present: %s items", len(context_list)
+                )
                 for ctx_item in context_list:
                     if isinstance(ctx_item, dict) and "value" in ctx_item:
                         try:
                             ctx_value = json.loads(ctx_item["value"])
-                            
+
                             # Extract threadId from context (workaround for CopilotKit not passing to HttpAgent)
                             if "threadId" in ctx_value and ctx_value["threadId"]:
                                 context_thread_id = ctx_value["threadId"]
-                                logger.debug("[AGUI-PATCH] Found threadId in context: %s", context_thread_id)
-                            
+                                logger.debug(
+                                    "[AGUI-PATCH] Found threadId in context: %s",
+                                    context_thread_id,
+                                )
+
                             if "activeFilter" in ctx_value:
                                 # Extract the filter and sync to ContextVar
                                 filter_data = ctx_value["activeFilter"]
                                 synced_filter = {
                                     "routeFrom": filter_data.get("routeFrom"),
                                     "routeTo": filter_data.get("routeTo"),
-                                    "utilizationType": filter_data.get("utilizationType"),
+                                    "utilizationType": filter_data.get(
+                                        "utilizationType"
+                                    ),
                                     "riskLevel": filter_data.get("riskLevel"),
                                 }
                                 current_active_filter.set(synced_filter)
-                                logger.debug("[AGUI-PATCH] Synced activeFilter to ContextVar: %s", synced_filter)
+                                logger.debug(
+                                    "[AGUI-PATCH] Synced activeFilter to ContextVar: %s",
+                                    synced_filter,
+                                )
                         except (json.JSONDecodeError, TypeError) as e:
-                            logger.warning("[AGUI-PATCH] Failed to parse context value: %s", e)
+                            logger.warning(
+                                "[AGUI-PATCH] Failed to parse context value: %s", e
+                            )
             else:
                 logger.debug("[AGUI-PATCH] No context in input_data")
-            
+
             # Determine thread_id with priority chain
             forwarded_props = input_data.get("forwardedProps", {})
             state = input_data.get("state", {})
-            
+
             thread_id = (
-                context_thread_id or  # HIGHEST PRIORITY: from useCopilotReadable context
-                input_data.get("thread_id") or 
-                input_data.get("threadId") or
-                forwarded_props.get("threadId") or
-                state.get("threadId") or
-                str(uuid.uuid4())  # Fallback if not provided
+                context_thread_id  # HIGHEST PRIORITY: from useCopilotReadable context
+                or input_data.get("thread_id")
+                or input_data.get("threadId")
+                or forwarded_props.get("threadId")
+                or state.get("threadId")
+                or str(uuid.uuid4())  # Fallback if not provided
             )
-            
+
             # Determine source for logging
             if context_thread_id:
                 source = "CONTEXT (useCopilotReadable)"
@@ -148,10 +165,14 @@ def apply_agui_event_stream_patch() -> bool:
                 source = "state"
             else:
                 source = "FALLBACK UUID (NEW)"
-            
+
             get_current_agui_thread_id().set(thread_id)
-            logger.debug("[AGUI-PATCH] Set thread_id ContextVar: %s (source: %s)", thread_id, source)
-            
+            logger.debug(
+                "[AGUI-PATCH] Set thread_id ContextVar: %s (source: %s)",
+                thread_id,
+                source,
+            )
+
             # ===================================================================
             # CRITICAL: Set conversation_id as OpenTelemetry span attribute
             # This enables Azure Foundry to display the Conversation ID in traces
@@ -162,28 +183,39 @@ def apply_agui_event_stream_patch() -> bool:
                 if current_span and current_span.is_recording():
                     current_span.set_attribute("gen_ai.conversation.id", thread_id)
                     current_span.set_attribute("conversation_id", thread_id)
-                    logger.debug("[AGUI-PATCH] Set span attribute gen_ai.conversation.id: %s", thread_id)
-            
+                    logger.debug(
+                        "[AGUI-PATCH] Set span attribute gen_ai.conversation.id: %s",
+                        thread_id,
+                    )
+
             # Log incoming state for debugging
             flights = state.get("flights", [])
             active_filter = state.get("activeFilter")
-            
+
             if active_filter:
                 is_cleared = (
-                    not active_filter.get("routeFrom") and
-                    not active_filter.get("routeTo") and
-                    not active_filter.get("utilizationType") and
-                    not active_filter.get("riskLevel")
+                    not active_filter.get("routeFrom")
+                    and not active_filter.get("routeTo")
+                    and not active_filter.get("utilizationType")
+                    and not active_filter.get("riskLevel")
                 )
                 if is_cleared:
-                    logger.debug("[AGUI-PATCH] Incoming state: filters CLEARED (all nulls)")
+                    logger.debug(
+                        "[AGUI-PATCH] Incoming state: filters CLEARED (all nulls)"
+                    )
                 else:
-                    logger.debug("[AGUI-PATCH] Incoming state: activeFilter=%s", active_filter)
+                    logger.debug(
+                        "[AGUI-PATCH] Incoming state: activeFilter=%s", active_filter
+                    )
             else:
                 logger.debug("[AGUI-PATCH] Incoming state: no activeFilter")
-            
-            logger.debug("[AGUI-PATCH] Full incoming state: flights=%d, activeFilter=%s", len(flights), active_filter)
-            
+
+            logger.debug(
+                "[AGUI-PATCH] Full incoming state: flights=%d, activeFilter=%s",
+                len(flights),
+                active_filter,
+            )
+
             # ===================================================================
             # PASS THROUGH EVENT STREAM
             # Framework fixes in agent-framework >= 1.0.0b260210 (PR #3635)
@@ -192,13 +224,15 @@ def apply_agui_event_stream_patch() -> bool:
             # ===================================================================
             async for event in _original_run_agent(self, input_data):
                 yield event
-        
+
         # Replace the method on the class
         AgentFrameworkAgent.run_agent = patched_run_agent
-        
-        logger.debug("Applied AG-UI context sync patch (patched AgentFrameworkAgent.run_agent)")
+
+        logger.debug(
+            "Applied AG-UI context sync patch (patched AgentFrameworkAgent.run_agent)"
+        )
         return True
-        
+
     except ImportError as e:
         logger.warning("Failed to apply AG-UI context sync patch: %s", e)
         return False

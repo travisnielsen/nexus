@@ -34,10 +34,7 @@ from monitoring import configure_observability, is_observability_enabled  # type
 load_dotenv()
 
 # Configure logging to show INFO level from our modules
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s:%(name)s:%(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 # Reduce noise from azure/httpx libraries
 logging.getLogger("azure").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -46,14 +43,18 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("fastapi_azure_auth").setLevel(logging.WARNING)
 # Control agent_framework verbosity via AGENT_FRAMEWORK_LOG_LEVEL env var (default: WARNING)
 agent_framework_log_level = os.getenv("AGENT_FRAMEWORK_LOG_LEVEL", "WARNING").upper()
-logging.getLogger("agent_framework").setLevel(getattr(logging, agent_framework_log_level, logging.WARNING))
-logging.getLogger("agent_framework_ag_ui").setLevel(getattr(logging, agent_framework_log_level, logging.WARNING))
+logging.getLogger("agent_framework").setLevel(
+    getattr(logging, agent_framework_log_level, logging.WARNING)
+)
+logging.getLogger("agent_framework_ag_ui").setLevel(
+    getattr(logging, agent_framework_log_level, logging.WARNING)
+)
 
 logger = logging.getLogger(__name__)
 
 # Check if Azure AD authentication is configured and enabled
 AUTH_CONFIGURED = bool(
-    azure_ad_settings.AZURE_AD_CLIENT_ID 
+    azure_ad_settings.AZURE_AD_CLIENT_ID
     and azure_ad_settings.AZURE_AD_TENANT_ID
     and azure_ad_settings.AUTH_ENABLED
 )
@@ -68,19 +69,20 @@ logistics_agent = None  # type: ignore
 
 async def _init_chat_client():
     """Initialize chat client and agent asynchronously.
-    
+
     This is called during application startup.
     """
     global chat_client, logistics_agent
-    
+
     # Build the Responses API client
     from clients import build_responses_client  # type: ignore
+
     chat_client = build_responses_client()
-    
+
     # Add the Responses API middleware
     logger.info("Using Responses API with ResponsesApiThreadMiddleware")
     chat_client.middleware = [ResponsesApiThreadMiddleware()]
-    
+
     logistics_agent = create_logistics_agent(chat_client)
 
 
@@ -91,10 +93,10 @@ async def lifespan(_app: FastAPI):
     Initializes the chat client and loads Azure AD OpenID configuration.
     """
     global logistics_agent
-    
+
     # Initialize chat client and agent
     await _init_chat_client()
-    
+
     # Register the AG-UI endpoint now that logistics_agent is initialized
     # NOTE: This must happen here because the agent is created asynchronously
     add_agent_framework_fastapi_endpoint(
@@ -103,13 +105,15 @@ async def lifespan(_app: FastAPI):
         path="/logistics",
     )
     logger.info("Registered AG-UI endpoint at /logistics")
-    
+
     # Log observability status
     if is_observability_enabled():
         logger.info("OpenTelemetry observability is ENABLED")
     else:
-        logger.info("OpenTelemetry observability is disabled (set ENABLE_INSTRUMENTATION=true to enable)")
-    
+        logger.info(
+            "OpenTelemetry observability is disabled (set ENABLE_INSTRUMENTATION=true to enable)"
+        )
+
     # Log authentication status
     if not azure_ad_settings.AUTH_ENABLED:
         logger.warning("=" * 60)
@@ -128,7 +132,7 @@ async def lifespan(_app: FastAPI):
         logger.warning("Set AZURE_AD_CLIENT_ID and AZURE_AD_TENANT_ID to enable auth.")
         logger.warning("=" * 60)
     yield
-    
+
     # Shutdown: Cleanup
     logger.info("Application shutdown complete")
 
@@ -140,7 +144,9 @@ app = FastAPI(
     swagger_ui_init_oauth={
         "usePkceWithAuthorizationCodeGrant": True,
         "clientId": azure_ad_settings.AZURE_AD_CLIENT_ID,
-    } if AUTH_CONFIGURED else None,
+    }
+    if AUTH_CONFIGURED
+    else None,
 )
 
 # IMPORTANT: Middleware runs in reverse order of addition
@@ -158,6 +164,7 @@ app.add_middleware(
 if AUTH_CONFIGURED:
     app.add_middleware(AzureADAuthMiddleware, settings=azure_ad_settings)
 
+
 # Protected health check endpoint (example of how to use auth)
 @app.get("/health")
 async def health_check():
@@ -173,7 +180,9 @@ async def get_current_user(request: Request):
     """
     user = getattr(request.state, "user", None)
     if not user:
-        return {"error": "Azure AD authentication not configured or user not authenticated"}
+        return {
+            "error": "Azure AD authentication not configured or user not authenticated"
+        }
     return {
         "claims": user,
         "name": user.get("name"),
@@ -199,8 +208,10 @@ from agents.utils import (
 # Feedback Models
 # ============================================================================
 
+
 class RecommendationFeedbackPayload(BaseModel):
     """Feedback payload for risk mitigation recommendations."""
+
     flightId: str
     flightNumber: str
     votes: dict[str, str]  # recommendation_id -> "up" | "down"
@@ -210,6 +221,7 @@ class RecommendationFeedbackPayload(BaseModel):
 
 class FlightsResponse(BaseModel):
     """Response model for flights endpoint."""
+
     flights: list[dict]
     total: int
     query: dict
@@ -217,6 +229,7 @@ class FlightsResponse(BaseModel):
 
 class HistoricalResponse(BaseModel):
     """Response model for historical data endpoint."""
+
     historicalData: list[dict]
     routes: list[str]
     total: int
@@ -225,23 +238,36 @@ class HistoricalResponse(BaseModel):
 
 @app.get("/logistics/data/flights", response_model=FlightsResponse)
 async def get_flights(
-    limit: int = Query(100, ge=1, le=200, description="Maximum number of flights to return"),
+    limit: int = Query(
+        100, ge=1, le=200, description="Maximum number of flights to return"
+    ),
     offset: int = Query(0, ge=0, description="Number of flights to skip"),
-    risk_level: Optional[str] = Query(None, description="Filter by risk level: low, medium, high, critical"),
-    utilization: Optional[str] = Query(None, description="Filter by utilization: over (>95%), near_capacity (85-95%), optimal (50-85%), under (<50%)"),
-    route_from: Optional[str] = Query(None, description="Filter by origin airport code"),
-    route_to: Optional[str] = Query(None, description="Filter by destination airport code"),
-    date_from: Optional[str] = Query(None, description="Filter by start date (YYYY-MM-DD)"),
+    risk_level: Optional[str] = Query(
+        None, description="Filter by risk level: low, medium, high, critical"
+    ),
+    utilization: Optional[str] = Query(
+        None,
+        description="Filter by utilization: over (>95%), near_capacity (85-95%), optimal (50-85%), under (<50%)",
+    ),
+    route_from: Optional[str] = Query(
+        None, description="Filter by origin airport code"
+    ),
+    route_to: Optional[str] = Query(
+        None, description="Filter by destination airport code"
+    ),
+    date_from: Optional[str] = Query(
+        None, description="Filter by start date (YYYY-MM-DD)"
+    ),
     date_to: Optional[str] = Query(None, description="Filter by end date (YYYY-MM-DD)"),
     sort_by: Optional[str] = Query("utilizationPercent", description="Sort field"),
     sort_desc: bool = Query(True, description="Sort descending"),
 ):
     """
     REST endpoint for bulk flight data retrieval.
-    
-    This endpoint provides fast data access for initial page load and 
+
+    This endpoint provides fast data access for initial page load and
     agent-triggered queries without SSE overhead.
-    
+
     Data is loaded from MCP server via HTTP.
     """
     mcp_result = await get_flights_from_mcp(
@@ -256,10 +282,10 @@ async def get_flights(
         sort_by=sort_by or "utilizationPercent",
         sort_desc=sort_desc,
     )
-    
+
     flights = mcp_result.get("flights", [])
     total = mcp_result.get("total", len(flights))
-    
+
     return FlightsResponse(
         flights=flights,
         total=total,
@@ -272,14 +298,14 @@ async def get_flights(
             "route_to": route_to,
             "date_from": date_from,
             "date_to": date_to,
-        }
+        },
     )
 
 
 @app.get("/logistics/data/flights/{flight_id}")
 async def get_flight_by_id_endpoint(flight_id: str):
     """Get a specific flight by ID or flight number.
-    
+
     Data is loaded from MCP server via HTTP.
     """
     return await get_flight_by_id_from_mcp(flight_id)
@@ -287,8 +313,12 @@ async def get_flight_by_id_endpoint(flight_id: str):
 
 @app.get("/logistics/data/historical", response_model=HistoricalResponse)
 async def get_historical_data(
-    route_from: Optional[str] = Query(None, description="Filter by origin airport code"),
-    route_to: Optional[str] = Query(None, description="Filter by destination airport code"),
+    route_from: Optional[str] = Query(
+        None, description="Filter by origin airport code"
+    ),
+    route_to: Optional[str] = Query(
+        None, description="Filter by destination airport code"
+    ),
     days: int = Query(10, ge=1, le=30, description="Number of days of data"),
     include_predictions: bool = Query(True, description="Include predicted data"),
 ):
@@ -300,27 +330,27 @@ async def get_historical_data(
     route = None
     if route_from and route_to:
         route = f"{route_from.upper()} → {route_to.upper()}"
-    
+
     # Fetch from MCP server
     mcp_response = await get_historical_from_mcp(
         days=days,
         route=route,
         include_predictions=include_predictions,
     )
-    
+
     # Transform MCP response to match frontend expected format
     # MCP returns separate "historical" and "predictions" arrays
     # Frontend expects a single "historicalData" array with predicted flag on each item
     historical = mcp_response.get("historical", [])
     predictions = mcp_response.get("predictions", [])
-    
+
     # Combine historical (sorted ascending by date) and predictions
     historical_sorted = sorted(historical, key=lambda x: x.get("date", ""))
     combined_data = historical_sorted + predictions
-    
+
     # Extract unique routes
     routes = sorted(set(d.get("route", "") for d in combined_data if d.get("route")))
-    
+
     return HistoricalResponse(
         historicalData=combined_data,
         routes=routes,
@@ -330,7 +360,7 @@ async def get_historical_data(
             "route_to": route_to,
             "days": days,
             "include_predictions": include_predictions,
-        }
+        },
     )
 
 
@@ -348,11 +378,12 @@ async def get_data_summary():
 # Feedback Endpoint
 # ============================================================================
 
+
 @app.post("/logistics/feedback")
 async def submit_recommendation_feedback(payload: RecommendationFeedbackPayload):
     """
     Submit feedback on risk mitigation recommendations.
-    
+
     Currently logs feedback for analysis. Backend storage will be implemented later.
     """
     logger.info("=" * 60)
@@ -365,10 +396,10 @@ async def submit_recommendation_feedback(payload: RecommendationFeedbackPayload)
     if payload.comment:
         logger.info("Comment: %s", payload.comment)
     logger.info("=" * 60)
-    
+
     # TODO: Persist feedback to database/storage
     # For now, just acknowledge receipt
-    
+
     return {
         "status": "received",
         "message": "Feedback logged successfully. Thank you!",
