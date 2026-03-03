@@ -1,14 +1,5 @@
 /**
  * Application Insights configuration for frontend telemetry.
- * 
- * This enables:
- * - Automatic correlation of all HTTP requests within a session
- * - W3C Trace Context propagation (traceparent header)
- * - Page view tracking
- * - Dependency tracking (API calls)
- * 
- * All requests to /logistics will share the same operation_Id,
- * allowing unified tracing in Application Insights.
  */
 
 import { ApplicationInsights, DistributedTracingModes } from '@microsoft/applicationinsights-web';
@@ -118,33 +109,4 @@ export function getAppInsights(): ApplicationInsights | null {
  */
 export function trackEvent(name: string, properties?: Record<string, string>) {
   appInsights?.trackEvent({ name, properties });
-}
-
-/**
- * Track the start of a conversation/session.
- * This creates a custom dimension that can be used to correlate all traces.
- */
-export function trackConversationStart(threadId: string) {
-  appInsights?.trackEvent({
-    name: 'ConversationStart',
-    properties: {
-      threadId,
-      conversationId: threadId,
-    },
-  });
-  
-  // Set the thread ID as a global property for all subsequent telemetry
-  appInsights?.addTelemetryInitializer((envelope) => {
-    if (envelope.data) {
-      (envelope.data as Record<string, unknown>)['threadId'] = threadId;
-    }
-    return true;
-  });
-}
-
-/**
- * Get the current operation ID for manual correlation.
- */
-export function getCurrentOperationId(): string | undefined {
-  return appInsights?.context?.telemetryTrace?.traceID;
 }

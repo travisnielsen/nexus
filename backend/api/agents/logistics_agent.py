@@ -14,6 +14,7 @@ from pathlib import Path
 
 from agent_framework import Agent, SupportsChatGetResponse
 from agent_framework_ag_ui import AgentFrameworkAgent
+from patches.agui_event_stream import attach_agui_context_sync
 
 # Import all tools from the tools package
 from .tools import (
@@ -118,7 +119,7 @@ def create_logistics_agent(chat_client: SupportsChatGetResponse) -> AgentFramewo
         ],
     )
 
-    return AgentFrameworkAgent(
+    agui_agent = AgentFrameworkAgent(
         agent=base_agent,
         name="logistics_agent",
         description="Manages shipping logistics data, flight payloads, and utilization analysis.",
@@ -126,3 +127,8 @@ def create_logistics_agent(chat_client: SupportsChatGetResponse) -> AgentFramewo
         require_confirmation=False,
         use_service_session=True,
     )
+
+    # Safer than global monkey patching: attach context sync to this instance only.
+    attach_agui_context_sync(agui_agent)
+
+    return agui_agent

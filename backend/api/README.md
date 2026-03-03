@@ -133,7 +133,10 @@ The `patches/` package applies critical workarounds that must load before other 
 
 | Patch | Purpose |
 |-------|---------|
-| `agui_event_stream.py` | Buffers orphaned text messages, deduplicates tool calls, syncs context |
+| `agui_event_stream.py` | Context sync helpers (`context` -> `current_active_filter`) |
 
-Patches can be disabled via environment variables:
-- `PATCH_AGUI_TEXT_MESSAGE_END=false`
+AG-UI context sync is attached per-agent instance in `agents/logistics_agent.py` via `attach_agui_context_sync(...)`.
+The legacy global class patch is optional and disabled by default.
+
+Patch toggles:
+- `PATCH_AGUI_CONTEXT_SYNC=false` (legacy global class patch, default false)

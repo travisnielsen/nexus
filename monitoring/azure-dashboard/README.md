@@ -70,7 +70,7 @@ The dashboard queries the `dependencies` and `traces` tables for spans with thes
 
 | Attribute | Description |
 |-----------|-------------|
-| `gen_ai_conversation_id` or `gen_ai.conversation.id` | Conversation/thread ID |
+| `gen_ai_conversation_id` or `gen_ai.conversation.id` | Conversation/thread ID (when available) |
 | `gen_ai.operation.name` | Operation type (`chat`, `execute_tool`, etc.) |
 | `gen_ai.request.model` | LLM model name |
 | `gen_ai.tool.name` | Tool function name |
@@ -81,14 +81,14 @@ The dashboard queries the `dependencies` and `traces` tables for spans with thes
 | `gen_ai.usage.input_tokens` | Input token count |
 | `gen_ai.usage.output_tokens` | Output token count |
 
-These attributes are automatically captured by the backend's OpenTelemetry instrumentation.
+Core tracing attributes are captured automatically by backend OpenTelemetry instrumentation. Conversation-specific dimensions may vary by provider/runtime.
 
 ## Sample KQL Queries
 
 Find all spans for a conversation:
 ```kql
 dependencies
-| where customDimensions.gen_ai_conversation_id == "your-conversation-id"
+| where timestamp > ago(24h)
 | project timestamp, name, duration, customDimensions
 | order by timestamp asc
 ```

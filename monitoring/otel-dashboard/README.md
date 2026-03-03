@@ -59,9 +59,9 @@ Open [http://localhost:3001](http://localhost:3001) in your browser.
 
 ### TraceQL Examples
 
-Find all traces for a specific conversation:
+Find traces for the backend service:
 ```
-{ span.gen_ai.conversation_id = "a24ea2c1-fd51-4354-af5e-f5f8ab9e3bcf" }
+{ resource.service.name = "agent-api" }
 ```
 
 Find tool execution spans:
@@ -88,7 +88,7 @@ Combine conditions:
 
 | Attribute | Description |
 |-----------|-------------|
-| `gen_ai.conversation_id` | CopilotKit thread ID for correlating all requests in a conversation |
+| `trace_id` / `span_id` | Primary correlation identifiers |
 | `gen_ai.operation.name` | Operation type (chat, tool_call, etc.) |
 | `gen_ai.request.model` | LLM model used |
 | `gen_ai.response.finish_reasons` | How the LLM response completed |
@@ -157,7 +157,7 @@ If running the backend inside Docker:
 
 ### Traces not correlating by conversation
 
-Ensure the `conversation_id_injection` patch is enabled in the backend. Check that `gen_ai.conversation_id` appears in trace attributes.
+Use `trace_id` / `span_id` as the primary correlation strategy. Conversation-level attributes may vary by provider/runtime and are optional.
 
 ## Data Retention
 
