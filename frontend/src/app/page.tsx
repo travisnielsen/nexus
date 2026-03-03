@@ -12,7 +12,7 @@ import { FlightListCard } from "@/components/FlightListCard";
 import { FlightDetailCard } from "@/components/FlightDetailCard";
 import { HistoricalChart } from "@/components/HistoricalChart";
 import { RiskBadge } from "@/components/RiskBadge";
-import { useThreadId } from "@/components/NoAuthCopilotKit";
+// useNewChat is exported from NoAuthCopilotKit for "New Chat" functionality
 
 // Prefix for system action messages - these are hidden from the chat UI but sent to the LLM
 const SYSTEM_ACTION_PREFIX = "[SYSTEM_ACTION]";
@@ -204,10 +204,6 @@ function LogisticsDashboard({ themeColor }: { themeColor: string }) {
     refetchHistorical,
   } = useLogisticsData(100, accessToken);
 
-  // Get the stable threadId from the CopilotKit context
-  // This is used to correlate requests for multi-turn conversations
-  const threadId = useThreadId();
-
   // Local display state - separate from CoAgent state to avoid sync issues
   const [displayFlights, setDisplayFlights] = useState<Flight[]>([]);
   const [displayHistorical, setDisplayHistorical] = useState<typeof initialHistorical>([]);
@@ -260,13 +256,9 @@ function LogisticsDashboard({ themeColor }: { themeColor: string }) {
 
   // 🪁 Tell the LLM what's currently displayed (for analyze_flights context)
   // activeFilter is ALWAYS present - filterType tells the LLM what kind of filter
-  // threadId is passed for conversation continuity in the backend
   useCopilotReadable({
-    description: "Current dashboard state - ALWAYS pass activeFilter fields to analyze_flights. threadId is for conversation tracking.",
+    description: "Current dashboard state - ALWAYS pass activeFilter fields to analyze_flights.",
     value: {
-      // CRITICAL: threadId is used by the backend to chain Azure response_ids
-      // This enables multi-turn conversation tracking in Azure Foundry traces
-      threadId: threadId,
       displayedFlightCount: displayFlights.length,
       activeFilter: {
         filterType: displayFilter.filterType,

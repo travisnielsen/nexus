@@ -10,14 +10,14 @@ The Azure SDK instrumentor has issues preventing conversation_id from appearing 
    has the conversation_id setting commented out in the SDK.
 
 This patch fixes both issues by:
-1. Wrapping _extract_conversation_id to inject our thread_id from ContextVar
+1. Wrapping _extract_conversation_id to inject our conversation_id from ContextVar
 2. Wrapping _create_event_attributes to set the GEN_AI_CONVERSATION_ID attribute
 
 Additionally, this patch instruments the agent-framework's tool execution spans to include
 the conversation_id, enabling full session correlation.
 
-The thread_id is obtained from the _current_agui_thread_id ContextVar, which is
-set by the AG-UI event stream patch from CopilotKit's useCopilotReadable context.
+The conversation_id is obtained from the _current_conversation_id ContextVar, which is
+set by the AG-UI event stream patch from the CopilotKit threadId (a conv_* Azure ID).
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ _original_get_function_span = None
 
 
 def apply_conversation_id_injection_patch() -> bool:
-    """Patch Azure SDK to inject our thread_id as conversation_id for tracing.
+    """Patch Azure SDK to inject our conversation_id for tracing.
 
     Returns:
         True if patch was applied, False otherwise.
@@ -53,7 +53,7 @@ def apply_conversation_id_injection_patch() -> bool:
         return True
 
     try:
-        from middleware.responses_api import get_current_agui_thread_id
+        from patches.agui_event_stream import get_current_conversation_id
 
         try:
             from azure.ai.projects.telemetry._responses_instrumentor import (  # pyright: ignore[reportPrivateImportUsage]
@@ -81,18 +81,18 @@ def apply_conversation_id_injection_patch() -> bool:
         def patched_extract_conversation_id(
             self, kwargs: Dict[str, Any]
         ) -> Optional[str]:
-            """Inject thread_id as conversation_id if original extraction returns None."""
+            """Inject conversation_id if original extraction returns None."""
             original_result = _original_extract_conversation_id(self, kwargs)  # type: ignore[misc]
             if original_result:
                 return original_result
 
-            thread_id = get_current_agui_thread_id().get()
-            if thread_id:
+            conv_id = get_current_conversation_id().get()
+            if conv_id:
                 logger.debug(
-                    "[CONV-ID-PATCH] Injected thread_id=%s as conversation_id",
-                    thread_id,
+                    "[CONV-ID-PATCH] Injected conversation_id=%s",
+                    conv_id,
                 )
-                return thread_id
+                return conv_id
             return None
 
         def patched_create_event_attributes(
@@ -186,7 +186,7 @@ def apply_tool_execution_span_patch() -> bool:
         return True
 
     try:
-        from middleware.responses_api import get_current_agui_thread_id
+        from patches.agui_event_stream import get_current_conversation_id
         from agent_framework import observability as af_observability
 
         try:
@@ -202,10 +202,10 @@ def apply_tool_execution_span_patch() -> bool:
 
         def patched_get_function_span(attributes: dict[str, str]):
             """Add conversation_id to tool execution span attributes."""
-            thread_id = get_current_agui_thread_id().get()
-            if thread_id:
-                attributes[GEN_AI_CONVERSATION_ID] = thread_id
-                attributes[GEN_AI_THREAD_ID] = thread_id
+            conv_id = get_current_conversation_id().get()
+            if conv_id:
+                attributes[GEN_AI_CONVERSATION_ID] = conv_id
+                attributes[GEN_AI_THREAD_ID] = conv_id
             return _original_get_function_span(attributes)  # pyright: ignore[reportOptionalCall]
 
         # Apply the patch

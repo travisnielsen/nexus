@@ -16,7 +16,7 @@ from typing import Optional
 import uvicorn
 from agent_framework_ag_ui import add_agent_framework_fastapi_endpoint
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Query
+from fastapi import FastAPI, HTTPException, Request, Query
 from pydantic import BaseModel
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +24,6 @@ from agents import create_logistics_agent  # type: ignore
 from agent_framework import SupportsChatGetResponse
 from agent_framework_ag_ui import AgentFrameworkAgent
 from middleware import (  # type: ignore
-    ResponsesApiThreadMiddleware,
     azure_scheme,
     azure_ad_settings,
     AzureADAuthMiddleware,
@@ -78,10 +77,6 @@ async def _init_chat_client():
     from clients import build_responses_client  # type: ignore
 
     chat_client = build_responses_client()
-
-    # Add the Responses API middleware
-    logger.info("Using Responses API with ResponsesApiThreadMiddleware")
-    chat_client.middleware = [ResponsesApiThreadMiddleware()]  # pyright: ignore[reportAttributeAccessIssue]
 
     logistics_agent = create_logistics_agent(chat_client)
 
@@ -188,6 +183,37 @@ async def get_current_user(request: Request):
         "name": user.get("name"),
         "email": user.get("preferred_username"),
     }
+
+
+# ============================================================================
+# Conversation Management Endpoint
+# Creates Azure Foundry conversations for session continuity
+# ============================================================================
+
+
+@app.post("/api/conversations")
+async def create_conversation():
+    """Create a new Azure Foundry conversation.
+
+    Returns a conv_* ID that the frontend uses as the CopilotKit threadId.
+    With use_service_session=True, the AG-UI framework passes this ID as
+    service_session_id to AgentSession, and the Responses API uses it as
+    the conversation parameter for server-side history management.
+    """
+    if chat_client is None:
+        raise ValueError("Chat client not initialized")
+
+    try:
+        # get_openai_client() is synchronous — returns an AsyncOpenAI instance
+        openai_client = chat_client.project_client.get_openai_client()  # pyright: ignore[reportAttributeAccessIssue]
+        conversation = await openai_client.conversations.create()
+
+        logger.info("Created Azure Foundry conversation: %s", conversation.id)
+
+        return {"conversationId": conversation.id}
+    except Exception as e:
+        logger.error("Failed to create conversation: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================================
