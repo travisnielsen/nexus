@@ -23,7 +23,7 @@ This directory contains tools and dashboards for monitoring and visualizing agen
 
 ## How Tracing Works
 
-The solution uses OpenTelemetry to capture distributed traces across all agent interactions. Every conversation is tagged with a unique identifier that flows through all spans, enabling end-to-end visibility.
+The solution uses OpenTelemetry to capture distributed traces across all agent interactions. Correlation is based on trace/span identifiers (`operation_Id`, `id`, parent relationships), with conversation identifiers available when emitted by the underlying SDK/runtime.
 
 ### Conversation ID Generation
 
@@ -35,7 +35,7 @@ The solution uses OpenTelemetry to capture distributed traces across all agent i
 
 ### Backend Capture and Propagation
 
-The backend captures the `threadId` and propagates it through the telemetry system:
+The backend receives the `threadId` and uses it for AG-UI session continuity. Telemetry propagation is handled by standard Azure Monitor / OpenTelemetry instrumentation:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -46,31 +46,20 @@ The backend captures the `threadId` and propagates it through the telemetry syst
                              ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  AG-UI Event Stream Patch (patches/agui_event_stream.py)            │
-│  - Extracts threadId from request body                              │
-│  - Stores in ContextVar: _current_agui_thread_id                    │
-│  - Creates root conversation span with gen_ai.conversation.id       │
+│  - Syncs activeFilter context for tool behavior                     │
 └────────────────────────────┬────────────────────────────────────────┘
                              │
                              ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Thread Middleware (middleware/responses_api.py)                    │
-│  - Maps threadId to Azure response_id chain (Responses API)         │
-│  - Or maps to Azure thread_id (Assistants API)                      │
-│  - Exposes get_current_agui_thread_id() for other modules           │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  Conversation ID Injection (patches/conversation_id_injection.py)   │
-│  - Patches Azure SDK telemetry to include gen_ai.conversation.id    │
-│  - Patches Agent Framework tool execution spans                     │
-│  - Ensures all spans in a conversation are correlated               │
+│  OpenTelemetry + Azure Monitor / OTLP Exporters                     │
+│  - Captures spans from FastAPI, Azure SDK, and Agent Framework      │
+│  - Correlates via trace/span identifiers                             │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Span Instrumentation
 
-The following spans are captured with `gen_ai.conversation.id`:
+The following spans are captured:
 
 | Span Type | Source | Key Attributes |
 |-----------|--------|----------------|
@@ -154,7 +143,7 @@ APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=...
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
 # Log prompts and responses (CAUTION: sensitive data!)
-ENABLE_SENSITIVE_DATA=true
+ENABLE_SENSITIVE_DATA=false
 
 # Print spans to console for debugging
 ENABLE_CONSOLE_EXPORTERS=false
@@ -194,7 +183,7 @@ npm run dev
 **Querying traces:**
 ```kql
 AppDependencies
-| where Properties["gen_ai.conversation.id"] == "your-conversation-id"
+| where TimeGenerated > ago(24h)
 | order by TimeGenerated asc
 ```
 
@@ -225,7 +214,7 @@ docker compose up -d
 
 **Querying traces (TraceQL):**
 ```traceql
-{ span.gen_ai.conversation.id = "your-conversation-id" }
+{ resource.service.name = "agent-api" }
 ```
 
 ---

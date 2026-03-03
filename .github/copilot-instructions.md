@@ -58,8 +58,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   │   ├── Dockerfile.local   # Local dev Dockerfile (includes Azure CLI)
 │   │   ├── patches/           # Context sync & telemetry patches (must import first)
 │   │   │   ├── __init__.py        # Patch config and apply_all_patches()
-│   │   │   ├── agui_event_stream.py # AG-UI context sync (activeFilter, OTel conv_id)
-│   │   │   └── conversation_id_injection.py # Telemetry conversation ID patches
+│   │   │   └── agui_event_stream.py # AG-UI context sync (activeFilter)
 │   │   ├── agents/
 │   │   │   ├── logistics_agent.py  # Agent configuration and state schema
 │   │   │   ├── prompts/       # System prompt templates
@@ -524,21 +523,20 @@ The `monitoring.py` module configures:
 - **Azure SDK tracing** - Traces Azure AI Foundry/Inference API calls
 - **FastAPI tracing** - Traces HTTP requests to the backend
 - **Agent Framework tracing** - Traces agent workflows and tool execution
-- **Conversation ID injection** - Adds `gen_ai.conversation_id` to all spans for correlation
 
 ### Sample Queries
 
 **Azure Monitor (KQL)**:
 ```kql
-// All spans for a conversation
+// Recent dependency spans
 dependencies
-| where customDimensions.gen_ai_conversation_id == "your-thread-id"
+| where timestamp > ago(1h)
 | order by timestamp asc
 ```
 
 **Grafana Tempo (TraceQL)**:
 ```traceql
-{ span.gen_ai.conversation_id = "your-thread-id" }
+{ resource.service.name = "agent-api" }
 ```
 
 ## Thread Mapping and Telemetry
@@ -551,35 +549,31 @@ The frontend creates an Azure Foundry conversation (`conv_*` ID) on mount via `P
 2. **CopilotKit**: Uses `conv_*` as `threadId` prop, sent in every AG-UI SSE request
 3. **AG-UI Framework**: With `use_service_session=True`, creates `AgentSession(service_session_id="conv_*")`
 4. **Azure AI Foundry**: Uses `conv_*` as the `conversation` parameter for server-side history management
-5. **Telemetry**: `conv_*` ID injected as `gen_ai.conversation_id` for correlation
+5. **Telemetry**: Traces are correlated primarily through trace/span IDs (`operation_Id`, `id`)
 
 ### Telemetry Correlation
 
-All telemetry spans include `gen_ai.conversation_id` (the `conv_*` ID) for querying:
+Telemetry correlation is based on trace/span identifiers (`operation_Id`, `id`).
 
 ```kql
-// Find all telemetry for a conversation
+// Find telemetry for recent requests
 dependencies
-| where customDimensions.gen_ai_conversation_id == "conv_abc123..."
+| where timestamp > ago(1h)
 ```
 
 **Telemetry Backends Supported**:
 - **Azure Monitor/Application Insights**: Via `azure-monitor-opentelemetry`
 - **Aspire Dashboard**: Via OTLP exporter (local dev)
-- **Grafana Tempo**: Via OTLP exporter (supports TraceQL queries by conversation_id)
+- **Grafana Tempo**: Via OTLP exporter
 
-**Note**: Each HTTP POST to `/logistics` creates a new `operation_Id` (trace). Use `gen_ai.conversation_id` to correlate all requests in a conversation.
+**Note**: Each HTTP POST to `/logistics` creates a new `operation_Id` (trace).
 
 ### Patches Package (`backend/api/patches/`)
-The patches package applies context synchronization and telemetry workarounds. Each patch is in its own file:
+The patches package applies context synchronization workarounds:
 
 | Patch | File | Purpose |
 |-------|------|----------|
-| AG-UI Context Sync | `agui_event_stream.py` | Syncs activeFilter to ContextVar, sets OTel conversation_id span attributes |
-| Conversation ID (Responses) | `conversation_id_injection.py` | Injects `gen_ai.conversation_id` into Responses API telemetry spans |
-| Tool Execution Span | `conversation_id_injection.py` | Adds `gen_ai.conversation_id` to agent-framework tool execution spans |
+| AG-UI Context Sync | `agui_event_stream.py` | Syncs activeFilter to ContextVar |
 
 Patches can be disabled via environment variables:
 - `PATCH_AGUI_CONTEXT_SYNC=false`
-- `PATCH_CONVERSATION_ID_INJECTION=false`
-- `PATCH_TOOL_EXECUTION_SPAN=false`

@@ -6,21 +6,12 @@ patches are applied before the affected libraries are loaded.
 
 PATCH CONFIGURATION:
 Patches can be enabled/disabled via environment variables:
-- PATCH_AGUI_CONTEXT_SYNC=true|false (default: true)
-- PATCH_CONVERSATION_ID_INJECTION=true|false (default: true)
-- PATCH_TOOL_EXECUTION_SPAN=true|false (default: true)
+- PATCH_AGUI_CONTEXT_SYNC=true|false (default: false)
 
 Available patches:
-1. AG-UI Context Sync - patches AgentFrameworkAgent.run to sync activeFilter
-   from CopilotKit context to ContextVar, and set OpenTelemetry conversation_id
-   span attributes. Thread/session management is handled natively by AgentSession
-   with use_service_session=True.
-
-2. Conversation ID Injection - patches Responses API instrumentor to inject
-   gen_ai.conversation.id from conv_* conversation ID for Azure Foundry tracing
-
-3. Tool Execution Span - patches agent-framework's get_function_span to add
-   gen_ai.conversation.id to tool execution spans
+1. AG-UI Context Sync (legacy class patch) - optional global patch for
+    AgentFrameworkAgent run entrypoints. Prefer instance-level wrapping via
+    attach_agui_context_sync() in agents/logistics_agent.py.
 """
 
 from __future__ import annotations
@@ -51,14 +42,9 @@ def _env_bool(key: str, default: bool) -> bool:
 class PatchConfig:
     """Configuration for which patches to apply."""
 
-    # Patch 1: AG-UI Context Sync - threadId, activeFilter, OTel attributes
-    agui_event_stream: bool = True
-
-    # Patch 2: Conversation ID Injection - needed for Azure Foundry tracing
-    conversation_id_injection: bool = True
-
-    # Patch 3: Tool Execution Span - adds conversation_id to tool spans
-    tool_execution_span: bool = True
+    # Patch 1 (legacy): AG-UI Context Sync class monkey patch
+    # Prefer instance-level wrapper in create_logistics_agent().
+    agui_event_stream: bool = False
 
     # Track which patches were applied
     applied: list[str] = field(default_factory=list)
@@ -68,17 +54,11 @@ class PatchConfig:
         """Load patch configuration from environment variables."""
         config = cls(
             agui_event_stream=_env_bool("PATCH_AGUI_CONTEXT_SYNC", True),
-            conversation_id_injection=_env_bool(
-                "PATCH_CONVERSATION_ID_INJECTION", True
-            ),
-            tool_execution_span=_env_bool("PATCH_TOOL_EXECUTION_SPAN", True),
         )
 
         logger.debug(
             f"Patch config: "
-            f"agui_event_stream={config.agui_event_stream}, "
-            f"conversation_id_injection={config.conversation_id_injection}, "
-            f"tool_execution_span={config.tool_execution_span}"
+            f"agui_event_stream={config.agui_event_stream}"
         )
 
         return config
@@ -108,27 +88,12 @@ def apply_all_patches() -> PatchConfig:
         PatchConfig with `applied` list populated with applied patch names.
     """
     from .agui_event_stream import apply_agui_event_stream_patch
-    from .conversation_id_injection import (
-        apply_conversation_id_injection_patch,
-        apply_tool_execution_span_patch,
-    )
-
     config = get_config()
 
-    # Patch 1: AG-UI Context Sync
+    # Patch 1 (legacy): AG-UI Context Sync class patch
     if config.agui_event_stream:
         if apply_agui_event_stream_patch():
             config.applied.append("agui_event_stream")
-
-    # Patch 2: Conversation ID Injection for Azure Foundry tracing
-    if config.conversation_id_injection:
-        if apply_conversation_id_injection_patch():
-            config.applied.append("conversation_id_injection")
-
-    # Patch 3: Tool Execution Span - adds conversation_id to tool spans
-    if config.tool_execution_span:
-        if apply_tool_execution_span_patch():
-            config.applied.append("tool_execution_span")
 
     if config.applied:
         logger.info(f"Applied patches: {config.applied}")

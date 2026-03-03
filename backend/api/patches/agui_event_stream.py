@@ -1,77 +1,147 @@
-"""
-Patch: AG-UI Context Synchronization
+"""AG-UI context synchronization helpers.
 
-This patch wraps AgentFrameworkAgent.run to:
-1. Sync activeFilter from CopilotKit context to ContextVar for analyze_flights
-2. Set OpenTelemetry conversation_id span attribute for tracing correlation
+This module provides a safe bridge between frontend CopilotKit readable context
+and backend tool execution context.
 
-With use_service_session=True, the AG-UI framework handles thread/session
-mapping natively via AgentSession. The CopilotKit threadId (a conv_* ID
-created by Azure Foundry) is used directly as the service_session_id.
+Key responsibility:
+1. Sync activeFilter from AG-UI request context into current_active_filter
 
-HISTORY:
-  Previous versions mapped CopilotKit UUIDs to Azure resp_* IDs via
-  ResponsesApiThreadMiddleware. That middleware has been removed in favor
-  of AgentSession with pre-created Azure conversations (conv_* IDs).
-
-STATUS: Required for project-specific context synchronization.
+Prefer instance-level wrapping via attach_agui_context_sync() instead of a
+global class monkey patch.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from contextvars import ContextVar
-
-# OpenTelemetry for setting conversation_id span attribute
-try:
-    from opentelemetry import trace
-
-    HAS_OTEL = True
-except ImportError:
-    HAS_OTEL = False
-    trace = None  # type: ignore
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# ContextVar to track the current conversation ID (conv_* from CopilotKit threadId)
-# This is used by conversation_id_injection.py to inject conversation_id into telemetry spans.
-_current_conversation_id: ContextVar[str | None] = ContextVar(
-    "current_conversation_id", default=None
-)
+
+def _sync_active_filter(input_data: dict[str, Any]) -> None:
+    """Sync activeFilter from AG-UI context payload into ContextVar."""
+    from agents.utils import current_active_filter
+
+    context_list = input_data.get("context", [])
+    if not context_list:
+        # Prevent stale filter bleed between turns when no context is sent.
+        current_active_filter.set(None)
+        logger.debug("[AGUI-CONTEXT] No context payload; cleared active filter")
+        return
+
+    found_active_filter = False
+
+    for ctx_item in context_list:
+        if not isinstance(ctx_item, dict) or "value" not in ctx_item:
+            continue
+
+        try:
+            raw_value = ctx_item["value"]
+            if isinstance(raw_value, str):
+                ctx_value = json.loads(raw_value)
+            elif isinstance(raw_value, dict):
+                ctx_value = raw_value
+            else:
+                logger.debug(
+                    "[AGUI-CONTEXT] Ignoring unsupported context value type: %s",
+                    type(raw_value).__name__,
+                )
+                continue
+
+            if "activeFilter" in ctx_value:
+                found_active_filter = True
+                filter_data = ctx_value["activeFilter"]
+
+                # When UI indicates "all", treat as no active filter.
+                if (
+                    isinstance(filter_data, dict)
+                    and filter_data.get("filterType") == "all"
+                ):
+                    current_active_filter.set(None)
+                    logger.debug(
+                        "[AGUI-CONTEXT] activeFilter.filterType=all; cleared active filter"
+                    )
+                    return
+
+                synced_filter = {
+                    "routeFrom": filter_data.get("routeFrom"),
+                    "routeTo": filter_data.get("routeTo"),
+                    "utilizationType": filter_data.get("utilizationType"),
+                    "riskLevel": filter_data.get("riskLevel"),
+                    "dateFrom": filter_data.get("dateFrom"),
+                    "dateTo": filter_data.get("dateTo"),
+                    "limit": filter_data.get("limit"),
+                }
+                current_active_filter.set(synced_filter)
+                logger.debug(
+                    "[AGUI-CONTEXT] Synced activeFilter to ContextVar: %s",
+                    synced_filter,
+                )
+                return
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning("[AGUI-CONTEXT] Failed to parse context value: %s", e)
+
+    if not found_active_filter:
+        # If context exists but doesn't include activeFilter, avoid stale state.
+        current_active_filter.set(None)
+        logger.debug(
+            "[AGUI-CONTEXT] Context had no activeFilter; cleared active filter"
+        )
 
 
-def get_current_conversation_id() -> ContextVar[str | None]:
-    """Get the ContextVar for the current conversation ID.
+def _apply_request_context(input_data: dict[str, Any]) -> None:
+    """Apply request context needed by backend tools."""
+    _sync_active_filter(input_data)
 
-    The conversation ID is the conv_* ID from Azure Foundry, passed through
-    CopilotKit as the threadId. It is set by the agui_event_stream patch
-    at the start of each agent run.
+
+def attach_agui_context_sync(agent_runner: object) -> bool:
+    """Attach context sync to a specific AG-UI protocol runner instance.
+
+    This is safer than globally monkey-patching the framework class. It wraps
+    the runner instance's AG-UI entry method (`run` or `run_agent`) and applies
+    context synchronization before delegating to the original implementation.
+
+    Args:
+        agent_runner: AgentFrameworkAgent instance (or compatible object)
+
+    Returns:
+        True if wrapper attached, False otherwise.
     """
-    return _current_conversation_id
+    run_method_name = None
+    if callable(getattr(agent_runner, "run", None)):
+        run_method_name = "run"
+    elif callable(getattr(agent_runner, "run_agent", None)):
+        run_method_name = "run_agent"
 
+    if run_method_name is None:
+        logger.warning(
+            "[AGUI-CONTEXT] Could not attach context sync: no run/run_agent method"
+        )
+        return False
 
-# Tracer for creating conversation spans
-_tracer = None
+    original_run = getattr(agent_runner, run_method_name)
+    if getattr(original_run, "_agui_context_sync_wrapped", False):
+        return True
 
+    async def wrapped_run(input_data: dict[str, Any]):
+        _apply_request_context(input_data)
+        async for event in original_run(input_data):
+            yield event
 
-def _get_tracer():
-    """Get or create the tracer for conversation tracking."""
-    global _tracer
-    if _tracer is None and HAS_OTEL:
-        _tracer = trace.get_tracer("logistics-agent", "1.0.0")  # pyright: ignore[reportOptionalMemberAccess]
-    return _tracer
+    setattr(wrapped_run, "_agui_context_sync_wrapped", True)
+    setattr(agent_runner, run_method_name, wrapped_run)
+    logger.debug(
+        "[AGUI-CONTEXT] Attached instance context sync wrapper to %s",
+        run_method_name,
+    )
+    return True
 
 
 def apply_agui_event_stream_patch() -> bool:
-    """Patch AgentFrameworkAgent.run to sync context from CopilotKit.
+    """Backward-compatible global class patch.
 
-    This patch applies project-specific context synchronization:
-    - Syncs activeFilter from CopilotKit context to ContextVar for analyze_flights
-    - Sets OpenTelemetry conversation_id for tracing correlation
-
-    Thread/session management is handled natively by AgentSession with
-    use_service_session=True. No middleware workarounds are needed.
+    Prefer attach_agui_context_sync() for instance-level wrapping.
 
     Returns:
         True if patch was applied, False otherwise.
@@ -79,90 +149,34 @@ def apply_agui_event_stream_patch() -> bool:
     try:
         from agent_framework_ag_ui._agent import AgentFrameworkAgent
 
-        # Import ContextVar to set filter at request start
-        from agents.utils import current_active_filter
-
-        _original_run = AgentFrameworkAgent.run
-
-        async def patched_run(self, input_data: dict):
-            """Wrapped run that:
-            1. Syncs activeFilter from CopilotKit context to ContextVar for analyze_flights
-            2. Sets conversation_id ContextVar and OpenTelemetry span attribute for tracing
-            """
-            # ===================================================================
-            # Extract thread_id (conv_* from CopilotKit) for telemetry
-            # With use_service_session=True, the framework handles session
-            # management — we only need the ID for OTel span attributes.
-            # ===================================================================
-            thread_id = (
-                input_data.get("thread_id")
-                or input_data.get("threadId")
-                or input_data.get("forwardedProps", {}).get("threadId")
+        if callable(getattr(AgentFrameworkAgent, "run", None)):
+            method_name = "run"
+        elif callable(getattr(AgentFrameworkAgent, "run_agent", None)):
+            method_name = "run_agent"
+        else:
+            logger.warning(
+                "Failed to apply AG-UI context sync patch: no run/run_agent on AgentFrameworkAgent"
             )
+            return False
 
-            if thread_id:
-                _current_conversation_id.set(thread_id)
-                logger.debug(
-                    "[AGUI-PATCH] Set conversation_id ContextVar: %s", thread_id
-                )
+        original_run = getattr(AgentFrameworkAgent, method_name)
+        if getattr(original_run, "_agui_context_sync_wrapped", False):
+            return True
 
-            # ===================================================================
-            # Sync activeFilter from CopilotKit context to ContextVar
-            # ===================================================================
-            context_list = input_data.get("context", [])
-            if context_list:
-                for ctx_item in context_list:
-                    if isinstance(ctx_item, dict) and "value" in ctx_item:
-                        try:
-                            ctx_value = json.loads(ctx_item["value"])
-                            if "activeFilter" in ctx_value:
-                                filter_data = ctx_value["activeFilter"]
-                                synced_filter = {
-                                    "routeFrom": filter_data.get("routeFrom"),
-                                    "routeTo": filter_data.get("routeTo"),
-                                    "utilizationType": filter_data.get(
-                                        "utilizationType"
-                                    ),
-                                    "riskLevel": filter_data.get("riskLevel"),
-                                }
-                                current_active_filter.set(synced_filter)
-                                logger.debug(
-                                    "[AGUI-PATCH] Synced activeFilter to ContextVar: %s",
-                                    synced_filter,
-                                )
-                        except (json.JSONDecodeError, TypeError) as e:
-                            logger.warning(
-                                "[AGUI-PATCH] Failed to parse context value: %s", e
-                            )
-
-            # ===================================================================
-            # Set conversation_id as OpenTelemetry span attribute
-            # ===================================================================
-            if thread_id and HAS_OTEL:
-                current_span = trace.get_current_span()  # pyright: ignore[reportOptionalMemberAccess]
-                if current_span and current_span.is_recording():
-                    current_span.set_attribute("gen_ai.conversation.id", thread_id)
-                    current_span.set_attribute("conversation_id", thread_id)
-                    logger.debug(
-                        "[AGUI-PATCH] Set span attribute gen_ai.conversation.id: %s",
-                        thread_id,
-                    )
-
-            # ===================================================================
-            # PASS THROUGH EVENT STREAM
-            # Framework handles session management and event stream natively.
-            # ===================================================================
-            async for event in _original_run(self, input_data):
+        async def patched_run(self, input_data: dict[str, Any]):
+            _apply_request_context(input_data)
+            async for event in original_run(self, input_data):
                 yield event
 
-        # Replace the method on the class
-        AgentFrameworkAgent.run = patched_run
+        setattr(patched_run, "_agui_context_sync_wrapped", True)
+        setattr(AgentFrameworkAgent, method_name, patched_run)
 
         logger.debug(
-            "Applied AG-UI context sync patch (patched AgentFrameworkAgent.run)"
+            "Applied AG-UI context sync class patch (patched AgentFrameworkAgent.%s)",
+            method_name,
         )
         return True
 
-    except ImportError as e:
+    except Exception as e:
         logger.warning("Failed to apply AG-UI context sync patch: %s", e)
         return False
