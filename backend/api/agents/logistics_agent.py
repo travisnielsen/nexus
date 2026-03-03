@@ -124,5 +124,5 @@ def create_logistics_agent(chat_client: SupportsChatGetResponse) -> AgentFramewo
         description="Manages shipping logistics data, flight payloads, and utilization analysis.",
         state_schema=STATE_SCHEMA,
         require_confirmation=False,
-        use_service_thread=False,
+        use_service_session=True,
     )

@@ -11,13 +11,13 @@ Patches can be enabled/disabled via environment variables:
 - PATCH_TOOL_EXECUTION_SPAN=true|false (default: true)
 
 Available patches:
-1. AG-UI Context Sync - patches AgentFrameworkAgent.run_agent to extract
-   CopilotKit threadId, sync activeFilter to ContextVar, and set OpenTelemetry
-   conversation_id span attributes. (Event stream workarounds removed in
-   agent-framework >= 1.0.0b260210 via PR #3635.)
+1. AG-UI Context Sync - patches AgentFrameworkAgent.run to sync activeFilter
+   from CopilotKit context to ContextVar, and set OpenTelemetry conversation_id
+   span attributes. Thread/session management is handled natively by AgentSession
+   with use_service_session=True.
 
 2. Conversation ID Injection - patches Responses API instrumentor to inject
-   gen_ai.conversation.id from CopilotKit threadId for Azure Foundry tracing
+   gen_ai.conversation.id from conv_* conversation ID for Azure Foundry tracing
 
 3. Tool Execution Span - patches agent-framework's get_function_span to add
    gen_ai.conversation.id to tool execution spans

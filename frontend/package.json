@@ -19,9 +19,9 @@
   "dependencies": {
     "@azure/msal-browser": "^5.1.0",
     "@azure/msal-react": "^5.0.3",
-    "@copilotkit/react-core": "^1.51.2",
-    "@copilotkit/react-ui": "^1.51.2",
-    "@copilotkit/runtime": "^1.51.3",
+    "@copilotkit/react-core": "^1.52.1",
+    "@copilotkit/react-ui": "^1.52.1",
+    "@copilotkit/runtime": "^1.52.1",
     "@microsoft/applicationinsights-react-js": "^19.3.8",
     "@microsoft/applicationinsights-web": "^3.3.11",
     "next": "^16.1.6",
@@ -42,6 +42,6 @@
     "typescript": "^5"
   },
   "overrides": {
-    "@ag-ui/client": "0.0.42"
+    "@ag-ui/client": "0.0.46"
   }
 }

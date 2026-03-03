@@ -58,7 +58,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   │   ├── Dockerfile.local   # Local dev Dockerfile (includes Azure CLI)
 │   │   ├── patches/           # Context sync & telemetry patches (must import first)
 │   │   │   ├── __init__.py        # Patch config and apply_all_patches()
-│   │   │   ├── agui_event_stream.py # AG-UI context sync (threadId, activeFilter, OTel)
+│   │   │   ├── agui_event_stream.py # AG-UI context sync (activeFilter, OTel conv_id)
 │   │   │   └── conversation_id_injection.py # Telemetry conversation ID patches
 │   │   ├── agents/
 │   │   │   ├── logistics_agent.py  # Agent configuration and state schema
@@ -74,9 +74,8 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   │   │       ├── __init__.py
 │   │   │       ├── mcp_client.py      # HTTP client for MCP server
 │   │   │       └── data_helpers.py    # Shared data access functions
-│   │   ├── middleware/        # Auth and thread management
-│   │   │   ├── auth.py        # Azure AD authentication
-│   │   │   └── responses_api.py   # Responses API thread middleware
+│   │   ├── middleware/        # Auth middleware
+│   │   │   └── auth.py        # Azure AD authentication
 │   │   └── pyproject.toml     # Python dependencies (uv)
 │   │
 │   ├── mcp/                # MCP Server (Model Context Protocol)
@@ -126,8 +125,8 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 - **React 19** with hooks
 - **TypeScript 5**
 - **Tailwind CSS 4**
-- **CopilotKit 1.51** for conversational UI
-- **AG-UI Client** (`@ag-ui/client@0.0.42`) for agent communication (version pinned via npm overrides)
+- **CopilotKit 1.52** for conversational UI
+- **AG-UI Client** (`@ag-ui/client@0.0.46`) for agent communication (version pinned via npm overrides)
 - **MSAL v5** (`@azure/msal-browser@5.1.0`, `@azure/msal-react@5.0.3`) for Azure AD authentication
 
 ### Backend
@@ -156,7 +155,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 ### Agent Tools
 
 Agent tools are defined in `backend/api/agents/tools/`. Each tool:
-1. Uses the `@ai_function` decorator from MAF with `name` and `description`
+1. Uses the `@tool` decorator from MAF with `name` and `description`
 2. Uses `Annotated` type hints with `Field` for parameter descriptions
 3. Returns structured dict data for UI state updates
 
@@ -175,11 +174,11 @@ Current tools in `logistics_agent.py`:
 
 Example tool pattern:
 ```python
-from agent_framework import ai_function
+from agent_framework import tool
 from pydantic import Field
 from typing import Annotated
 
-@ai_function(
+@tool(
     name="my_tool",
     description="Description for the LLM to understand when to use this tool.",
 )
@@ -264,7 +263,7 @@ NEXT_PUBLIC_AUTH_ENABLED=false  # Development only (default: true)
 ### Adding a New Agent Tool
 
 1. Create or update a file in `backend/api/agents/tools/` (naming convention: `*_tools.py`)
-2. Define the tool function with `@ai_function` decorator (with `name` and `description`)
+2. Define the tool function with `@tool` decorator (with `name` and `description`)
 3. Use `Annotated[type, Field(description="...")]` for parameters
 4. Export from `backend/api/agents/tools/__init__.py`
 5. Import in `backend/api/agents/logistics_agent.py`
@@ -461,7 +460,7 @@ VITE_LOG_ANALYTICS_WORKSPACE_ID=... # Log Analytics workspace to query
 2. **A2A is optional** - Recommendations work without the A2A agent (fallback to mock data)
 3. **Patches must load first** - `backend/api/patches/` package must be imported before other modules
 4. **AG-UI protocol** - Agent communication uses Server-Sent Events (SSE)
-5. **Thread management** - Uses `ResponsesApiThreadMiddleware` with a ContextVar to track CopilotKit threadId for telemetry correlation
+5. **Session management** - Uses `AgentSession` with `use_service_session=True`. Frontend creates Azure Foundry conversations (`conv_*` IDs) via `POST /api/conversations` and passes them as CopilotKit `threadId`.
 6. **Filter state** - Frontend tracks `activeFilter` locally; synced to backend via `useCopilotReadable` context
 7. **Additive filters** - `filter_flights` merges with existing filters; use `reset_filters` to clear first
 8. **Monitoring** - OpenTelemetry configured in `monitoring.py`; supports Azure Monitor and OTLP exporters
@@ -546,22 +545,22 @@ dependencies
 
 ### Thread ID Architecture
 
-CopilotKit generates a UUID `threadId` on the frontend for conversation continuity. This ID flows through the system:
+The frontend creates an Azure Foundry conversation (`conv_*` ID) on mount via `POST /api/conversations` and passes it as the CopilotKit `threadId`. This ID flows through the system:
 
-1. **Frontend**: CopilotKit generates `threadId` (e.g., `a24ea2c1-fd51-4354-af5e-f5f8ab9e3bcf`)
-2. **AG-UI Protocol**: Sent in SSE request body as `threadId`
-3. **Backend Middleware**: Extracted and stored in shared ContextVar (`_current_agui_thread_id`)
-4. **Azure AI Foundry**: Uses CopilotKit threadId as `previous_response_id` chain for conversation continuity
-5. **Telemetry**: CopilotKit threadId injected as `gen_ai.conversation_id` for correlation
+1. **Frontend**: Calls `POST /api/conversations` on mount, receives `conv_*` ID (e.g., `conv_abc123...`)
+2. **CopilotKit**: Uses `conv_*` as `threadId` prop, sent in every AG-UI SSE request
+3. **AG-UI Framework**: With `use_service_session=True`, creates `AgentSession(service_session_id="conv_*")`
+4. **Azure AI Foundry**: Uses `conv_*` as the `conversation` parameter for server-side history management
+5. **Telemetry**: `conv_*` ID injected as `gen_ai.conversation_id` for correlation
 
 ### Telemetry Correlation
 
-All telemetry spans include `gen_ai.conversation_id` (the CopilotKit threadId) for querying:
+All telemetry spans include `gen_ai.conversation_id` (the `conv_*` ID) for querying:
 
 ```kql
 // Find all telemetry for a conversation
 dependencies
-| where customDimensions.gen_ai_conversation_id == "a24ea2c1-fd51-4354-af5e-f5f8ab9e3bcf"
+| where customDimensions.gen_ai_conversation_id == "conv_abc123..."
 ```
 
 **Telemetry Backends Supported**:
@@ -576,7 +575,7 @@ The patches package applies context synchronization and telemetry workarounds. E
 
 | Patch | File | Purpose |
 |-------|------|----------|
-| AG-UI Context Sync | `agui_event_stream.py` | Extracts CopilotKit threadId, syncs activeFilter to ContextVar, sets OTel conversation_id span attributes |
+| AG-UI Context Sync | `agui_event_stream.py` | Syncs activeFilter to ContextVar, sets OTel conversation_id span attributes |
 | Conversation ID (Responses) | `conversation_id_injection.py` | Injects `gen_ai.conversation_id` into Responses API telemetry spans |
 | Tool Execution Span | `conversation_id_injection.py` | Adds `gen_ai.conversation_id` to agent-framework tool execution spans |
 

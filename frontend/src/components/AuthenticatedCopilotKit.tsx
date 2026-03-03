@@ -1,23 +1,31 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { CopilotKit } from "@copilotkit/react-core";
 import { useAccessToken } from "@/lib/useAccessToken";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { loginRequest } from "@/lib/msalConfig";
-import { ThreadIdContext } from "./NoAuthCopilotKit";
+import { ThreadIdContext, NewChatContext } from "./NoAuthCopilotKit";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 /**
- * Generate a stable thread ID for this session.
- * Uses crypto.randomUUID() which is available in modern browsers.
- * The ID is stable for the component lifecycle (session).
+ * Create a new Azure Foundry conversation via the backend API.
+ * Returns a conv_* ID that Azure manages server-side for history and continuity.
  */
-function useStableThreadId(): string {
-  return useMemo(() => {
-    // Generate a new thread ID for this session
-    // This will be stable across re-renders but new for each page load
-    return crypto.randomUUID();
-  }, []);
+async function createConversation(accessToken: string): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/api/conversations`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create conversation: ${response.statusText}`);
+  }
+  const data = await response.json();
+  return data.conversationId;
 }
 
 interface AuthenticatedCopilotKitProps {
@@ -29,14 +37,43 @@ interface AuthenticatedCopilotKitProps {
  * This component must be rendered inside MsalProvider context.
  * Uses Next.js API route as a proxy to forward requests with auth headers.
  * 
- * Provides a stable threadId for conversation continuity across messages.
- * This enables the backend to chain Azure response_ids for multi-turn conversations.
+ * Creates an Azure Foundry conversation (conv_*) on mount and uses it as
+ * the CopilotKit threadId. This enables AgentSession to manage server-side
+ * conversation history natively via use_service_session=True.
  */
 export function AuthenticatedCopilotKit({ children }: AuthenticatedCopilotKitProps) {
-  const threadId = useStableThreadId();
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [convError, setConvError] = useState<string | null>(null);
   const { accessToken, isLoading } = useAccessToken();
   const isAuthenticated = useIsAuthenticated();
   const { instance } = useMsal();
+
+  const initConversation = useCallback(async (token: string) => {
+    try {
+      setConvError(null);
+      const convId = await createConversation(token);
+      console.log('[AuthenticatedCopilotKit] Created Azure conversation:', convId);
+      setThreadId(convId);
+    } catch (err) {
+      console.error('[AuthenticatedCopilotKit] Failed to create conversation:', err);
+      setConvError(err instanceof Error ? err.message : 'Failed to create conversation');
+    }
+  }, []);
+
+  // Create conversation once we have an access token
+  useEffect(() => {
+    if (accessToken && !threadId && !convError) {
+      initConversation(accessToken);
+    }
+  }, [accessToken, threadId, convError, initConversation]);
+
+  // New Chat handler: create a fresh conversation
+  const handleNewChat = useCallback(() => {
+    if (accessToken) {
+      setThreadId(null);
+      initConversation(accessToken);
+    }
+  }, [accessToken, initConversation]);
 
   // Force sign-in if not authenticated
   const handleSignIn = async () => {
@@ -86,6 +123,31 @@ export function AuthenticatedCopilotKit({ children }: AuthenticatedCopilotKitPro
     );
   }
 
+  // Show error creating conversation
+  if (convError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-4">
+        <span>Failed to initialize conversation</span>
+        <span className="text-sm text-red-400">{convError}</span>
+        <button
+          onClick={() => initConversation(accessToken)}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // Show loading state while creating conversation
+  if (!threadId) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400">
+        <span>Initializing conversation...</span>
+      </div>
+    );
+  }
+
   const headers: Record<string, string> = {
     Authorization: `Bearer ${accessToken}`,
   };
@@ -99,9 +161,11 @@ export function AuthenticatedCopilotKit({ children }: AuthenticatedCopilotKitPro
       headers={headers}
       threadId={threadId}
     >
-      <ThreadIdContext.Provider value={threadId}>
-        {children}
-      </ThreadIdContext.Provider>
+      <NewChatContext.Provider value={handleNewChat}>
+        <ThreadIdContext.Provider value={threadId}>
+          {children}
+        </ThreadIdContext.Provider>
+      </NewChatContext.Provider>
     </CopilotKit>
   );
 }
