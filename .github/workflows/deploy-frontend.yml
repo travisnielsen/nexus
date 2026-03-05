@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'frontend/**'
+      - 'src/frontend/**'
   workflow_dispatch:
 
 env:
@@ -51,7 +51,7 @@ jobs:
               --registry '${{ env.REGISTRY }}' \
               --image '${{ env.IMAGE_NAME }}:${{ github.sha }}' \
               --image '${{ env.IMAGE_NAME }}:latest' \
-              --file ./frontend/Dockerfile \
+              --file ./src/frontend/Dockerfile \
               --build-arg NEXT_PUBLIC_AZURE_AD_CLIENT_ID="$AD_CLIENT_ID" \
               --build-arg NEXT_PUBLIC_AZURE_AD_TENANT_ID="$AD_TENANT_ID" \
               --build-arg NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
@@ -59,7 +59,7 @@ jobs:
               --build-arg AGENT_API_BASE_URL="$API_URL" \
               --build-arg NEXT_PUBLIC_APPINSIGHTS_INSTRUMENTATION_KEY="$APPINSIGHTS_KEY" \
               --build-arg NEXT_PUBLIC_APPINSIGHTS_INGESTION_ENDPOINT="$APPINSIGHTS_ENDPOINT" \
-              ./frontend
+              ./src/frontend
 
       - name: Deploy to Azure Container Apps
         uses: azure/cli@v2

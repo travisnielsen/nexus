@@ -8,13 +8,13 @@ An AI-powered logistics dashboard that combines conversational interfaces with r
 
 | Directory | Description |
 |-----------|-------------|
-| [`backend/api`](backend/api/) | FastAPI + Microsoft Agent Framework (MAF) backend. Hosts the logistics agent, REST endpoints, and AG-UI SSE stream for CopilotKit communication. |
-| [`backend/mcp`](backend/mcp/) | MCP (Model Context Protocol) server. Provides flight data via DuckDB with both REST API and MCP protocol endpoints for AI agents. |
-| [`backend/agent-a2a`](backend/agent-a2a/) | A2A (Agent-to-Agent) recommendations agent. Provides logistics recommendations when called by the main agent. |
-| [`frontend`](frontend/) | Next.js 16 + React 19 dashboard with CopilotKit integration. Provides the conversational UI and data visualization. |
+| [`src/backend/api`](src/backend/api/) | FastAPI + Microsoft Agent Framework (MAF) backend. Hosts the logistics agent, REST endpoints, and AG-UI SSE stream for CopilotKit communication. |
+| [`src/backend/mcp`](src/backend/mcp/) | MCP (Model Context Protocol) server. Provides flight data via DuckDB with both REST API and MCP protocol endpoints for AI agents. |
+| [`src/backend/agent-a2a`](src/backend/agent-a2a/) | A2A (Agent-to-Agent) recommendations agent. Provides logistics recommendations when called by the main agent. |
+| [`src/frontend`](src/frontend/) | Next.js 16 + React 19 dashboard with CopilotKit integration. Provides the conversational UI and data visualization. |
 | [`infra`](infra/) | Terraform infrastructure-as-code for Azure deployment. Provisions Container Apps, AI Foundry, and supporting resources. |
-| [`monitoring`](monitoring/) | Observability tools including an Azure dashboard for Application Insights traces and a local OpenTelemetry stack (Grafana Tempo). |
-| [`scripts`](scripts/) | Setup and utility scripts for app registration, environment configuration, and local development. |
+| [`src/monitoring`](src/monitoring/) | Observability tools including an Azure dashboard for Application Insights traces and a local OpenTelemetry stack (Grafana Tempo). |
+| [`src/scripts`](src/scripts/) | Setup and utility scripts for app registration, environment configuration, and local development. |
 
 ## Architecture
 
@@ -61,7 +61,7 @@ The backend requires Azure AI Foundry for LLM access. Follow the steps in [infra
 
 Create `.env` files for each module using the values from your Azure deployment:
 
-**backend/api/.env**
+**src/backend/api/.env**
 ```env
 # Azure AI Configuration (required)
 AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
@@ -81,19 +81,19 @@ ENABLE_INSTRUMENTATION=true
 APPLICATIONINSIGHTS_CONNECTION_STRING=<from-terraform-output>
 ```
 
-**backend/mcp/.env**
+**src/backend/mcp/.env**
 ```env
 AUTH_ENABLED=false
 ```
 
-**backend/agent-a2a/.env**
+**src/backend/agent-a2a/.env**
 ```env
 # Azure AI Configuration (required)
 AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
 AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
 ```
 
-**frontend/.env.local**
+**src/frontend/.env.local**
 ```env
 # API URL
 AGENT_API_BASE_URL=http://localhost:8000
@@ -108,14 +108,32 @@ NEXT_PUBLIC_APPINSIGHTS_INSTRUMENTATION_KEY=<from-terraform-output>
 NEXT_PUBLIC_APPINSIGHTS_INGESTION_ENDPOINT=<optional-ingestion-endpoint>
 ```
 
-### 3. Run the Application
+### 3. Bootstrap Local Development
+
+Use the monorepo setup script from the repository root:
+
+```bash
+./devsetup.sh
+```
+
+The script will:
+- verify `uv` is installed
+- install Python runtimes (`3.11`, `3.12`, `3.13`) via `uv`
+- run `uv sync --dev` for `src/backend/api`, `src/backend/mcp`, and `src/backend/agent-a2a`
+- install frontend dependencies in `src/frontend` (if Node.js is installed)
+- configure local git hooks from `.githooks/`
+
+Optional: pass a Python version label for your local workflow display:
+
+```bash
+./devsetup.sh 3.12
+```
+
+### 4. Run the Application
 
 #### Option A: Using npm (recommended for development)
 
 ```bash
-# Install all dependencies (frontend + backend)
-npm install
-
 # Start all services concurrently
 npm run dev
 ```
@@ -132,10 +150,10 @@ Next.js requires `NEXT_PUBLIC_*` environment variables at **build time** (they'r
 
 ```bash
 # Build and start all services (with frontend env vars)
-docker compose --env-file frontend/.env.local up --build
+docker compose --env-file src/frontend/.env.local up --build
 
 # Or start in detached mode
-docker compose --env-file frontend/.env.local up -d --build
+docker compose --env-file src/frontend/.env.local up -d --build
 
 # View logs
 docker compose logs -f
@@ -146,7 +164,7 @@ docker compose down
 
 > **Note**: If you skip `--env-file`, the frontend will use placeholder values and authentication will fail.
 
-### 4. Access the Application
+### 5. Access the Application
 
 Open http://localhost:3000 in your browser. You should see the logistics dashboard with the chat interface.
 
@@ -155,7 +173,21 @@ Try asking:
 - "What routes have high risk?"
 - "Analyze the current data"
 
+## Git Hooks
+
+This repo uses local git hooks in `.githooks/`:
+
+- `pre-commit`: blocks direct commits to `main`/`master`, runs `uv run --project . poe check`, and runs frontend lint when staged changes include `src/frontend/`.
+- `pre-push`: runs `uv run --project . poe check` and frontend lint before pushing.
+- `commit-msg`: enforces Conventional Commits format.
+
+Hooks are installed automatically by `devsetup.sh`. To install manually:
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/*
+```
+
 ## License
 
 See [LICENSE](LICENSE) for details.
-

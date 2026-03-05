@@ -5,19 +5,19 @@
             "name": "root"
         },
         {
-            "path": "backend/api",
+            "path": "src/backend/api",
             "name": "backend-api"
         },
         {
-            "path": "backend/mcp",
+            "path": "src/backend/mcp",
             "name": "backend-mcp"
         },
         {
-            "path": "backend/agent-a2a",
+            "path": "src/backend/agent-a2a",
             "name": "backend-a2a"
         },
         {
-            "path": "frontend",
+            "path": "src/frontend",
             "name": "frontend"
         }
     ],

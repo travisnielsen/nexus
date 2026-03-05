@@ -1,0 +1,66 @@
+[project]
+name = "recommendations-agent"
+version = "0.1.0"
+description = "A2A-enabled recommendations agent"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "a2a-sdk[http-server]>=0.3.22",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+    "pydantic>=2.11.3",
+    "python-dotenv",
+]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.29.0",
+    "poethepoet>=0.30.0",
+    "ruff>=0.11.0",
+]
+
+[tool.uv]
+prerelease = "allow"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.poe.tasks]
+format = [
+    { cmd = "ruff format ." },
+    { cmd = "ruff check . --fix" },
+]
+lint = { cmd = "ruff check . --fix" }
+typecheck = { cmd = "basedpyright --level error ." }
+check.ignore_fail = "return_non_zero"
+check.sequence = [
+    { cmd = "ruff check ." },
+    { cmd = "basedpyright --level error ." },
+]
+dev = { shell = "uv run uvicorn main:app --host 0.0.0.0 --port 5002 --reload" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+fix = true
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.basedpyright]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+include = ["."]
+exclude = [
+    "**/__pycache__",
+    ".venv",
+    "venv",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".pyright_cache",
+]

@@ -2,25 +2,25 @@
 # Starts all application services for testing and debugging
 #
 # Usage:
-#   docker compose --env-file frontend/.env.local up --build    # Use frontend env vars for build
+#   docker compose --env-file src/frontend/.env.local up --build    # Use frontend env vars for build
 #   docker compose up -d                                         # Start in detached mode
 #   docker compose logs -f backend                               # Follow logs for a specific service
 #   docker compose down                                          # Stop all services
 #
 # For monitoring (Grafana, Tempo, OTEL Collector), use:
-#   cd monitoring && docker compose up -d
+#   cd src/monitoring && docker compose up -d
 
 services:
   # MCP Server - Flight data API with DuckDB
   mcp:
     build:
-      context: ./backend/mcp
+      context: ./src/backend/mcp
       dockerfile: Dockerfile
     container_name: nexus-mcp
     ports:
       - "8001:8001"
     env_file:
-      - ./backend/mcp/.env
+      - ./src/backend/mcp/.env
     environment:
       # Override for Docker
       - MCP_HOST=0.0.0.0
@@ -38,13 +38,13 @@ services:
   # A2A Recommendations Agent
   agent-a2a:
     build:
-      context: ./backend/agent-a2a
+      context: ./src/backend/agent-a2a
       dockerfile: Dockerfile
     container_name: nexus-a2a
     ports:
       - "5002:5002"
     env_file:
-      - ./backend/agent-a2a/.env
+      - ./src/backend/agent-a2a/.env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
       interval: 30s
@@ -57,7 +57,7 @@ services:
   # Backend API - FastAPI + Agent Framework
   backend:
     build:
-      context: ./backend/api
+      context: ./src/backend/api
       dockerfile: Dockerfile.local
     container_name: nexus-backend
     ports:
@@ -67,8 +67,8 @@ services:
       # Note: Not read-only because Azure CLI needs to write session files (az.sess)
       - ${HOME}/.azure:/root/.azure
     env_file:
-      # Load environment from backend/api/.env (Azure AI, auth, telemetry settings)
-      - ./backend/api/.env
+      # Load environment from src/backend/api/.env (Azure AI, auth, telemetry settings)
+      - ./src/backend/api/.env
     environment:
       # Override service URLs to use Docker service names
       - MCP_SERVER_URL=http://mcp:8001
@@ -92,10 +92,10 @@ services:
 
   # Frontend - Next.js
   # NOTE: NEXT_PUBLIC_* vars are baked at build time.
-  # Run with: docker compose --env-file frontend/.env.local up --build
+  # Run with: docker compose --env-file src/frontend/.env.local up --build
   frontend:
     build:
-      context: ./frontend
+      context: ./src/frontend
       dockerfile: Dockerfile
       args:
         # Build args read from --env-file or shell environment
@@ -110,7 +110,7 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      - ./frontend/.env.local
+      - ./src/frontend/.env.local
     environment:
       # Runtime overrides (only affects server-side code)
       - NODE_ENV=production

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Validate commit messages against Conventional Commits.
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+COMMIT_MSG_FILE="${1:?commit message file is required}"
+COMMIT_MSG="$(cat "$COMMIT_MSG_FILE")"
+FIRST_LINE="$(echo "$COMMIT_MSG" | head -n 1)"
+
+# Skip merge and auto-generated revert messages.
+if [[ "$COMMIT_MSG" =~ ^Merge ]]; then
+  exit 0
+fi
+if [[ "$COMMIT_MSG" =~ ^Revert ]]; then
+  exit 0
+fi
+
+PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9,_-]+\))?(!)?: .{1,}$'
+
+if [[ ! "$FIRST_LINE" =~ $PATTERN ]]; then
+  echo ""
+  echo -e "${RED}ERROR: Invalid commit message format${NC}"
+  echo ""
+  echo "Your message:"
+  echo -e "${YELLOW}  $FIRST_LINE${NC}"
+  echo ""
+  echo "Expected format:"
+  echo -e "${GREEN}  <type>(<scope>): <subject>${NC}"
+  echo ""
+  echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+  echo ""
+  echo "Examples:"
+  echo -e "  ${GREEN}feat(api): add filter endpoint${NC}"
+  echo -e "  ${GREEN}fix(frontend): handle null route${NC}"
+  echo -e "  ${GREEN}docs: update setup guide${NC}"
+  echo -e "  ${GREEN}feat(mcp)!: change payload schema${NC}"
+  echo ""
+  exit 1
+fi
+
+SUBJECT_LENGTH=${#FIRST_LINE}
+if [[ $SUBJECT_LENGTH -gt 72 ]]; then
+  echo ""
+  echo -e "${RED}ERROR: Commit subject too long ($SUBJECT_LENGTH chars)${NC}"
+  echo "Maximum: 72 characters"
+  echo ""
+  exit 1
+fi
+
+if [[ $SUBJECT_LENGTH -gt 50 ]]; then
+  echo -e "${YELLOW}WARNING: Commit subject is $SUBJECT_LENGTH chars (50 recommended)${NC}"
+fi
+
+if [[ "$FIRST_LINE" =~ \.$ ]]; then
+  echo ""
+  echo -e "${RED}ERROR: Commit subject should not end with a period${NC}"
+  echo ""
+  exit 1
+fi
+
+exit 0

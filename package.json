@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npm run dev --prefix frontend",
-    "dev:debug": "npm run dev:debug --prefix frontend",
-    "dev:ui": "npm run dev:ui --prefix frontend",
-    "dev:agent": "npm run dev:agent --prefix frontend",
-    "build": "npm run build --prefix frontend",
-    "start": "npm run start --prefix frontend",
-    "lint": "npm run lint --prefix frontend",
-    "install:all": "npm install --prefix frontend"
+    "dev": "npm run dev --prefix src/frontend",
+    "dev:debug": "npm run dev:debug --prefix src/frontend",
+    "dev:ui": "npm run dev:ui --prefix src/frontend",
+    "dev:agent": "npm run dev:agent --prefix src/frontend",
+    "build": "npm run build --prefix src/frontend",
+    "start": "npm run start --prefix src/frontend",
+    "lint": "npm run lint --prefix src/frontend",
+    "install:all": "npm install --prefix src/frontend"
   }
 }

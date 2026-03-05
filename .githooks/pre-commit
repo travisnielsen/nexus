@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Run quality checks before commit.
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:$PATH"
+
+PROTECTED_BRANCHES=("main" "master")
+CURRENT_BRANCH="$(git symbolic-ref --short HEAD 2>/dev/null || echo '')"
+
+for branch in "${PROTECTED_BRANCHES[@]}"; do
+  if [[ "$CURRENT_BRANCH" == "$branch" ]]; then
+    echo -e "${RED}Error: Direct commits to '$branch' are not allowed!${NC}"
+    echo "Please create a feature branch and submit a pull request."
+    exit 1
+  fi
+done
+
+echo -e "${YELLOW}Running pre-commit checks...${NC}"
+
+if ! command -v uv >/dev/null 2>&1; then
+  echo -e "${RED}Error: uv is not installed${NC}"
+  exit 1
+fi
+
+# Python quality checks for all backend services.
+if ! uv run --project . poe check; then
+  echo -e "${RED}Python quality checks failed. Run 'uv run --project . poe check'.${NC}"
+  exit 1
+fi
+
+# Only run frontend lint if staged files touch src/frontend.
+if git diff --cached --name-only | grep -q '^src/frontend/'; then
+  if command -v npm >/dev/null 2>&1; then
+    echo "Running frontend lint..."
+    if ! (cd src/frontend && npm run lint); then
+      echo -e "${RED}Frontend lint failed. Run '(cd src/frontend && npm run lint)'.${NC}"
+      exit 1
+    fi
+  else
+    echo -e "${YELLOW}Warning: npm not found; skipping frontend lint for staged frontend files.${NC}"
+  fi
+fi
+
+echo -e "${GREEN}Pre-commit checks passed!${NC}"
