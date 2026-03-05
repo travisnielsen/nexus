@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-quality:
+    name: Backend Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync monorepo tooling dependencies
+        run: uv sync --project . --dev
+
+      - name: Sync backend dependencies
+        run: |
+          uv sync --project src/backend/api --dev
+          uv sync --project src/backend/mcp --dev
+          uv sync --project src/backend/agent-a2a --dev
+
+      - name: Run backend checks
+        run: uv run --project . poe check
+
+  frontend-quality:
+    name: Frontend Lint and Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix src/frontend --ignore-scripts
+
+      - name: Lint frontend
+        run: npm run lint --prefix src/frontend
+
+      - name: Build frontend
+        env:
+          AGENT_API_BASE_URL: http://localhost:8000
+          NEXT_PUBLIC_AUTH_ENABLED: "false"
+          NEXT_PUBLIC_AZURE_AD_CLIENT_ID: dummy-client-id
+          NEXT_PUBLIC_AZURE_AD_TENANT_ID: dummy-tenant-id
+        run: npm run build --prefix src/frontend
