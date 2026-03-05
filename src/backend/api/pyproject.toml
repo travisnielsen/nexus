@@ -1,0 +1,69 @@
+[project]
+name = "api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "agent-framework-a2a>=1.0.0b260225",
+    "agent-framework-ag-ui>=1.0.0b260225",
+    "agent-framework-azure-ai>=1.0.0rc2",
+    "agent-framework-core>=1.0.0rc2",
+    "azure-ai-projects>=2.0.0b3",
+    "azure-identity>=1.15.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+    "pydantic>=2.12.0",
+    "python-dotenv",
+    "fastapi-azure-auth>=5.0.0",
+    "azure-monitor-opentelemetry>=1.6.0",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.39.0",
+    "opentelemetry-exporter-otlp>=1.39.0",
+]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.29.0",
+    "poethepoet>=0.30.0",
+    "ruff>=0.11.0",
+]
+
+[tool.uv]
+prerelease = "allow"
+
+[tool.poe.tasks]
+format = [
+    { cmd = "ruff format ." },
+    { cmd = "ruff check . --fix" },
+]
+lint = { cmd = "ruff check . --fix" }
+typecheck = { cmd = "basedpyright --level error ." }
+check.ignore_fail = "return_non_zero"
+check.sequence = [
+    { cmd = "ruff check ." },
+    { cmd = "basedpyright --level error ." },
+]
+dev = { shell = "uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+fix = true
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.basedpyright]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+include = ["."]
+exclude = [
+    "**/__pycache__",
+    ".venv",
+    "venv",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".pyright_cache",
+]

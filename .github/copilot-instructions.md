@@ -40,7 +40,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 
 ```
 /
-├── frontend/               # Next.js 16 + React 19 + CopilotKit
+├── src/frontend/               # Next.js 16 + React 19 + CopilotKit
 │   ├── src/
 │   │   ├── app/           # Next.js App Router
 │   │   │   ├── page.tsx   # Main dashboard page
@@ -49,7 +49,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   │   └── lib/           # Types, hooks, utilities
 │   └── package.json
 │
-├── backend/                # All backend services
+├── src/backend/                # All backend services
 │   ├── api/               # FastAPI + Microsoft Agent Framework (main API)
 │   │   ├── main.py            # FastAPI app, REST endpoints, agent setup
 │   │   ├── clients.py         # Chat client factory (Responses API)
@@ -90,7 +90,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │       ├── main.py            # A2A FastAPI application
 │       └── pyproject.toml
 │
-├── monitoring/             # Observability and tracing tools
+├── src/monitoring/             # Observability and tracing tools
 │   ├── azure-dashboard/   # Vite + React app for viewing App Insights traces
 │   │   ├── src/           # React components and MSAL auth
 │   │   ├── package.json   # Vite, React 18, MSAL, Tailwind
@@ -114,7 +114,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   │   └── deploy-dashboard.yml # Deploy azure-dashboard to Storage static website
 │   └── copilot-instructions.md  # This file
 │
-└── scripts/               # Setup and run scripts
+└── src/scripts/               # Setup and run scripts
 ```
 
 ## Technology Stack
@@ -153,7 +153,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 
 ### Agent Tools
 
-Agent tools are defined in `backend/api/agents/tools/`. Each tool:
+Agent tools are defined in `src/backend/api/agents/tools/`. Each tool:
 1. Uses the `@tool` decorator from MAF with `name` and `description`
 2. Uses `Annotated` type hints with `Field` for parameter descriptions
 3. Returns structured dict data for UI state updates
@@ -169,7 +169,7 @@ Current tools in `logistics_agent.py`:
 | `get_historical_payload` | Get historical payload data for charts |
 | `get_predicted_payload` | Get predicted payload data for charts |
 
-**System Prompt**: Loaded from `backend/api/agents/prompts/logistics_agent.md` at runtime.
+**System Prompt**: Loaded from `src/backend/api/agents/prompts/logistics_agent.md` at runtime.
 
 Example tool pattern:
 ```python
@@ -200,9 +200,9 @@ The frontend maintains local display state and syncs filter context to the backe
 ### Data Access
 
 All flight data flows through the MCP server (source of truth):
-1. **MCP Server** (`backend/mcp/`) - Hosts all data with DuckDB for SQL queries
-2. **MCP Client** (`backend/api/agents/utils/mcp_client.py`) - HTTP client using `httpx`
-3. **Data Helpers** (`backend/api/agents/utils/data_helpers.py`) - Shared data access for agent tools
+1. **MCP Server** (`src/backend/mcp/`) - Hosts all data with DuckDB for SQL queries
+2. **MCP Client** (`src/backend/api/agents/utils/mcp_client.py`) - HTTP client using `httpx`
+3. **Data Helpers** (`src/backend/api/agents/utils/data_helpers.py`) - Shared data access for agent tools
 4. **Backend REST API** - Proxies MCP data to frontend
 
 The MCP server provides:
@@ -227,12 +227,12 @@ Filters use an additive pattern with context synchronization:
 Authentication uses Azure AD (Entra ID):
 - Frontend: MSAL React with `@azure/msal-browser`
 - Backend: `fastapi-azure-auth` middleware
-- MCP: Optional Entra ID auth via `backend/mcp/auth.py`
+- MCP: Optional Entra ID auth via `src/backend/mcp/auth.py`
 - Can be disabled with `AUTH_ENABLED=false` for development
 
 ### Environment Variables
 
-Backend API (`.env` in `/backend/api`):
+Backend API (`.env` in `/src/backend/api`):
 ```env
 AZURE_AI_PROJECT_ENDPOINT=https://...
 AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
@@ -250,7 +250,7 @@ ENABLE_SENSITIVE_DATA=true  # Log prompts/responses (dev only)
 # OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317  # Alternative: Aspire/Tempo
 ```
 
-Frontend (`.env.local` in `/frontend`):
+Frontend (`.env.local` in `/src/frontend`):
 ```env
 NEXT_PUBLIC_AZURE_AD_CLIENT_ID=...
 NEXT_PUBLIC_AZURE_AD_TENANT_ID=...
@@ -261,14 +261,14 @@ NEXT_PUBLIC_AUTH_ENABLED=false  # Development only (default: true)
 
 ### Adding a New Agent Tool
 
-1. Create or update a file in `backend/api/agents/tools/` (naming convention: `*_tools.py`)
+1. Create or update a file in `src/backend/api/agents/tools/` (naming convention: `*_tools.py`)
 2. Define the tool function with `@tool` decorator (with `name` and `description`)
 3. Use `Annotated[type, Field(description="...")]` for parameters
-4. Export from `backend/api/agents/tools/__init__.py`
-5. Import in `backend/api/agents/logistics_agent.py`
+4. Export from `src/backend/api/agents/tools/__init__.py`
+5. Import in `src/backend/api/agents/logistics_agent.py`
 6. Add to the agent's tool list in `create_logistics_agent()`
 
-**Note**: Utility functions that are NOT LLM-callable should go in `backend/api/agents/utils/` instead.
+**Note**: Utility functions that are NOT LLM-callable should go in `src/backend/api/agents/utils/` instead.
 
 ### Adding a New Frontend Action
 
@@ -291,8 +291,8 @@ useCopilotAction({
 ### Running the Application
 
 ```bash
-# Install dependencies
-npm install
+# Bootstrap dependencies and local tooling
+./devsetup.sh
 
 # Start all services (frontend + backend + MCP + A2A)
 npm run dev
@@ -307,13 +307,13 @@ This starts four concurrent processes with colored output:
 ```bash
 # Or run with Docker Compose
 # Note: --env-file is required to bake NEXT_PUBLIC_* vars into the frontend build
-docker compose --env-file frontend/.env.local up --build
+docker compose --env-file src/frontend/.env.local up --build
 
 # Or start individually:
-# Frontend: cd frontend && npm run dev:ui
-# Backend API: cd backend/api && uv run uvicorn main:app --port 8000 --reload
-# MCP: cd backend/mcp && uv run uvicorn main:rest_app --port 8001 --reload
-# A2A: cd backend/agent-a2a && uv run uvicorn main:app --port 5002 --reload
+# Frontend: cd src/frontend && npm run dev:ui
+# Backend API: cd src/backend/api && uv run uvicorn main:app --port 8000 --reload
+# MCP: cd src/backend/mcp && uv run uvicorn main:rest_app --port 8001 --reload
+# A2A: cd src/backend/agent-a2a && uv run uvicorn main:app --port 5002 --reload
 ```
 
 ### Docker Development
@@ -331,7 +331,7 @@ The project includes Docker Compose for local development:
 Next.js requires `NEXT_PUBLIC_*` variables at build time (they're baked into the client bundle):
 ```bash
 # Always use --env-file for Docker builds
-docker compose --env-file frontend/.env.local up --build
+docker compose --env-file src/frontend/.env.local up --build
 ```
 If you skip `--env-file`, authentication will fail because the frontend uses placeholder values.
 
@@ -390,11 +390,11 @@ Five workflows handle CI/CD deployment to Azure:
 
 | Workflow | Trigger Path | Deploys To |
 |----------|--------------|------------|
-| `deploy-api.yml` | `backend/api/**` | Container App (API) |
-| `deploy-frontend.yml` | `frontend/**` | Container App (Frontend) |
-| `deploy-mcp.yml` | `backend/mcp/**` | Container App (MCP) |
-| `deploy-a2a.yml` | `backend/agent-a2a/**` | Container App (A2A) |
-| `deploy-dashboard.yml` | `monitoring/azure-dashboard/**` | Storage static website |
+| `deploy-api.yml` | `src/backend/api/**` | Container App (API) |
+| `deploy-frontend.yml` | `src/frontend/**` | Container App (Frontend) |
+| `deploy-mcp.yml` | `src/backend/mcp/**` | Container App (MCP) |
+| `deploy-a2a.yml` | `src/backend/agent-a2a/**` | Container App (A2A) |
+| `deploy-dashboard.yml` | `src/monitoring/azure-dashboard/**` | Storage static website |
 
 ### Required GitHub Variables
 
@@ -422,7 +422,7 @@ Configure these in Settings → Secrets and variables → Actions → Variables:
 
 ### Azure Dashboard Deployment
 
-The `monitoring/azure-dashboard` is a Vite + React app that queries Application Insights for trace visualization. It deploys to Azure Storage static website hosting.
+The `src/monitoring/azure-dashboard` is a Vite + React app that queries Application Insights for trace visualization. It deploys to Azure Storage static website hosting.
 
 Environment variables are baked in at build time:
 ```env
@@ -457,13 +457,13 @@ VITE_LOG_ANALYTICS_WORKSPACE_ID=... # Log Analytics workspace to query
 
 1. **MCP is required** - The backend requires the MCP server to be running for flight data
 2. **A2A is optional** - Recommendations work without the A2A agent (fallback to mock data)
-3. **Patches must load first** - `backend/api/patches/` package must be imported before other modules
+3. **Patches must load first** - `src/backend/api/patches/` package must be imported before other modules
 4. **AG-UI protocol** - Agent communication uses Server-Sent Events (SSE)
 5. **Session management** - Uses `AgentSession` with `use_service_session=True`. Frontend creates Azure Foundry conversations (`conv_*` IDs) via `POST /api/conversations` and passes them as CopilotKit `threadId`.
 6. **Filter state** - Frontend tracks `activeFilter` locally; synced to backend via `useCopilotReadable` context
 7. **Additive filters** - `filter_flights` merges with existing filters; use `reset_filters` to clear first
 8. **Monitoring** - OpenTelemetry configured in `monitoring.py`; supports Azure Monitor and OTLP exporters
-9. **System prompts** - Agent instructions stored in `backend/api/agents/prompts/` as markdown files for easy editing
+9. **System prompts** - Agent instructions stored in `src/backend/api/agents/prompts/` as markdown files for easy editing
 
 ## Known Issues and Workarounds
 
@@ -483,7 +483,7 @@ If a user interacts with the UI (e.g., clicks Clear) while the agent is streamin
 
 ## Monitoring and Observability
 
-The backend uses OpenTelemetry for distributed tracing, configured in `backend/api/monitoring.py`.
+The backend uses OpenTelemetry for distributed tracing, configured in `src/backend/api/monitoring.py`.
 
 ### Configuration
 
@@ -568,7 +568,7 @@ dependencies
 
 **Note**: Each HTTP POST to `/logistics` creates a new `operation_Id` (trace).
 
-### Patches Package (`backend/api/patches/`)
+### Patches Package (`src/backend/api/patches/`)
 The patches package applies context synchronization workarounds:
 
 | Patch | File | Purpose |

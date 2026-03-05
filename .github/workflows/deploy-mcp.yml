@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'backend/mcp/**'
+      - 'src/backend/mcp/**'
   workflow_dispatch:
 
 env:
@@ -41,8 +41,8 @@ jobs:
               --registry ${{ env.REGISTRY }} \
               --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
               --image ${{ env.IMAGE_NAME }}:latest \
-              --file ./backend/mcp/Dockerfile \
-              ./backend/mcp
+              --file ./src/backend/mcp/Dockerfile \
+              ./src/backend/mcp
 
       - name: Deploy to Azure Container Apps
         uses: azure/cli@v2

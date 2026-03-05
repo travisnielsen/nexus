@@ -1,0 +1,33 @@
+[project]
+name = "nexus-monorepo"
+version = "0.1.0"
+description = "Monorepo-level developer tooling for Nexus"
+requires-python = ">=3.12"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.29.0",
+    "poethepoet>=0.30.0",
+    "ruff>=0.11.0",
+]
+
+[tool.uv]
+prerelease = "allow"
+
+[tool.poe.tasks]
+bootstrap = { shell = "bash devsetup.sh", help = "Set up all monorepo dev dependencies" }
+
+setup-api = { shell = "cd src/backend/api && uv sync --dev" }
+setup-mcp = { shell = "cd src/backend/mcp && uv sync --dev" }
+setup-a2a = { shell = "cd src/backend/agent-a2a && uv sync --dev" }
+setup-frontend = { shell = "cd src/frontend && npm install" }
+
+check-api = { shell = "cd src/backend/api && uv run poe check" }
+check-mcp = { shell = "cd src/backend/mcp && uv run poe check" }
+check-a2a = { shell = "cd src/backend/agent-a2a && uv run poe check" }
+check.sequence = ["check-api", "check-mcp", "check-a2a"]
+
+format-api = { shell = "cd src/backend/api && uv run poe format" }
+format-mcp = { shell = "cd src/backend/mcp && uv run poe format" }
+format-a2a = { shell = "cd src/backend/agent-a2a && uv run poe format" }
+format.sequence = ["format-api", "format-mcp", "format-a2a"]
