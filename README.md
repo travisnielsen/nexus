@@ -42,8 +42,12 @@ An AI-powered logistics dashboard that combines conversational interfaces with r
 
 ## Documentation
 
-- **[Getting Started](media/docs/getting-started.md)** - Prerequisites, installation, configuration, and running the application locally
-- **[AG-UI and CopilotKit Features](media/docs/ag-ui-features.md)** - Overview of AG-UI protocol features demonstrated in this application
+- **[Getting Started](media/docs/getting-started.md)** — Prerequisites, installation, configuration, and running the application locally
+- **[Dev Setup](media/docs/dev-setup.md)** — Tooling, Poe tasks, and manual setup instructions
+- **[Coding Standard](media/docs/coding-standard.md)** — Code style, anti-slop rules, and quality gates
+- **[Contributing](CONTRIBUTING.md)** — Conventional Commits, branch naming, and PR guidelines
+- **[Glossary](media/docs/glossary.md)** — Abbreviations and terms used in this project
+- **[AG-UI and CopilotKit Features](media/docs/ag-ui-features.md)** — Overview of AG-UI protocol features demonstrated in this application
 
 ## Quickstart
 
