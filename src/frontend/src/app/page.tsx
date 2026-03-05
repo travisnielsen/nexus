@@ -223,7 +223,7 @@ function LogisticsDashboard({ themeColor }: { themeColor: string }) {
   }, [initialHistorical, displayHistorical.length]);
 
   // 🪁 Shared State: https://docs.copilotkit.ai/microsoft-agent-framework/shared-state
-  useCoAgent<LogisticsAgentState>({
+  const { setState } = useCoAgent<LogisticsAgentState>({
     name: "logistics_agent",
     initialState: initialLogisticsState,
   });
