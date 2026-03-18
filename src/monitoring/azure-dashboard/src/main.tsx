@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MsalProvider } from '@azure/msal-react'
-import { PublicClientApplication, EventType } from '@azure/msal-browser'
+import { PublicClientApplication, EventType, type AuthenticationResult } from '@azure/msal-browser'
 import { msalConfig } from './lib/msalConfig'
 import App from './App'
 import './index.css'
@@ -25,9 +25,9 @@ async function initializeApp() {
   // Listen for login events
   msalInstance.addEventCallback((event) => {
     if (event.eventType === EventType.LOGIN_SUCCESS && event.payload) {
-      const payload = event.payload as { account?: { homeAccountId: string } }
-      if (payload.account) {
-        msalInstance.setActiveAccount(msalInstance.getAccountByHomeId(payload.account.homeAccountId))
+      const authResult = event.payload as AuthenticationResult
+      if (authResult.account) {
+        msalInstance.setActiveAccount(authResult.account)
       }
     }
   })
