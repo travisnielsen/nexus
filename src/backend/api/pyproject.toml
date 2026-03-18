@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "a2a-sdk<1.0.0",
     "agent-framework-a2a>=1.0.0b260225",
     "agent-framework-ag-ui>=1.0.0b260225",
     "agent-framework-azure-ai>=1.0.0rc2",

@@ -56,7 +56,7 @@ class PatchConfig:
             agui_event_stream=_env_bool("PATCH_AGUI_CONTEXT_SYNC", True),
         )
 
-        logger.debug(f"Patch config: agui_event_stream={config.agui_event_stream}")
+        logger.debug("Patch config: agui_event_stream=%s", config.agui_event_stream)
 
         return config
 
@@ -93,7 +93,7 @@ def apply_all_patches() -> PatchConfig:
         config.applied.append("agui_event_stream")
 
     if config.applied:
-        logger.info(f"Applied patches: {config.applied}")
+        logger.info("Applied patches: %s", config.applied)
     else:
         logger.info("No patches applied")
 
