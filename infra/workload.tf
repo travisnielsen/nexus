@@ -594,15 +594,15 @@ resource "azurerm_container_app" "api" {
         value = var.frontend_app_client_id
       }
       env {
-        name  = "AZURE_AI_PROJECT_ENDPOINT"
+        name  = "FOUNDRY_PROJECT_ENDPOINT"
         value = local.ai_project_endpoint
       }
       env {
-        name  = "AZURE_AI_MODEL_DEPLOYMENT_NAME"
+        name  = "FOUNDRY_MODEL"
         value = "gpt-4o-mini"
       }
       env {
-        name  = "AZURE_AI_EMBEDDING_DEPLOYMENT"
+        name  = "FOUNDRY_EMBEDDING_MODEL"
         value = "embedding-large"
       }
       env {
@@ -861,12 +861,12 @@ resource "azurerm_container_app" "a2a" {
       memory = "1Gi"
 
       env {
-        name  = "AZURE_AI_PROJECT_ENDPOINT"
+        name  = "FOUNDRY_PROJECT_ENDPOINT"
         value = local.ai_project_endpoint
       }
 
       env {
-        name  = "AZURE_AI_MODEL_DEPLOYMENT_NAME"
+        name  = "FOUNDRY_MODEL"
         value = "gpt-4.1-mini"
       }
     }

@@ -21,6 +21,8 @@ ONLY call analyze_flights when user explicitly asks to ANALYZE:
 - "analyze the flights" → analyze_flights()
 - "what's the average utilization?" → analyze_flights()
 - "summarize the risk levels" → analyze_flights()
+- "how many flights are displayed?" → analyze_flights()
+- "what am I currently looking at?" → analyze_flights()
 
 ⚠️ DO NOT call analyze_flights automatically after filter_flights!
 ⚠️ DO NOT call analyze_flights for "show me" or "information" requests!

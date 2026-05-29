@@ -19,11 +19,56 @@ from typing import Any, cast
 logger = logging.getLogger(__name__)
 
 
+def _iter_context_items(input_data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract context entries from known AG-UI request shapes.
+
+    AG-UI/CopilotKit payloads can arrive as:
+    - {"context": [...]} (current shape)
+    - {"input": {"context": [...]}} (wrapped shape)
+    - {"context": {...}} / {"input": {"context": {...}}} (dict form)
+    """
+    candidates = [
+        input_data.get("context"),
+        (input_data.get("input") or {}).get("context")
+        if isinstance(input_data.get("input"), dict)
+        else None,
+    ]
+
+    for candidate in candidates:
+        if isinstance(candidate, list):
+            return [item for item in candidate if isinstance(item, dict)]
+        if isinstance(candidate, dict):
+            return [candidate]
+    return []
+
+
+def _parse_context_value(ctx_item: dict[str, Any]) -> dict[str, Any] | None:
+    """Parse a context entry value into a dict, if possible."""
+    raw_value = ctx_item.get("value", ctx_item)
+
+    if isinstance(raw_value, str):
+        try:
+            parsed = json.loads(raw_value)
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning("[AGUI-CONTEXT] Failed to parse context value: %s", e)
+            return None
+        return parsed if isinstance(parsed, dict) else None
+
+    if isinstance(raw_value, dict):
+        return raw_value
+
+    logger.debug(
+        "[AGUI-CONTEXT] Ignoring unsupported context value type: %s",
+        type(raw_value).__name__,
+    )
+    return None
+
+
 def _sync_active_filter(input_data: dict[str, Any]) -> None:
     """Sync activeFilter from AG-UI context payload into ContextVar."""
     from agents.utils import current_active_filter
 
-    context_list = input_data.get("context", [])
+    context_list = _iter_context_items(input_data)
     if not context_list:
         # Prevent stale filter bleed between turns when no context is sent.
         current_active_filter.set(None)
@@ -31,53 +76,52 @@ def _sync_active_filter(input_data: dict[str, Any]) -> None:
         return
 
     found_active_filter = False
+    latest_filter: dict[str, Any] | None = None
+    saw_all_filter = False
 
     for ctx_item in context_list:
-        if not isinstance(ctx_item, dict) or "value" not in ctx_item:
+        if not isinstance(ctx_item, dict):
             continue
 
-        try:
-            raw_value = ctx_item["value"]
-            if isinstance(raw_value, str):
-                ctx_value = json.loads(raw_value)
-            elif isinstance(raw_value, dict):
-                ctx_value = raw_value
-            else:
-                logger.debug(
-                    "[AGUI-CONTEXT] Ignoring unsupported context value type: %s",
-                    type(raw_value).__name__,
-                )
-                continue
+        ctx_value = _parse_context_value(ctx_item)
+        if not isinstance(ctx_value, dict) or "activeFilter" not in ctx_value:
+            continue
 
-            if "activeFilter" in ctx_value:
-                found_active_filter = True
-                filter_data = ctx_value["activeFilter"]
+        found_active_filter = True
+        filter_data = ctx_value["activeFilter"]
+        if not isinstance(filter_data, dict):
+            continue
 
-                # When UI indicates "all", treat as no active filter.
-                if isinstance(filter_data, dict) and filter_data.get("filterType") == "all":
-                    current_active_filter.set(None)
-                    logger.debug(
-                        "[AGUI-CONTEXT] activeFilter.filterType=all; cleared active filter"
-                    )
-                    return
+        # Keep scanning to use the latest activeFilter in the payload.
+        # This avoids stale state when multiple readable snapshots exist.
+        if filter_data.get("filterType") == "all":
+            saw_all_filter = True
+            latest_filter = None
+            continue
 
-                synced_filter = {
-                    "routeFrom": filter_data.get("routeFrom"),
-                    "routeTo": filter_data.get("routeTo"),
-                    "utilizationType": filter_data.get("utilizationType"),
-                    "riskLevel": filter_data.get("riskLevel"),
-                    "dateFrom": filter_data.get("dateFrom"),
-                    "dateTo": filter_data.get("dateTo"),
-                    "limit": filter_data.get("limit"),
-                }
-                current_active_filter.set(synced_filter)
-                logger.debug(
-                    "[AGUI-CONTEXT] Synced activeFilter to ContextVar: %s",
-                    synced_filter,
-                )
-                return
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.warning("[AGUI-CONTEXT] Failed to parse context value: %s", e)
+        saw_all_filter = False
+        latest_filter = {
+            "routeFrom": filter_data.get("routeFrom"),
+            "routeTo": filter_data.get("routeTo"),
+            "utilizationType": filter_data.get("utilizationType"),
+            "riskLevel": filter_data.get("riskLevel"),
+            "dateFrom": filter_data.get("dateFrom"),
+            "dateTo": filter_data.get("dateTo"),
+            "limit": filter_data.get("limit"),
+        }
+
+    if latest_filter is not None:
+        current_active_filter.set(latest_filter)
+        logger.debug(
+            "[AGUI-CONTEXT] Synced activeFilter to ContextVar: %s",
+            latest_filter,
+        )
+        return
+
+    if saw_all_filter:
+        current_active_filter.set(None)
+        logger.debug("[AGUI-CONTEXT] Latest activeFilter.filterType=all; cleared active filter")
+        return
 
     if not found_active_filter:
         # If context exists but doesn't include activeFilter, avoid stale state.

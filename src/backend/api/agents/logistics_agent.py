@@ -2,7 +2,7 @@
 Logistics Agent with Microsoft Agent Framework
 
 This module defines the logistics agent configuration and state schema
-for the shipping logistics demo backed by v2 Responses API.
+for the shipping logistics demo backed by Azure AI Foundry.
 
 All tool implementations have been moved to the tools/ directory for better organization.
 """

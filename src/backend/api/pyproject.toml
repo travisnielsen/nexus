@@ -5,33 +5,35 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "a2a-sdk<1.0.0",
-    "agent-framework-a2a>=1.0.0b260225",
-    "agent-framework-ag-ui>=1.0.0b260225",
-    "agent-framework-azure-ai>=1.0.0rc2",
-    "agent-framework-core>=1.0.0rc2",
-    "azure-ai-projects>=2.0.0b3",
-    "azure-identity>=1.15.0",
-    "fastapi>=0.110.0",
-    "uvicorn>=0.27.0",
-    "pydantic>=2.12.0",
+    "a2a-sdk>=1.1.0,<2.0.0",
+    "agent-framework-a2a>=1.0.0b260528",
+    "agent-framework-ag-ui>=1.0.0rc3",
+    "agent-framework-core>=1.7.0",
+    "agent-framework-foundry>=1.7.0",
+    "azure-ai-projects>=2.1.0",
+    "azure-identity>=1.25.3",
+    "aiohttp>=3.13.2",
+    "fastapi>=0.133.0,<0.133.1",
+    "uvicorn>=0.48.0",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
     "python-dotenv",
-    "fastapi-azure-auth>=5.0.0",
-    "azure-monitor-opentelemetry>=1.6.0",
-    "opentelemetry-instrumentation-fastapi>=0.48b0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.39.0",
-    "opentelemetry-exporter-otlp>=1.39.0",
+    "fastapi-azure-auth>=5.2.0",
+    "azure-monitor-opentelemetry>=1.8.8",
+    "opentelemetry-instrumentation-fastapi==0.61b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.40.0,<1.41.0",
+    "opentelemetry-exporter-otlp>=1.40.0,<1.41.0",
 ]
 
 [dependency-groups]
 dev = [
-    "basedpyright>=1.29.0",
-    "poethepoet>=0.30.0",
-    "ruff>=0.11.0",
+    "basedpyright>=1.39.6",
+    "poethepoet>=0.46.0",
+    "ruff>=0.15.15",
 ]
 
 [tool.uv]
-prerelease = "allow"
+prerelease = "if-necessary-or-explicit"
 
 [tool.poe.tasks]
 format = [

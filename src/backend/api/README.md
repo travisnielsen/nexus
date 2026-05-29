@@ -1,6 +1,6 @@
 # Backend API
 
-FastAPI-based backend for the Enterprise Data Agent. Uses Microsoft Agent Framework (MAF) for agent orchestration and CopilotKit's AG-UI protocol for frontend communication.
+FastAPI-based backend for the Enterprise Data Agent. Uses Microsoft Agent Framework (MAF) for agent orchestration, a Foundry-native chat client, and CopilotKit's AG-UI protocol for frontend communication.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ FastAPI-based backend for the Enterprise Data Agent. Uses Microsoft Agent Framew
 │                         Port: 8000                                   │
 ├─────────────────────────────────────────────────────────────────────┤
 │  main.py              - FastAPI app, REST endpoints, AG-UI SSE      │
-│  clients.py           - Chat client factory (Azure AI integration)  │
+│  clients.py           - Chat client factory (FoundryChatClient)     │
 │  monitoring.py        - OpenTelemetry observability                 │
 ├─────────────────────────────────────────────────────────────────────┤
 │  agents/                                                             │
@@ -28,7 +28,7 @@ FastAPI-based backend for the Enterprise Data Agent. Uses Microsoft Agent Framew
 ```
 backend/
 ├── main.py                 # FastAPI app, REST endpoints, agent setup
-├── clients.py              # Chat client factory (Responses API)
+├── clients.py              # Chat client factory (FoundryChatClient)
 ├── monitoring.py           # OpenTelemetry observability setup
 ├── pyproject.toml          # Python dependencies (uv)
 ├── agents/
@@ -44,8 +44,7 @@ backend/
 │       ├── mcp_client.py           # HTTP client for MCP server
 │       └── data_helpers.py         # Shared data access functions
 ├── middleware/
-│   ├── auth.py             # Azure AD authentication
-│   └── responses_api.py    # Responses API thread middleware
+│   └── auth.py             # Azure AD authentication
 └── patches/                # Critical workarounds (must import first)
     ├── __init__.py
     └── agui_event_stream.py # AG-UI event stream fixes
@@ -101,8 +100,8 @@ Create a `.env` file:
 
 ```env
 # Azure AI / Microsoft Foundry
-AZURE_AI_PROJECT_ENDPOINT=https://...
-AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
+FOUNDRY_PROJECT_ENDPOINT=https://...
+FOUNDRY_MODEL=gpt-4o-mini
 
 # Authentication (optional)
 AZURE_AD_CLIENT_ID=...

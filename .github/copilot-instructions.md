@@ -52,7 +52,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 ├── src/backend/                # All backend services
 │   ├── api/               # FastAPI + Microsoft Agent Framework (main API)
 │   │   ├── main.py            # FastAPI app, REST endpoints, agent setup
-│   │   ├── clients.py         # Chat client factory (Responses API)
+│   │   ├── clients.py         # Chat client factory (FoundryChatClient)
 │   │   ├── monitoring.py      # OpenTelemetry observability setup
 │   │   ├── Dockerfile         # Production Dockerfile (for ACR/Azure deployment)
 │   │   ├── Dockerfile.local   # Local dev Dockerfile (includes Azure CLI)
@@ -124,9 +124,9 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 - **React 19** with hooks
 - **TypeScript 5**
 - **Tailwind CSS 4**
-- **CopilotKit 1.52** for conversational UI
-- **AG-UI Client** (`@ag-ui/client@0.0.46`) for agent communication (version pinned via npm overrides)
-- **MSAL v5** (`@azure/msal-browser@5.1.0`, `@azure/msal-react@5.0.3`) for Azure AD authentication
+- **CopilotKit 1.59.1** for conversational UI
+- **AG-UI Client** (`@ag-ui/client@0.0.53`) for agent communication (version pinned via npm overrides)
+- **MSAL v5** (`@azure/msal-browser@5.11.0`, `@azure/msal-react@5.4.2`) for Azure AD authentication
 
 ### Backend
 - **Python 3.12+** with `uv` package manager
@@ -136,7 +136,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
   - `agent-framework-ag-ui` - AG-UI protocol support
   - `agent-framework-azure-ai` - Azure AI Foundry integration
   - `agent-framework-a2a` - A2A protocol support
-- **Azure AI Foundry** for LLM (GPT-4o)
+- **Azure AI Foundry** for LLM access via `FoundryChatClient`
 - **Azure AD** authentication (optional)
 - **OpenTelemetry** for observability
 
@@ -234,8 +234,8 @@ Authentication uses Azure AD (Entra ID):
 
 Backend API (`.env` in `/src/backend/api`):
 ```env
-AZURE_AI_PROJECT_ENDPOINT=https://...
-AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
+FOUNDRY_PROJECT_ENDPOINT=https://...
+FOUNDRY_MODEL=gpt-4o-mini
 AZURE_AD_CLIENT_ID=...
 AZURE_AD_TENANT_ID=...
 AUTH_ENABLED=false  # Development only (default: true)
@@ -580,5 +580,5 @@ Patches can be disabled via environment variables:
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+shell commands, and other important information, read [specs/001-upgrade-stack-versions/plan.md](../specs/001-upgrade-stack-versions/plan.md)
 <!-- SPECKIT END -->

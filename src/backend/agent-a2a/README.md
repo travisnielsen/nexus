@@ -21,8 +21,8 @@ uv sync --dev
 
 ```bash
 # Required: Microsoft Foundry / Azure AI Project settings
-AZURE_AI_PROJECT_ENDPOINT=https://your-project.services.ai.azure.com/api/projects/your-project-id
-AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
+FOUNDRY_PROJECT_ENDPOINT=https://your-project.services.ai.azure.com/api/projects/your-project-id
+FOUNDRY_MODEL=gpt-4o-mini
 
 # Server port (optional, defaults to 5002)
 PORT=5002

@@ -68,8 +68,8 @@ Create `.env` files for each module using the values from your Azure deployment:
 **src/backend/api/.env**
 ```env
 # Azure AI Configuration (required)
-AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
-AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
+FOUNDRY_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
+FOUNDRY_MODEL=gpt-4o-mini
 
 # Authentication (optional for local dev)
 AZURE_AD_CLIENT_ID=<frontend-app-registration-client-id>
@@ -93,8 +93,8 @@ AUTH_ENABLED=false
 **src/backend/agent-a2a/.env**
 ```env
 # Azure AI Configuration (required)
-AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
-AZURE_AI_MODEL_DEPLOYMENT_NAME=gpt-4o-mini
+FOUNDRY_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
+FOUNDRY_MODEL=gpt-4o-mini
 ```
 
 **src/frontend/.env.local**
