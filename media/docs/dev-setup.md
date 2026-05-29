@@ -102,6 +102,17 @@ Install the [Python extension](https://marketplace.visualstudio.com/items?itemNa
 
 Each backend project has a `pyrightconfig.json` for type checking.
 
+### Spec Kit Command Locations (Copilot Integration)
+
+If you initialized Spec Kit with `integration: copilot`, command definitions are expected in:
+
+- `.github/prompts/speckit.*.prompt.md`
+- `.github/agents/speckit.*.agent.md`
+- `.specify/extensions/*/commands/*.md` (for installed extensions only)
+
+In this layout, `.specify/templates/commands/` may not exist, which is normal for
+Spec Kit 0.8.x with Copilot integration.
+
 ### Copilot Auto-Approve Commands
 
 | Pattern              | Commands                              | Purpose         |
