@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { CopilotKit } from "@copilotkit/react-core";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
 // Context to expose threadId to child components
 export const ThreadIdContext = createContext<string | null>(null);
 
@@ -28,7 +26,7 @@ interface NoAuthCopilotKitProps {
  * Returns a conv_* ID that Azure manages server-side for history and continuity.
  */
 async function createConversation(): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/api/conversations`, {
+  const response = await fetch(`/api/conversations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
   });

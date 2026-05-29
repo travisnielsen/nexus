@@ -5,22 +5,22 @@ description = "A2A-enabled recommendations agent"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "a2a-sdk[http-server]>=0.3.22,<1.0.0",
-    "fastapi>=0.110.0",
-    "uvicorn>=0.27.0",
-    "pydantic>=2.11.3",
+    "a2a-sdk[http-server]>=0.3.25,<1.0.0",
+    "fastapi>=0.136.3",
+    "uvicorn>=0.48.0",
+    "pydantic>=2.13.4",
     "python-dotenv",
 ]
 
 [dependency-groups]
 dev = [
-    "basedpyright>=1.29.0",
-    "poethepoet>=0.30.0",
-    "ruff>=0.11.0",
+    "basedpyright>=1.39.6",
+    "poethepoet>=0.46.0",
+    "ruff>=0.15.15",
 ]
 
 [tool.uv]
-prerelease = "allow"
+prerelease = "if-necessary-or-explicit"
 
 [build-system]
 requires = ["hatchling"]

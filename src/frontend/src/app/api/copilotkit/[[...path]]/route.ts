@@ -4,17 +4,14 @@ import {
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import { HttpAgent } from "@ag-ui/client";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-// API URL Configuration - uses environment variables with fallbacks
 const AGENT_API_BASE_URL = process.env.AGENT_API_BASE_URL || "http://localhost:8000";
-const LOGISTICS_AGENT_URL = process.env.AGENT_LOGISTICS_URL || `${AGENT_API_BASE_URL}/logistics`;
+const LOGISTICS_AGENT_URL =
+  process.env.AGENT_LOGISTICS_URL || `${AGENT_API_BASE_URL}/logistics`;
 
-// 1. You can use any service adapter here for multi-agent support. We use
-//    the empty adapter since we're only using one agent.
 const serviceAdapter = new ExperimentalEmptyAdapter();
 
-// Create a function to build the runtime with the auth header
 function createRuntime(authHeader: string | null) {
   const agentHeaders: Record<string, string> = {};
   if (authHeader) {
@@ -23,35 +20,35 @@ function createRuntime(authHeader: string | null) {
 
   return new CopilotRuntime({
     agents: {
-      "logistics_agent": new HttpAgent({
+      logistics_agent: new HttpAgent({
         url: LOGISTICS_AGENT_URL,
         headers: agentHeaders,
       }),
-    }
+    },
   });
 }
 
-// 2. Build a Next.js API route that handles the CopilotKit runtime requests.
-export const POST = async (req: NextRequest) => {
-  // Get the Authorization header from the request
-  const authHeader = req.headers.get("authorization");
+async function handleCopilotRequest(req: NextRequest) {
+  const path = req.nextUrl.pathname;
 
-  // Clone the request and remove the Authorization header to prevent duplication
-  // CopilotKit might be forwarding it separately
+  // CopilotKit requests thread metadata via GET /api/copilotkit/threads.
+  // We use external Foundry conversation IDs, so we return an empty list.
+  if (req.method === "GET" && path.endsWith("/threads")) {
+    return NextResponse.json({ threads: [] });
+  }
+
+  const authHeader = req.headers.get("authorization");
   const headers = new Headers(req.headers);
   headers.delete("authorization");
 
-  // Create a new request without the auth header in the HTTP headers
-  // We'll pass it directly to the HttpAgent
   const modifiedReq = new NextRequest(req.url, {
     method: req.method,
-    headers: headers,
+    headers,
     body: req.body,
     duplex: "half" as const,
   });
 
   const runtime = createRuntime(authHeader);
-
   const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
     runtime,
     serviceAdapter,
@@ -59,4 +56,7 @@ export const POST = async (req: NextRequest) => {
   });
 
   return handleRequest(modifiedReq);
-};
+}
+
+export const GET = async (req: NextRequest) => handleCopilotRequest(req);
+export const POST = async (req: NextRequest) => handleCopilotRequest(req);

@@ -76,7 +76,7 @@ async def _init_chat_client():
     """
     global chat_client, logistics_agent
 
-    # Build the Responses API client
+    # Build the Foundry chat client
     from clients import build_responses_client  # type: ignore
 
     chat_client = build_responses_client()
@@ -198,7 +198,7 @@ async def create_conversation():
 
     Returns a conv_* ID that the frontend uses as the CopilotKit threadId.
     With use_service_session=True, the AG-UI framework passes this ID as
-    service_session_id to AgentSession, and the Responses API uses it as
+    service_session_id to AgentSession, and Foundry conversation history uses it as
     the conversation parameter for server-side history management.
     """
     if chat_client is None:
