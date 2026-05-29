@@ -51,6 +51,25 @@
 - Sources:
   - Spec clarifications in `spec.md`
 
+## Decision 6: Latest-supported version enforcement
+
+- Decision: For each dependency upgrade task, target the latest supported stable version verified at execution time using authoritative sources.
+- Rationale: Prevents upgrades that are stale, deprecated, or outside support windows.
+- Execution policy:
+  - Validate support status using first-party docs, official release notes, or SDK source repositories.
+  - If latest-supported adoption is blocked, use highest supported compatible version and record blocker plus follow-up.
+- Sources:
+  - `.github/skills/microsoft-agent-framework/SKILL.md`
+  - Microsoft Learn via `mcp_azure_mcp_documentation`
+
+## Decision 7: Replacement implementation must be executable, not record-only
+
+- Decision: Unsupported dependency handling requires actual implementation updates in manifests/code plus equivalence validation, with records produced afterward.
+- Rationale: Documentation-only replacements do not satisfy feature requirements.
+- Sources:
+  - Feature requirements FR-012 in `spec.md`
+  - Task remediation updates in `tasks.md`
+
 ## Implementation Notes for Foundry v2-readiness
 
 - Keep the default runtime on `FoundryChatClient` for app-owned instructions/tools.

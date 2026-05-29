@@ -88,6 +88,31 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **IF EXISTS**: Read .specify/memory/constitution.md for governance constraints
    - **IF EXISTS**: Read quickstart.md for integration scenarios
 
+3.1 **Authoritative-source gate (MANDATORY before implementation):**
+   - The implementation agent MUST use authoritative information and MUST NOT rely on guesswork
+     for framework behavior, protocol behavior, platform behavior, or SDK usage.
+   - **Latest-supported-version policy (MANDATORY):**
+     - Implementation decisions MUST target the latest supported stable software/SDK versions
+       at the time of execution, not prior or deprecated releases.
+     - Verify version support status using authoritative sources (first-party docs, official
+       release notes, or source repositories) before applying dependency or API changes.
+     - If ecosystem constraints prevent latest-supported adoption, explicitly document the
+       blocker, choose the highest supported compatible version, and add follow-up tasks.
+   - **Microsoft Agent Framework work**:
+     - Read and apply guidance from `.github/skills/microsoft-agent-framework/SKILL.md`
+       before implementing MAF-related tasks.
+   - **Frontend, CopilotKit, and AG-UI work**:
+     - Use CopilotKit MCP tooling first (`activate_code_and_docs_exploration_tools`,
+       `activate_semantic_search_tools_for_ag_ui`, and related CopilotKit search tools)
+       before relying on generic web sources.
+   - **Azure / Microsoft platform work**:
+     - Use first-party Microsoft Learn content via `mcp_azure_mcp_documentation`.
+   - **SDK-level verification**:
+     - Validate critical SDK/API usage using official SDK docs or source repositories.
+     - If docs and implementation behavior diverge, prefer source verification and document it.
+   - If authoritative evidence is missing for a task area, pause that task, gather evidence,
+     then continue implementation.
+
 4. **Project Setup Verification**:
    - **REQUIRED**: Create/verify ignore files based on actual project setup:
 
@@ -144,6 +169,10 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
+  - **Evidence-first execution**: For tasks touching MAF, CopilotKit/AG-UI, Azure/Foundry,
+    or SDK behavior, gather and apply authoritative sources before code changes.
+   - **Version-first execution**: Verify selected package and SDK versions are latest-supported
+     before modifying manifests, lockfiles, or client APIs.
 
 7. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
@@ -159,6 +188,10 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+  - If a task cannot be justified with authoritative evidence, report the gap and fetch
+    source-backed guidance before proceeding.
+   - If latest-supported version status cannot be verified, halt the version change step,
+     report the gap, and gather authoritative version evidence first.
 
 9. Completion validation:
    - Verify all required tasks are completed

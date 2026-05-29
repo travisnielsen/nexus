@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Azure OpenAI credentials (for the Microsoft Agent Framework agent)
+- Microsoft Foundry project access (for the Microsoft Agent Framework agent)
 - Bash shell
 - uv
 - Node.js 20+
@@ -41,13 +41,12 @@ This repo supports user-level authentication to the agent API, which supports en
 
 ## Set Environment Variables
 
-Using the output from the application enrollment script, set up your agent credentials. The backend automatically uses Azure when the Azure env vars below are present. Create an `.env` file inside the `src/backend/api` folder with one of the following configurations:
+Using the output from the application enrollment script, set up your agent credentials. The backend automatically uses Foundry when the `FOUNDRY_*` env vars below are present. Create an `.env` file inside the `src/backend/api` folder with one of the following configurations:
 
 ```env
 # Microsoft Foundry settings
-AZURE_OPENAI_ENDPOINT=https://[your-resource].services.ai.azure.com/
-AZURE_OPENAI_PROJECT_ENDPOINT=https://[your-resource].services.ai.azure.com/api/projects/[your-project]
-AZURE_OPENAI_CHAT_DEPLOYMENT_NAME=gpt-4o
+FOUNDRY_PROJECT_ENDPOINT=https://[your-resource].services.ai.azure.com/api/projects/[your-project]
+FOUNDRY_MODEL=gpt-4o
 
 # Entra ID Authentication
 AZURE_AD_CLIENT_ID=[your-app-id]

@@ -35,6 +35,11 @@ uv lock --upgrade
 uv sync --dev
 ```
 
+Compatibility notes:
+- API currently uses `fastapi>=0.133.0,<0.133.1` due `agent-framework-ag-ui` constraint window.
+- API telemetry stack aligns with `azure-monitor-opentelemetry` pinned instrumentation versions.
+- A2A service currently uses `a2a-sdk>=0.3.25,<1.0.0` to preserve existing handler APIs.
+
 ## 4. Upgrade frontend Node scope
 
 ```bash
@@ -58,6 +63,10 @@ cd src/frontend
 npm run lint
 npm run build
 ```
+
+Expected outcome:
+- Python checks: all ruff and basedpyright checks pass across api/mcp/agent-a2a.
+- Frontend checks: lint passes and Next.js production build completes.
 
 ## 7. Validate runtime and protocol behavior
 

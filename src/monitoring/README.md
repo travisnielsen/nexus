@@ -27,9 +27,9 @@ The solution uses OpenTelemetry to capture distributed traces across all agent i
 
 ### Conversation ID Generation
 
-1. **CopilotKit Frontend**: When a user starts a chat session, CopilotKit generates a unique `threadId` (UUID format, e.g., `a24ea2c1-fd51-4354-af5e-f5f8ab9e3bcf`). This ID persists for the lifetime of the conversation.
+1. **Conversation Bootstrap**: The frontend creates a Foundry conversation by calling `POST /api/conversations` and uses the returned `conv_*` identifier as the CopilotKit `threadId`.
 
-2. **AG-UI Protocol**: The `threadId` is sent to the backend in every SSE request body as part of the AG-UI protocol payload.
+2. **AG-UI Protocol**: The `threadId` is sent to the backend in every AG-UI request body as part of the protocol payload.
 
 3. **Frontend Context Sync**: The frontend also sends the current UI state (including active filters) via `useCopilotReadable`, which the backend uses for context-aware responses.
 
@@ -40,7 +40,7 @@ The backend receives the `threadId` and uses it for AG-UI session continuity. Te
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Frontend (CopilotKit)                                              │
-│  Generates: threadId = "a24ea2c1-fd51-4354-af5e-f5f8ab9e3bcf"      │
+│  Generates: threadId = "conv_..." via /api/conversations          │
 └────────────────────────────┬────────────────────────────────────────┘
                              │ SSE POST /logistics (AG-UI Protocol)
                              ▼
