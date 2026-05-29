@@ -11,5 +11,8 @@
     "start": "npm run start --prefix src/frontend",
     "lint": "npm run lint --prefix src/frontend",
     "install:all": "npm install --prefix src/frontend"
+  },
+  "dependencies": {
+    "concurrently": "^10.0.0"
   }
 }

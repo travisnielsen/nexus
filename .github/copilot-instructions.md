@@ -577,3 +577,8 @@ The patches package applies context synchronization workarounds:
 
 Patches can be disabled via environment variables:
 - `PATCH_AGUI_CONTEXT_SYNC=false`
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
