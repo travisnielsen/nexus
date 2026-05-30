@@ -129,8 +129,49 @@ def _sync_active_filter(input_data: dict[str, Any]) -> None:
         logger.debug("[AGUI-CONTEXT] Context had no activeFilter; cleared active filter")
 
 
+def _extract_conversation_id(input_data: dict[str, Any]) -> str | None:
+    """Extract conversation/thread id from common AG-UI payload shapes."""
+    candidates: list[dict[str, Any]] = [input_data]
+    wrapped = input_data.get("input")
+    if isinstance(wrapped, dict):
+        candidates.append(wrapped)
+
+    keys = (
+        "threadId",
+        "thread_id",
+        "conversationId",
+        "conversation_id",
+        "service_session_id",
+    )
+
+    for candidate in candidates:
+        for key in keys:
+            value = candidate.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    return None
+
+
+def _sync_trace_identity(input_data: dict[str, Any]) -> None:
+    """Ensure TraceIdentity exists even when custom HTTP headers are absent."""
+    from agents.utils import TraceIdentity, get_trace_identity, set_trace_identity
+
+    identity = get_trace_identity()
+    if identity and identity.conversation_id:
+        return
+
+    conversation_id = _extract_conversation_id(input_data)
+    if not conversation_id:
+        return
+
+    set_trace_identity(TraceIdentity(conversation_id=conversation_id))
+    logger.debug("[AGUI-CONTEXT] Synced trace identity conversation_id=%s", conversation_id)
+
+
 def _apply_request_context(input_data: dict[str, Any]) -> None:
     """Apply request context needed by backend tools."""
+    _sync_trace_identity(input_data)
     _sync_active_filter(input_data)
 
 

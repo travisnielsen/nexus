@@ -1,0 +1,29 @@
+# VCS
+.git/
+.gitignore
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+.next/
+dist/
+build/
+coverage/
+
+# Environment
+.env
+.env.*
+
+# Logs
+*.log
+*.log.*
+
+# Python
+**/.venv/
+**/__pycache__/
+
+# Docker metadata
+Dockerfile*
+.dockerignore

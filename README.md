@@ -70,6 +70,8 @@ Create `.env` files for each module using the values from your Azure deployment:
 # Azure AI Configuration (required)
 FOUNDRY_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
 FOUNDRY_MODEL=gpt-4o-mini
+FOUNDRY_AGENT_NAME=logistics-agent
+# FOUNDRY_AGENT_VERSION=<optional>
 
 # Authentication (optional for local dev)
 AZURE_AD_CLIENT_ID=<frontend-app-registration-client-id>

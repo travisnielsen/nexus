@@ -614,6 +614,10 @@ resource "azurerm_container_app" "api" {
         value = "true"
       }
       env {
+        name  = "AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING"
+        value = "false"
+      }
+      env {
         name  = "ENABLE_SENSITIVE_DATA"
         value = "true"
       }

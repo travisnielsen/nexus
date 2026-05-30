@@ -5,8 +5,11 @@ description = "A2A-enabled recommendations agent"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "a2a-sdk[http-server]>=0.3.25,<1.0.0",
+    "a2a-sdk[http-server]>=1.1.0,<2.0.0",
+    "azure-monitor-opentelemetry>=1.8.8",
     "fastapi>=0.136.3",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.40.0,<1.41.0",
+    "opentelemetry-exporter-otlp>=1.40.0,<1.41.0",
     "uvicorn>=0.48.0",
     "pydantic>=2.13.4",
     "python-dotenv",

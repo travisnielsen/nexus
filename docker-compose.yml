@@ -74,6 +74,8 @@ services:
       - MCP_SERVER_URL=http://mcp:8001
       - MCP_AUTH_ENABLED=false
       - RECOMMENDATIONS_AGENT_URL=http://agent-a2a:5002
+      - AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=false
+      - PATCH_AGUI_CONTEXT_SYNC=false
       # Telemetry - connect to host for monitoring stack
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
     depends_on:

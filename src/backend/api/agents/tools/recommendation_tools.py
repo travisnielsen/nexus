@@ -15,9 +15,11 @@ from typing import Annotated, cast
 
 from agent_framework import tool
 from agent_framework_a2a import A2AAgent
+from opentelemetry import trace
 from pydantic import Field
 
 from ..utils import current_selected_flight, get_flight_by_id_or_number
+from .trace_helpers import traced_tool_span
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,7 @@ def _get_recommendations_agent_url() -> str:
 
 # Cached A2A agent instance
 _a2a_agent: A2AAgent | None = None
+_tracer = trace.get_tracer("logistics.a2a")
 
 
 def _get_a2a_agent() -> A2AAgent:
@@ -62,36 +65,42 @@ async def call_recommendations_agent(query: str) -> str:
     agent_url = _get_recommendations_agent_url()
     logger.info(f"Calling A2A recommendations agent at {agent_url} with query: {query}")
 
-    try:
-        agent = _get_a2a_agent()
+    with _tracer.start_as_current_span("a2a.recommendations.request") as span:
+        span.set_attribute("a2a.query.length", len(query))
 
-        # Run the agent with the query
-        response = await agent.run(query)
+        try:
+            agent = _get_a2a_agent()
 
-        # The AgentResponse has a __str__ that returns the text content
-        response_text = str(response)
+            # Fallback to the wrapper run path for compatibility.
+            response = await agent.run(query)
+            response_text = str(response)
 
-        if response_text:
-            logger.info(f"Received A2A response: {response_text[:100]}...")
-            return response_text
+            if response_text:
+                logger.info(f"Received A2A response: {response_text[:100]}...")
+                return response_text
 
-        # Fallback: try to extract from messages
-        if hasattr(response, "messages") and response.messages:
-            texts: list[str] = []
-            for msg in response.messages:
-                if hasattr(msg, "contents") and msg.contents:
-                    for content in msg.contents:
-                        if hasattr(content, "text"):
-                            texts.append(content.text)
-            if texts:
-                return "\n".join(texts)
+            # Fallback: try to extract from messages
+            if hasattr(response, "messages") and response.messages:
+                texts: list[str] = []
+                for msg in response.messages:
+                    if hasattr(msg, "contents") and msg.contents:
+                        for content in msg.contents:
+                            if hasattr(content, "text"):
+                                texts.append(content.text)
+                if texts:
+                    return "\n".join(texts)
 
-        logger.warning("No text content found in A2A response")
-        return "No recommendations available."
+            logger.warning("No text content found in A2A response")
+            return "No recommendations available."
 
-    except Exception as e:
-        logger.error(f"Error calling A2A recommendations agent: {e}")
-        raise
+        except TimeoutError as e:
+            span.record_exception(e)
+            logger.error("A2A recommendations timeout: %s", e)
+            raise
+        except Exception as e:
+            span.record_exception(e)
+            logger.error(f"Error calling A2A recommendations agent: {e}")
+            raise
 
 
 @tool(
@@ -107,147 +116,149 @@ async def get_recommendations(
     ] = None,
 ) -> dict[str, object]:
     """Generate and return recommendations for a flight by calling external A2A agent. Rendered as interactive card in chat."""
+    with traced_tool_span("get_recommendations"):
+        # Determine which flight to analyze
+        flight = None
 
-    # Determine which flight to analyze
-    flight = None
+        # Priority 1: Explicit flight_id parameter
+        if flight_id:
+            flight = get_flight_by_id_or_number(flight_id)
 
-    # Priority 1: Explicit flight_id parameter
-    if flight_id:
-        flight = get_flight_by_id_or_number(flight_id)
+        # Priority 2: Currently selected flight from UI
+        if not flight:
+            selected = current_selected_flight.get()
+            if selected:
+                flight = selected
 
-    # Priority 2: Currently selected flight from UI
-    if not flight:
-        selected = current_selected_flight.get()
-        if selected:
-            flight = selected
+        if not flight:
+            return {
+                "error": "No flight specified or selected. Please select a flight or provide a flight number.",
+                "recommendations": [],
+            }
 
-    if not flight:
-        return {
-            "error": "No flight specified or selected. Please select a flight or provide a flight number.",
-            "recommendations": [],
-        }
+        flight_number: str = cast(str, flight.get("flightNumber", "unknown"))
+        risk_level: str = cast(str, flight.get("riskLevel", "medium"))
+        utilization: float = cast(float, flight.get("utilizationPercent", 0))
+        route_from: str = cast(str, flight.get("from", "?"))
+        route_to: str = cast(str, flight.get("to", "?"))
+        route = f"{route_from} → {route_to}"
 
-    flight_number: str = cast(str, flight.get("flightNumber", "unknown"))
-    risk_level: str = cast(str, flight.get("riskLevel", "medium"))
-    utilization: float = cast(float, flight.get("utilizationPercent", 0))
-    route_from: str = cast(str, flight.get("from", "?"))
-    route_to: str = cast(str, flight.get("to", "?"))
-    route = f"{route_from} → {route_to}"
+        # For medium risk, no recommendations needed
+        if risk_level == "medium":
+            return {
+                "flightId": flight.get("id", ""),
+                "flightNumber": flight_number,
+                "route": route,
+                "riskLevel": risk_level,
+                "utilizationPercent": utilization,
+                "recommendations": [],
+                "message": f"Flight {flight_number} is at optimal utilization ({utilization:.1f}%). No action needed.",
+                "generatedAt": datetime.now(UTC).isoformat() + "Z",
+            }
 
-    # For medium risk, no recommendations needed
-    if risk_level == "medium":
+        # Build context for the A2A recommendations agent
+        if risk_level in ("high", "critical"):
+            context = (
+                f"Flight {flight_number} from {route_from} to {route_to} is at {utilization:.1f}% capacity "
+                f"with {risk_level} risk level. Provide 3-4 specific risk mitigation recommendations "
+                f"to prevent delays and optimize cargo distribution."
+            )
+        else:  # low risk
+            context = (
+                f"Flight {flight_number} from {route_from} to {route_to} is under-utilized at {utilization:.1f}% capacity "
+                f"with low risk. Provide 3 optimization recommendations to better utilize this capacity."
+            )
+
+        # Call the A2A recommendations agent
+        recommendations: list[dict[str, str]] = []
+        try:
+            logger.info("[get_recommendations] Calling A2A agent for flight %s", flight_number)
+            response = await call_recommendations_agent(context)
+
+            # Parse the response into individual recommendations
+            # The agent returns text with numbered recommendations
+            lines = response.strip().split("\n")
+            rec_id = 0
+            for line in lines:
+                line = line.strip()
+                # Skip empty lines and headers
+                if (
+                    not line
+                    or line.lower().startswith("here are")
+                    or line.lower().startswith("recommendations")
+                ):
+                    continue
+                # Remove leading numbers like "1.", "2.", etc.
+                cleaned = re.sub(r"^\d+[\.\)]\s*", "", line)
+                if cleaned and len(cleaned) > 10:  # Minimum length for a valid recommendation
+                    rec_id += 1
+                    category = (
+                        "mitigation" if risk_level in ("high", "critical") else "optimization"
+                    )
+                    recommendations.append(
+                        {
+                            "id": f"rec-a2a-{rec_id}",
+                            "text": cleaned,
+                            "category": category,
+                        }
+                    )
+                    # Limit to 5 recommendations max
+                    if len(recommendations) >= 5:
+                        break
+
+            # Ensure at least 2 recommendations (pad with generic if needed)
+            if len(recommendations) < 2:
+                if risk_level in ("high", "critical"):
+                    recommendations.append(
+                        {
+                            "id": "rec-generic-1",
+                            "text": "Review cargo priorities and consider redistributing to alternative flights",
+                            "category": "mitigation",
+                        }
+                    )
+                else:
+                    recommendations.append(
+                        {
+                            "id": "rec-generic-1",
+                            "text": "Consider accepting additional cargo to optimize capacity utilization",
+                            "category": "optimization",
+                        }
+                    )
+
+            logger.info(
+                "[get_recommendations] Received %d recommendations from A2A agent for flight %s",
+                len(recommendations),
+                flight_number,
+            )
+
+        except Exception as e:
+            logger.error("[get_recommendations] Error calling A2A agent: %s", e)
+            # Fall back to a generic recommendation on error
+            recommendations = [
+                {
+                    "id": "rec-fallback",
+                    "text": f"Unable to fetch recommendations from external agent. Please review flight {flight_number} manually.",
+                    "category": "error",
+                }
+            ]
+
+        # Add urgency note for high utilization
+        if utilization > 95 and risk_level in ("high", "critical"):
+            recommendations.insert(
+                0,
+                {
+                    "id": "rec-urgent",
+                    "text": f"URGENT: Flight is at {utilization:.1f}% capacity. Immediate action required to prevent delays",
+                    "category": "urgent",
+                },
+            )
+
         return {
             "flightId": flight.get("id", ""),
             "flightNumber": flight_number,
             "route": route,
             "riskLevel": risk_level,
             "utilizationPercent": utilization,
-            "recommendations": [],
-            "message": f"Flight {flight_number} is at optimal utilization ({utilization:.1f}%). No action needed.",
+            "recommendations": recommendations,
             "generatedAt": datetime.now(UTC).isoformat() + "Z",
         }
-
-    # Build context for the A2A recommendations agent
-    if risk_level in ("high", "critical"):
-        context = (
-            f"Flight {flight_number} from {route_from} to {route_to} is at {utilization:.1f}% capacity "
-            f"with {risk_level} risk level. Provide 3-4 specific risk mitigation recommendations "
-            f"to prevent delays and optimize cargo distribution."
-        )
-    else:  # low risk
-        context = (
-            f"Flight {flight_number} from {route_from} to {route_to} is under-utilized at {utilization:.1f}% capacity "
-            f"with low risk. Provide 3 optimization recommendations to better utilize this capacity."
-        )
-
-    # Call the A2A recommendations agent
-    recommendations: list[dict[str, str]] = []
-    try:
-        logger.info("[get_recommendations] Calling A2A agent for flight %s", flight_number)
-        response = await call_recommendations_agent(context)
-
-        # Parse the response into individual recommendations
-        # The agent returns text with numbered recommendations
-        lines = response.strip().split("\n")
-        rec_id = 0
-        for line in lines:
-            line = line.strip()
-            # Skip empty lines and headers
-            if (
-                not line
-                or line.lower().startswith("here are")
-                or line.lower().startswith("recommendations")
-            ):
-                continue
-            # Remove leading numbers like "1.", "2.", etc.
-            cleaned = re.sub(r"^\d+[\.\)]\s*", "", line)
-            if cleaned and len(cleaned) > 10:  # Minimum length for a valid recommendation
-                rec_id += 1
-                category = "mitigation" if risk_level in ("high", "critical") else "optimization"
-                recommendations.append(
-                    {
-                        "id": f"rec-a2a-{rec_id}",
-                        "text": cleaned,
-                        "category": category,
-                    }
-                )
-                # Limit to 5 recommendations max
-                if len(recommendations) >= 5:
-                    break
-
-        # Ensure at least 2 recommendations (pad with generic if needed)
-        if len(recommendations) < 2:
-            if risk_level in ("high", "critical"):
-                recommendations.append(
-                    {
-                        "id": "rec-generic-1",
-                        "text": "Review cargo priorities and consider redistributing to alternative flights",
-                        "category": "mitigation",
-                    }
-                )
-            else:
-                recommendations.append(
-                    {
-                        "id": "rec-generic-1",
-                        "text": "Consider accepting additional cargo to optimize capacity utilization",
-                        "category": "optimization",
-                    }
-                )
-
-        logger.info(
-            "[get_recommendations] Received %d recommendations from A2A agent for flight %s",
-            len(recommendations),
-            flight_number,
-        )
-
-    except Exception as e:
-        logger.error("[get_recommendations] Error calling A2A agent: %s", e)
-        # Fall back to a generic recommendation on error
-        recommendations = [
-            {
-                "id": "rec-fallback",
-                "text": f"Unable to fetch recommendations from external agent. Please review flight {flight_number} manually.",
-                "category": "error",
-            }
-        ]
-
-    # Add urgency note for high utilization
-    if utilization > 95 and risk_level in ("high", "critical"):
-        recommendations.insert(
-            0,
-            {
-                "id": "rec-urgent",
-                "text": f"URGENT: Flight is at {utilization:.1f}% capacity. Immediate action required to prevent delays",
-                "category": "urgent",
-            },
-        )
-
-    return {
-        "flightId": flight.get("id", ""),
-        "flightNumber": flight_number,
-        "route": route,
-        "riskLevel": risk_level,
-        "utilizationPercent": utilization,
-        "recommendations": recommendations,
-        "generatedAt": datetime.now(UTC).isoformat() + "Z",
-    }

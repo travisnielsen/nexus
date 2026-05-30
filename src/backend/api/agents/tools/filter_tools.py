@@ -14,6 +14,7 @@ from agent_framework import tool
 from pydantic import Field
 
 from ..utils import current_active_filter
+from .trace_helpers import traced_tool_span
 
 logger = logging.getLogger(__name__)
 
@@ -55,50 +56,53 @@ def filter_flights(
     ] = None,
 ) -> dict:
     """Set the filter state. Filters are ALWAYS additive - they combine with existing filters."""
-    max_limit = min(limit or 100, 100) if limit else 100
+    with traced_tool_span("filter_flights"):
+        max_limit = min(limit or 100, 100) if limit else 100
 
-    # Get existing filter from ContextVar (synced from frontend context at request start)
-    existing_filter = current_active_filter.get() or {}
-    logger.info("[filter_flights] Existing filter from context: %s", existing_filter)
+        # Get existing filter from ContextVar (synced from frontend context at request start)
+        existing_filter = current_active_filter.get() or {}
+        logger.info("[filter_flights] Existing filter from context: %s", existing_filter)
 
-    # ALWAYS ADDITIVE - merge new values with existing filter
-    # Only override fields that are explicitly provided
-    active_filter = {
-        "routeFrom": route_from.upper() if route_from else existing_filter.get("routeFrom"),
-        "routeTo": route_to.upper() if route_to else existing_filter.get("routeTo"),
-        "utilizationType": utilization if utilization else existing_filter.get("utilizationType"),
-        "riskLevel": risk_level.lower() if risk_level else existing_filter.get("riskLevel"),
-        "dateFrom": date_from if date_from else existing_filter.get("dateFrom"),
-        "dateTo": date_to if date_to else existing_filter.get("dateTo"),
-        "limit": max_limit,
-    }
+        # ALWAYS ADDITIVE - merge new values with existing filter
+        # Only override fields that are explicitly provided
+        active_filter = {
+            "routeFrom": route_from.upper() if route_from else existing_filter.get("routeFrom"),
+            "routeTo": route_to.upper() if route_to else existing_filter.get("routeTo"),
+            "utilizationType": utilization
+            if utilization
+            else existing_filter.get("utilizationType"),
+            "riskLevel": risk_level.lower() if risk_level else existing_filter.get("riskLevel"),
+            "dateFrom": date_from if date_from else existing_filter.get("dateFrom"),
+            "dateTo": date_to if date_to else existing_filter.get("dateTo"),
+            "limit": max_limit,
+        }
 
-    logger.info("[filter_flights] Merged filter (additive): %s", active_filter)
+        logger.info("[filter_flights] Merged filter (additive): %s", active_filter)
 
-    # Update the ContextVar for any subsequent tool calls in same turn
-    current_active_filter.set(active_filter)
+        # Update the ContextVar for any subsequent tool calls in same turn
+        current_active_filter.set(active_filter)
 
-    # Build description for user
-    filter_parts = []
-    if route_from:
-        filter_parts.append(f"from {route_from.upper()}")
-    if route_to:
-        filter_parts.append(f"to {route_to.upper()}")
-    if utilization:
-        filter_parts.append(utilization)
-    if risk_level:
-        filter_parts.append(f"{risk_level} risk")
-    if date_from:
-        filter_parts.append(f"from {date_from}")
-    if date_to:
-        filter_parts.append(f"to {date_to}")
+        # Build description for user
+        filter_parts = []
+        if route_from:
+            filter_parts.append(f"from {route_from.upper()}")
+        if route_to:
+            filter_parts.append(f"to {route_to.upper()}")
+        if utilization:
+            filter_parts.append(utilization)
+        if risk_level:
+            filter_parts.append(f"{risk_level} risk")
+        if date_from:
+            filter_parts.append(f"from {date_from}")
+        if date_to:
+            filter_parts.append(f"to {date_to}")
 
-    filter_desc = ", ".join(filter_parts) if filter_parts else "all flights"
+        filter_desc = ", ".join(filter_parts) if filter_parts else "all flights"
 
-    return {
-        "message": f"Loading flights: {filter_desc} (max {max_limit}). Dashboard is updating...",
-        "activeFilter": active_filter,
-    }
+        return {
+            "message": f"Loading flights: {filter_desc} (max {max_limit}). Dashboard is updating...",
+            "activeFilter": active_filter,
+        }
 
 
 @tool(
@@ -112,25 +116,26 @@ def reset_filters(
     ] = None,
 ) -> dict:
     """Remove filters from dashboard. Frontend reacts and fetches unfiltered data via REST API."""
-    max_limit = min(limit or 100, 100) if limit else 100
+    with traced_tool_span("reset_filters"):
+        max_limit = min(limit or 100, 100) if limit else 100
 
-    # Clear the current_active_filter ContextVar to None (not a dict with nulls)
-    # This ensures analyze_flights sees no filter is active
-    current_active_filter.set(None)
-    logger.info("[reset_filters] Cleared current_active_filter ContextVar to None")
+        # Clear the current_active_filter ContextVar to None (not a dict with nulls)
+        # This ensures analyze_flights sees no filter is active
+        current_active_filter.set(None)
+        logger.info("[reset_filters] Cleared current_active_filter ContextVar to None")
 
-    # Return cleared filter object for frontend state
-    cleared_filter = {
-        "routeFrom": None,
-        "routeTo": None,
-        "utilizationType": None,
-        "riskLevel": None,
-        "dateFrom": None,
-        "dateTo": None,
-        "limit": max_limit,
-    }
+        # Return cleared filter object for frontend state
+        cleared_filter = {
+            "routeFrom": None,
+            "routeTo": None,
+            "utilizationType": None,
+            "riskLevel": None,
+            "dateFrom": None,
+            "dateTo": None,
+            "limit": max_limit,
+        }
 
-    return {
-        "message": f"Filters cleared. Dashboard now showing up to {max_limit} flights.",
-        "activeFilter": cleared_filter,
-    }
+        return {
+            "message": f"Filters cleared. Dashboard now showing up to {max_limit} flights.",
+            "activeFilter": cleared_filter,
+        }

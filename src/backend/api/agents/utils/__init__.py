@@ -28,6 +28,8 @@ from .mcp_client import (
     get_routes_from_mcp,
     get_routes_sync,
 )
+from .trace_context import clear_trace_identity, get_trace_identity, set_trace_identity
+from .trace_models import TraceIdentity, TraceIdentityHeaders
 
 __all__ = [
     # Data helpers
@@ -54,4 +56,9 @@ __all__ = [
     "get_historical_sync",
     "get_predictions_sync",
     "get_routes_sync",
+    "TraceIdentity",
+    "TraceIdentityHeaders",
+    "set_trace_identity",
+    "get_trace_identity",
+    "clear_trace_identity",
 ]

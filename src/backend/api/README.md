@@ -1,6 +1,6 @@
 # Backend API
 
-FastAPI-based backend for the Enterprise Data Agent. Uses Microsoft Agent Framework (MAF) for agent orchestration, a Foundry-native chat client, and CopilotKit's AG-UI protocol for frontend communication.
+FastAPI-based backend for the Enterprise Data Agent. Uses Microsoft Agent Framework (MAF) for agent orchestration, FoundryAgent for hosted agent execution, FoundryChatClient as the project client factory, and CopilotKit's AG-UI protocol for frontend communication.
 
 ## Architecture
 
@@ -10,11 +10,11 @@ FastAPI-based backend for the Enterprise Data Agent. Uses Microsoft Agent Framew
 │                         Port: 8000                                   │
 ├─────────────────────────────────────────────────────────────────────┤
 │  main.py              - FastAPI app, REST endpoints, AG-UI SSE      │
-│  clients.py           - Chat client factory (FoundryChatClient)     │
+│  clients.py           - Foundry project client factory               │
 │  monitoring.py        - OpenTelemetry observability                 │
 ├─────────────────────────────────────────────────────────────────────┤
 │  agents/                                                             │
-│    logistics_agent.py - Agent configuration and system prompt       │
+│    logistics_agent.py - FoundryAgent wiring and system prompt       │
 │    tools/             - LLM-callable tool functions                 │
 │    utils/             - Utility modules (not LLM-callable)          │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -28,11 +28,11 @@ FastAPI-based backend for the Enterprise Data Agent. Uses Microsoft Agent Framew
 ```
 backend/
 ├── main.py                 # FastAPI app, REST endpoints, agent setup
-├── clients.py              # Chat client factory (FoundryChatClient)
+├── clients.py              # Foundry project client factory (FoundryChatClient)
 ├── monitoring.py           # OpenTelemetry observability setup
 ├── pyproject.toml          # Python dependencies (uv)
 ├── agents/
-│   ├── logistics_agent.py  # Agent configuration and system prompt
+│   ├── logistics_agent.py  # FoundryAgent configuration and system prompt
 │   ├── tools/              # Agent tool implementations (LLM-callable)
 │   │   ├── __init__.py
 │   │   ├── filter_tools.py         # filter_flights, reset_filters
@@ -73,6 +73,24 @@ Frontend → Backend REST API → MCP Server (source of truth)
 
 **Note**: The backend has NO local data files. All data is fetched from the MCP server.
 
+## Trace Identity Contract
+
+The backend validates trace identity fields at service boundaries using Pydantic models:
+
+- `conversation_id`
+- `turn_id`
+- `run_id`
+- `tool_call_id`
+- `a2a_interaction_id`
+
+Ingress headers accepted from the CopilotKit proxy:
+
+- `x-trace-conversation-id`
+- `x-trace-turn-id`
+- `x-trace-run-id`
+- `x-trace-tool-call-id`
+- `x-trace-a2a-interaction-id`
+
 ## Setup
 
 ```bash
@@ -102,6 +120,8 @@ Create a `.env` file:
 # Azure AI / Microsoft Foundry
 FOUNDRY_PROJECT_ENDPOINT=https://...
 FOUNDRY_MODEL=gpt-4o-mini
+FOUNDRY_AGENT_NAME=logistics-agent
+# FOUNDRY_AGENT_VERSION=<optional>
 
 # Authentication (optional)
 AZURE_AD_CLIENT_ID=...
@@ -116,6 +136,12 @@ RECOMMENDATIONS_AGENT_URL=http://localhost:5002
 
 # Logging
 AGENT_FRAMEWORK_LOG_LEVEL=WARNING  # DEBUG for verbose
+
+# Foundry GenAI span emission gate (experimental, opt-in only)
+AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=false
+
+# Legacy global patch (prefer instance-level context wrapper)
+PATCH_AGUI_CONTEXT_SYNC=false
 ```
 
 ## REST Endpoints

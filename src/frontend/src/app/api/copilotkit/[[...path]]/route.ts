@@ -6,6 +6,8 @@ import {
 import { HttpAgent } from "@ag-ui/client";
 import { NextRequest, NextResponse } from "next/server";
 
+import { extractTraceIdentityFromBody } from "@/lib/traceTypes";
+
 const AGENT_API_BASE_URL = process.env.AGENT_API_BASE_URL || "http://localhost:8000";
 const LOGISTICS_AGENT_URL =
   process.env.AGENT_LOGISTICS_URL || `${AGENT_API_BASE_URL}/logistics`;
@@ -41,10 +43,27 @@ async function handleCopilotRequest(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.delete("authorization");
 
+  let requestBody: string | undefined;
+  if (req.method === "POST") {
+    requestBody = await req.text();
+    try {
+      const parsed = JSON.parse(requestBody);
+      const traceIdentity = extractTraceIdentityFromBody(parsed);
+      if (traceIdentity) {
+        headers.set("x-trace-conversation-id", traceIdentity.conversationId);
+      }
+      if (traceIdentity?.runId) {
+        headers.set("x-trace-run-id", traceIdentity.runId);
+      }
+    } catch {
+      // Ignore malformed bodies and continue proxying the request.
+    }
+  }
+
   const modifiedReq = new NextRequest(req.url, {
     method: req.method,
     headers,
-    body: req.body,
+    body: requestBody ?? req.body,
     duplex: "half" as const,
   });
 
