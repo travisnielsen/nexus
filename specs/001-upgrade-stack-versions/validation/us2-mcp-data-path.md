@@ -4,9 +4,9 @@ Date: 2026-05-29
 
 ## Reviewed Files
 
-- src/backend/api/agents/utils/mcp_client.py
-- src/backend/api/agents/utils/data_helpers.py
-- src/backend/mcp/main.py
+- src/backend/logistics/agents/utils/mcp_client.py
+- src/backend/logistics/agents/utils/data_helpers.py
+- src/backend/logistics-data/main.py
 
 ## Data Path Verification
 
@@ -20,7 +20,7 @@ Date: 2026-05-29
 - HTTP calls use timeout and `raise_for_status()` to prevent silent failures.
 
 1. MCP REST server -> canonical data source
-- `src/backend/mcp/main.py` loads canonical JSON files from `src/backend/mcp/data/`.
+- `src/backend/logistics-data/main.py` loads canonical JSON files from `src/backend/logistics-data/data/`.
 - Filtering and pagination logic remain server-side in MCP REST handlers.
 - Historical/prediction and route endpoints remain exposed and schema-compatible.
 

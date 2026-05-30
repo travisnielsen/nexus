@@ -4,9 +4,9 @@ Created: 2026-05-29
 
 | Scope ID | Path | Ecosystem | Upgrade Type | Foundry/Protocol Impact |
 |---|---|---|---|---|
-| backend-api | src/backend/api | Python | Direct + transitive | High (MAF, Foundry client migration, AG-UI integration) |
-| backend-mcp | src/backend/mcp | Python | Direct + transitive | Medium (MCP data-path integrity) |
-| backend-a2a | src/backend/agent-a2a | Python | Direct + transitive | Medium (A2A compatibility) |
+| backend-api | src/backend/logistics | Python | Direct + transitive | High (MAF, Foundry client migration, AG-UI integration) |
+| backend-mcp | src/backend/logistics-data | Python | Direct + transitive | Medium (MCP data-path integrity) |
+| backend-a2a | src/backend/recommendations | Python | Direct + transitive | Medium (A2A compatibility) |
 | frontend-app | src/frontend | Node/TypeScript | Direct + transitive | High (CopilotKit + AG-UI runtime compatibility) |
 
 ## Out of Scope

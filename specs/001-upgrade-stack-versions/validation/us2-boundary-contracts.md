@@ -5,17 +5,17 @@ Date: 2026-05-29
 ## Reviewed Boundaries
 
 1. Chat client factory boundary
-- File: src/backend/api/clients.py
+- File: src/backend/logistics/clients.py
 - Contract: returns SupportsChatGetResponse for logistics agent construction.
 - Validation: preserved after migration to FoundryChatClient.
 
 1. Agent construction boundary
-- File: src/backend/api/agents/logistics_agent.py
+- File: src/backend/logistics/agents/logistics_agent.py
 - Contract: `create_logistics_agent(chat_client)` accepts SupportsChatGetResponse and returns AgentFrameworkAgent.
 - Validation: unchanged signature and tool/state wiring.
 
 1. AG-UI context sync boundary
-- File: src/backend/api/patches/agui_event_stream.py
+- File: src/backend/logistics/patches/agui_event_stream.py
 - Contract: request context activeFilter synchronization into ContextVar before tool execution.
 - Validation: wrapper strategy and context handling unchanged; compatible with upgraded dependencies.
 

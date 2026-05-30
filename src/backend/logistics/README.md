@@ -98,7 +98,7 @@ Ingress headers accepted from the CopilotKit proxy:
 ./devsetup.sh
 
 # Or only for this service
-cd src/backend/api
+cd src/backend/logistics
 uv sync --dev
 ```
 

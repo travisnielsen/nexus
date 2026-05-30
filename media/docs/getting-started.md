@@ -41,7 +41,7 @@ This repo supports user-level authentication to the agent API, which supports en
 
 ## Set Environment Variables
 
-Using the output from the application enrollment script, set up your agent credentials. The backend automatically uses Foundry when the `FOUNDRY_*` env vars below are present. Create an `.env` file inside the `src/backend/api` folder with one of the following configurations:
+Using the output from the application enrollment script, set up your agent credentials. The backend automatically uses Foundry when the `FOUNDRY_*` env vars below are present. Create an `.env` file inside the `src/backend/logistics` folder with one of the following configurations:
 
 ```env
 # Microsoft Foundry settings
@@ -67,7 +67,7 @@ NEXT_PUBLIC_AZURE_AD_TENANT_ID=your-tenant-id-here
 
 For local development or testing purposes, you can disable authentication entirely by setting the `AUTH_ENABLED` environment variable to `false` on both the API and frontend.
 
-**API (.env file in the `src/backend/api` folder):**
+**API (.env file in the `src/backend/logistics` folder):**
 ```env
 AUTH_ENABLED=false
 ```

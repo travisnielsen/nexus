@@ -13,7 +13,7 @@ This is a simple FastAPI-based agent that hosts an A2A (Agent-to-Agent) endpoint
 Or install only this service dependencies:
 
 ```bash
-cd src/backend/agent-a2a
+cd src/backend/recommendations
 uv sync --dev
 ```
 
@@ -43,7 +43,7 @@ az login
 ## Running the Agent
 
 ```bash
-# From the agent-a2a directory
+# From the recommendations directory
 uv run uvicorn main:app --reload --port 5002
 ```
 

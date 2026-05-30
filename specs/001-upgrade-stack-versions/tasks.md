@@ -43,16 +43,16 @@
 
 ### Implementation for User Story 1
 
-- [X] T010 [US1] Upgrade API service dependency declarations in src/backend/api/pyproject.toml
-- [X] T011 [P] [US1] Upgrade MCP service dependency declarations in src/backend/mcp/pyproject.toml
-- [X] T012 [P] [US1] Upgrade A2A service dependency declarations in src/backend/agent-a2a/pyproject.toml
+- [X] T010 [US1] Upgrade API service dependency declarations in src/backend/logistics/pyproject.toml
+- [X] T011 [P] [US1] Upgrade MCP service dependency declarations in src/backend/logistics-data/pyproject.toml
+- [X] T012 [P] [US1] Upgrade A2A service dependency declarations in src/backend/recommendations/pyproject.toml
 - [X] T013 [P] [US1] Upgrade frontend app dependency declarations in src/frontend/package.json
-- [X] T015 [US1] Regenerate API lockfile with transitive updates in src/backend/api/uv.lock
-- [X] T016 [P] [US1] Regenerate MCP lockfile with transitive updates in src/backend/mcp/uv.lock
-- [X] T017 [P] [US1] Regenerate A2A lockfile with transitive updates in src/backend/agent-a2a/uv.lock
+- [X] T015 [US1] Regenerate API lockfile with transitive updates in src/backend/logistics/uv.lock
+- [X] T016 [P] [US1] Regenerate MCP lockfile with transitive updates in src/backend/logistics-data/uv.lock
+- [X] T017 [P] [US1] Regenerate A2A lockfile with transitive updates in src/backend/recommendations/uv.lock
 - [X] T018 [P] [US1] Regenerate frontend lockfile with transitive updates in src/frontend/package-lock.json
-- [X] T020 [US1] Migrate chat client factory to Foundry-native `FoundryChatClient` in src/backend/api/clients.py
-- [X] T021 [US1] Preserve agent construction compatibility after client migration in src/backend/api/agents/logistics_agent.py
+- [X] T020 [US1] Migrate chat client factory to Foundry-native `FoundryChatClient` in src/backend/logistics/clients.py
+- [X] T021 [US1] Preserve agent construction compatibility after client migration in src/backend/logistics/agents/logistics_agent.py
 - [X] T022 [US1] Implement stable substitute or in-repo fork for unsupported dependencies in affected manifests and source files
 - [X] T023 [US1] Record US1 dependency and lockfile outcomes in specs/001-upgrade-stack-versions/validation/us1-runtime-upgrade.md
 - [X] T024 [US1] Validate replacement/fork functional equivalence and record outcomes in specs/001-upgrade-stack-versions/validation/us1-replacements-validation.md
@@ -70,14 +70,14 @@
 ### Implementation for User Story 2
 
 - [X] T025 [US2] Update backend validation runbook for upgraded stack in specs/001-upgrade-stack-versions/quickstart.md
-- [X] T026 [P] [US2] Verify AG-UI session and tool-call behavior compatibility in src/backend/api/patches/agui_event_stream.py
+- [X] T026 [P] [US2] Verify AG-UI session and tool-call behavior compatibility in src/backend/logistics/patches/agui_event_stream.py
 - [X] T027 [P] [US2] Verify CopilotKit runtime proxy compatibility in src/frontend/src/app/api/copilotkit/route.ts
 - [X] T028 [US2] Execute monorepo Python quality gate and record results in specs/001-upgrade-stack-versions/validation/us2-python-checks.md
 - [X] T029 [P] [US2] Execute frontend lint/build validation and record results in specs/001-upgrade-stack-versions/validation/us2-frontend-checks.md
 - [X] T030 [US2] Identify and document upgrade compatibility regressions in specs/001-upgrade-stack-versions/validation/us2-regressions-found.md
 - [X] T031 [US2] Apply compatibility remediations for any upgrade regressions in affected backend/frontend files
 - [X] T032 [US2] Re-run critical regression checklist and record 100% gate status in specs/001-upgrade-stack-versions/validation/us2-critical-regression.md
-- [X] T033 [US2] Verify MCP-mediated operational data path integrity in src/backend/api/agents/utils/mcp_client.py, src/backend/api/agents/utils/data_helpers.py, and src/backend/mcp/main.py; record evidence in specs/001-upgrade-stack-versions/validation/us2-mcp-data-path.md
+- [X] T033 [US2] Verify MCP-mediated operational data path integrity in src/backend/logistics/agents/utils/mcp_client.py, src/backend/logistics/agents/utils/data_helpers.py, and src/backend/logistics-data/main.py; record evidence in specs/001-upgrade-stack-versions/validation/us2-mcp-data-path.md
 - [X] T034 [US2] Validate typed service boundary contracts and document compatibility/versioning notes in specs/001-upgrade-stack-versions/validation/us2-boundary-contracts.md
 
 **Checkpoint**: User Stories 1 and 2 are both independently functional and validated.
@@ -150,13 +150,13 @@
 
 ```bash
 # Parallel dependency declaration updates
-T011 src/backend/mcp/pyproject.toml
-T012 src/backend/agent-a2a/pyproject.toml
+T011 src/backend/logistics-data/pyproject.toml
+T012 src/backend/recommendations/pyproject.toml
 T013 src/frontend/package.json
 
 # Parallel lockfile regenerations after dependency updates
-T016 src/backend/mcp/uv.lock
-T017 src/backend/agent-a2a/uv.lock
+T016 src/backend/logistics-data/uv.lock
+T017 src/backend/recommendations/uv.lock
 T018 src/frontend/package-lock.json
 ```
 
@@ -164,7 +164,7 @@ T018 src/frontend/package-lock.json
 
 ```bash
 # Parallel protocol and frontend validations
-T026 src/backend/api/patches/agui_event_stream.py
+T026 src/backend/logistics/patches/agui_event_stream.py
 T027 src/frontend/src/app/api/copilotkit/route.ts
 T029 specs/001-upgrade-stack-versions/validation/us2-frontend-checks.md
 T030 specs/001-upgrade-stack-versions/validation/us2-regressions-found.md

@@ -2,7 +2,7 @@
 
 ## Decision 1: Migrate backend chat client to Foundry-native `FoundryChatClient`
 
-- Decision: Replace legacy/pre-release Azure compatibility client usage (`agent_framework.azure.AzureAIClient`) with `agent_framework.foundry.FoundryChatClient` in `src/backend/api/clients.py` for the primary logistics agent runtime path.
+- Decision: Replace legacy/pre-release Azure compatibility client usage (`agent_framework.azure.AzureAIClient`) with `agent_framework.foundry.FoundryChatClient` in `src/backend/logistics/clients.py` for the primary logistics agent runtime path.
 - Rationale: Microsoft Learn and MAF guidance indicate Python Foundry-first paths now live under `agent_framework.foundry`, and older Azure AI compatibility surfaces have been removed in current APIs. This aligns with future Foundry v2 native/hosted adoption.
 - Alternatives considered:
   - Keep `AzureAIClient`: rejected due to deprecation/removal risk and mismatch with current Foundry-first guidance.
@@ -30,7 +30,7 @@
   - Refactor AG-UI event behavior during dependency upgrade: rejected as out-of-scope and high regression risk.
 - Sources:
   - CopilotKit MCP tools: `mcp_copilotkit_mc_search-ag-ui-docs`, `mcp_copilotkit_mc_search-ag-ui-code`
-  - Repository context: `.github/copilot-instructions.md`, `src/backend/api/agents/logistics_agent.py`
+  - Repository context: `.github/copilot-instructions.md`, `src/backend/logistics/agents/logistics_agent.py`
 
 ## Decision 4: Lockfile and transitive strategy
 

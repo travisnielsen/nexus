@@ -2,9 +2,9 @@
     // Python settings for multi-project workspace
     // Each backend project has its own .venv - VS Code auto-detects via workspace folders
     "python.analysis.extraPaths": [
-        "${workspaceFolder}/src/backend/api",
-        "${workspaceFolder}/src/backend/mcp",
-        "${workspaceFolder}/src/backend/agent-a2a"
+        "${workspaceFolder}/src/backend/logistics",
+        "${workspaceFolder}/src/backend/logistics-data",
+        "${workspaceFolder}/src/backend/recommendations"
     ],
     "python.analysis.autoSearchPaths": true,
     // TypeScript/JavaScript settings

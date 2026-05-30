@@ -20,8 +20,8 @@ For each scope, capture:
 
 ### backend-api
 - Scope ID: backend-api
-- Manifest: `src/backend/api/pyproject.toml`
-- Lockfile: `src/backend/api/uv.lock`
+- Manifest: `src/backend/logistics/pyproject.toml`
+- Lockfile: `src/backend/logistics/uv.lock`
 - Command used: `uv lock --upgrade`
 - Regenerated: yes
 - Notable conflict resolutions:
@@ -34,8 +34,8 @@ For each scope, capture:
 
 ### backend-mcp
 - Scope ID: backend-mcp
-- Manifest: `src/backend/mcp/pyproject.toml`
-- Lockfile: `src/backend/mcp/uv.lock`
+- Manifest: `src/backend/logistics-data/pyproject.toml`
+- Lockfile: `src/backend/logistics-data/uv.lock`
 - Command used: `uv lock --upgrade`
 - Regenerated: yes
 - Validation references:
@@ -43,12 +43,12 @@ For each scope, capture:
 
 ### backend-a2a
 - Scope ID: backend-a2a
-- Manifest: `src/backend/agent-a2a/pyproject.toml`
-- Lockfile: `src/backend/agent-a2a/uv.lock`
+- Manifest: `src/backend/recommendations/pyproject.toml`
+- Lockfile: `src/backend/recommendations/uv.lock`
 - Command used: `uv lock --upgrade`
 - Regenerated: yes
 - Notable conflict resolutions:
-  - `a2a-sdk` constrained to compatible `<1.0.0` line for existing agent-a2a runtime code.
+  - `a2a-sdk` constrained to compatible `<1.0.0` line for existing recommendations runtime code.
 - Validation references:
   - `specs/001-upgrade-stack-versions/validation/us1-runtime-upgrade.md`
 

@@ -41,12 +41,12 @@ Validate functional equivalence for substitutions/caps required by ecosystem con
   - Frontend dependency installation succeeded without peer-conflict warnings.
   - Frontend lockfile regenerated successfully.
 
-1. A2A SDK service compatibility cap (agent-a2a project)
+1. A2A SDK service compatibility cap (recommendations project)
 - Requested target: newest A2A SDK stable line (1.x)
-- Constraint: current `src/backend/agent-a2a/main.py` implementation uses pre-1.0 API symbols/import paths
+- Constraint: current `src/backend/recommendations/main.py` implementation uses pre-1.0 API symbols/import paths
 - Applied substitute: `a2a-sdk[http-server]>=0.3.25,<1.0.0`
 - Validation:
-  - Monorepo Python check passes (ruff + basedpyright) for `src/backend/agent-a2a`.
+  - Monorepo Python check passes (ruff + basedpyright) for `src/backend/recommendations`.
   - Service lockfile regenerated successfully.
 
 ## Equivalence Assessment

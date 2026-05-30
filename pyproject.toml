@@ -17,17 +17,17 @@ prerelease = "allow"
 [tool.poe.tasks]
 bootstrap = { shell = "bash devsetup.sh", help = "Set up all monorepo dev dependencies" }
 
-setup-api = { shell = "cd src/backend/api && uv sync --dev" }
-setup-mcp = { shell = "cd src/backend/mcp && uv sync --dev" }
-setup-a2a = { shell = "cd src/backend/agent-a2a && uv sync --dev" }
+setup-logistics = { shell = "cd src/backend/logistics && uv sync --dev" }
+setup-logistics-data = { shell = "cd src/backend/logistics-data && uv sync --dev" }
+setup-recommendations = { shell = "cd src/backend/recommendations && uv sync --dev" }
 setup-frontend = { shell = "cd src/frontend && npm install" }
 
-check-api = { shell = "cd src/backend/api && uv run poe check" }
-check-mcp = { shell = "cd src/backend/mcp && uv run poe check" }
-check-a2a = { shell = "cd src/backend/agent-a2a && uv run poe check" }
-check.sequence = ["check-api", "check-mcp", "check-a2a"]
+check-logistics = { shell = "cd src/backend/logistics && uv run poe check" }
+check-logistics-data = { shell = "cd src/backend/logistics-data && uv run poe check" }
+check-recommendations = { shell = "cd src/backend/recommendations && uv run poe check" }
+check.sequence = ["check-logistics", "check-logistics-data", "check-recommendations"]
 
-format-api = { shell = "cd src/backend/api && uv run poe format" }
-format-mcp = { shell = "cd src/backend/mcp && uv run poe format" }
-format-a2a = { shell = "cd src/backend/agent-a2a && uv run poe format" }
-format.sequence = ["format-api", "format-mcp", "format-a2a"]
+format-logistics = { shell = "cd src/backend/logistics && uv run poe format" }
+format-logistics-data = { shell = "cd src/backend/logistics-data && uv run poe format" }
+format-recommendations = { shell = "cd src/backend/recommendations && uv run poe format" }
+format.sequence = ["format-logistics", "format-logistics-data", "format-recommendations"]

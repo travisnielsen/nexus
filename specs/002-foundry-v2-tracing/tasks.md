@@ -19,16 +19,16 @@
 
 **⚠️ CRITICAL**: No user story work begins until this phase is complete.
 
-- [X] T005 Create shared trace context model and propagation helpers in `src/backend/api/agents/utils/trace_context.py`
-- [X] T006 Create shared telemetry attribute constants for conversation/turn/tool/A2A in `src/backend/api/agents/utils/telemetry_constants.py`
-- [X] T006a Define Pydantic trace identity models (`conversation_id`, `turn_id`, `run_id`, `tool_call_id`, `a2a_interaction_id`) in `src/backend/api/agents/utils/trace_models.py`
-- [X] T007 Wire AG-UI thread/run extraction and context seeding in `src/backend/api/main.py`
-- [X] T008 Update observability bootstrap to enforce supported Foundry GenAI tracing gates in `src/backend/api/monitoring.py`
-- [X] T009 [P] Document required tracing environment variables in `src/backend/api/.env.example`
+- [X] T005 Create shared trace context model and propagation helpers in `src/backend/logistics/agents/utils/trace_context.py`
+- [X] T006 Create shared telemetry attribute constants for conversation/turn/tool/A2A in `src/backend/logistics/agents/utils/telemetry_constants.py`
+- [X] T006a Define Pydantic trace identity models (`conversation_id`, `turn_id`, `run_id`, `tool_call_id`, `a2a_interaction_id`) in `src/backend/logistics/agents/utils/trace_models.py`
+- [X] T007 Wire AG-UI thread/run extraction and context seeding in `src/backend/logistics/main.py`
+- [X] T008 Update observability bootstrap to enforce supported Foundry GenAI tracing gates in `src/backend/logistics/monitoring.py`
+- [X] T009 [P] Document required tracing environment variables in `src/backend/logistics/.env.example`
 - [X] T010 [P] Document required tracing environment variables in `src/backend/.env.example`
 - [X] T011 Audit preview-era tracing/patch customizations and retirement decisions in `specs/002-foundry-v2-tracing/validation/preview-customization-audit.md`
-- [X] T012 Apply safe patch toggle cleanup based on audit outcomes in `src/backend/api/patches/__init__.py`
-- [X] T012a Enforce backend trace identity schema validation at ingress/egress in `src/backend/api/main.py` and `src/backend/api/agents/tools/trace_helpers.py`
+- [X] T012 Apply safe patch toggle cleanup based on audit outcomes in `src/backend/logistics/patches/__init__.py`
+- [X] T012a Enforce backend trace identity schema validation at ingress/egress in `src/backend/logistics/main.py` and `src/backend/logistics/agents/tools/trace_helpers.py`
 - [X] T012b Define and enforce frontend TypeScript trace identity contracts in `src/frontend/src/lib/traceTypes.ts` and `src/frontend/src/app/api/copilotkit/[[...path]]/route.ts`
 
 **Checkpoint**: Shared tracing foundation is ready; user story work can proceed.
@@ -41,13 +41,13 @@
 
 **Independent Test**: Run a multi-turn conversation with multiple tool calls and verify each turn and tool call can be inspected as correlated traces.
 
-- [X] T013 [US1] Add per-turn lifecycle span boundaries for AG-UI runs in `src/backend/api/main.py`
-- [X] T014 [P] [US1] Add stable agent/session trace attributes for orchestrator runs in `src/backend/api/agents/logistics_agent.py`
-- [X] T015 [US1] Create reusable tool tracing helper for tool start/end/failure events in `src/backend/api/agents/tools/trace_helpers.py`
-- [X] T016 [P] [US1] Instrument filter tool lifecycle spans using shared helper in `src/backend/api/agents/tools/filter_tools.py`
-- [X] T017 [P] [US1] Instrument analysis tool lifecycle spans using shared helper in `src/backend/api/agents/tools/analysis_tools.py`
-- [X] T018 [P] [US1] Instrument chart tool lifecycle spans using shared helper in `src/backend/api/agents/tools/chart_tools.py`
-- [X] T019 [US1] Add turn/tool trace completeness validation script in `src/backend/api/scripts/validate_turn_traces.py`
+- [X] T013 [US1] Add per-turn lifecycle span boundaries for AG-UI runs in `src/backend/logistics/main.py`
+- [X] T014 [P] [US1] Add stable agent/session trace attributes for orchestrator runs in `src/backend/logistics/agents/logistics_agent.py`
+- [X] T015 [US1] Create reusable tool tracing helper for tool start/end/failure events in `src/backend/logistics/agents/tools/trace_helpers.py`
+- [X] T016 [P] [US1] Instrument filter tool lifecycle spans using shared helper in `src/backend/logistics/agents/tools/filter_tools.py`
+- [X] T017 [P] [US1] Instrument analysis tool lifecycle spans using shared helper in `src/backend/logistics/agents/tools/analysis_tools.py`
+- [X] T018 [P] [US1] Instrument chart tool lifecycle spans using shared helper in `src/backend/logistics/agents/tools/chart_tools.py`
+- [X] T019 [US1] Add turn/tool trace completeness validation script in `src/backend/logistics/scripts/validate_turn_traces.py`
 - [X] T020 [US1] Document Foundry V2 turn/tool validation flow in `specs/002-foundry-v2-tracing/validation/us1-turn-tool-validation.md`
 - [X] T020a [US1] Add AG-UI lifecycle compatibility validation (`RUN_*`, `TOOL_CALL_*`, state updates) in `specs/002-foundry-v2-tracing/validation/us1-agui-compatibility.md`
 - [X] T020b [US1] Add CopilotKit thread continuity and New Chat behavior validation in `specs/002-foundry-v2-tracing/validation/us1-copilotkit-thread-validation.md`
@@ -63,11 +63,11 @@
 
 **Independent Test**: Trigger recommendation A2A flow and verify each A2A interaction appears under the correct turn trace with outcome metadata.
 
-- [X] T021 [US2] Instrument outbound A2A request spans in recommendation flow in `src/backend/api/agents/tools/recommendation_tools.py`
-- [X] T022 [US2] Propagate turn correlation metadata with outbound A2A requests in `src/backend/api/agents/tools/recommendation_tools.py`
-- [X] T023 [US2] Instrument inbound A2A handling spans in `src/backend/agent-a2a/main.py`
-- [X] T024 [P] [US2] Add explicit A2A trace attributes and status mapping in `src/backend/api/agents/utils/telemetry_constants.py`
-- [X] T025 [US2] Add A2A failure and timeout trace semantics in `src/backend/agent-a2a/main.py`
+- [X] T021 [US2] Instrument outbound A2A request spans in recommendation flow in `src/backend/logistics/agents/tools/recommendation_tools.py`
+- [X] T022 [US2] Propagate turn correlation metadata with outbound A2A requests in `src/backend/logistics/agents/tools/recommendation_tools.py`
+- [X] T023 [US2] Instrument inbound A2A handling spans in `src/backend/recommendations/main.py`
+- [X] T024 [P] [US2] Add explicit A2A trace attributes and status mapping in `src/backend/logistics/agents/utils/telemetry_constants.py`
+- [X] T025 [US2] Add A2A failure and timeout trace semantics in `src/backend/recommendations/main.py`
 - [X] T026 [US2] Document A2A trace validation and failure scenarios in `specs/002-foundry-v2-tracing/validation/us2-a2a-validation.md`
 
 **Checkpoint**: User Stories 1 and 2 are independently functional with turn + A2A traceability.
@@ -100,7 +100,7 @@
 - [X] T001 Add final Microsoft Learn provenance appendix updates in `specs/002-foundry-v2-tracing/research.md`
 - [X] T032 [P] Add GenAI tracing environment variable to Container App deployment config in `infra/workload.tf`
 - [X] T033 [P] Align local/container tracing configuration guidance in `docker-compose.yml`
-- [X] T034 [P] Update backend observability documentation with final tracing architecture in `src/backend/api/README.md`
+- [X] T034 [P] Update backend observability documentation with final tracing architecture in `src/backend/logistics/README.md`
 - [X] T035 [P] Update monitoring guide with Foundry V2 validation workflow in `src/monitoring/README.md`
 - [X] T036 Add SC-005 regression-rate comparison method and baseline window in `specs/002-foundry-v2-tracing/validation/sc5-regression-method.md`
 - [X] T037 Produce SC-005 post-change failure-rate comparison report in `specs/002-foundry-v2-tracing/validation/sc5-regression-results.md`
@@ -144,17 +144,17 @@
 
 ```bash
 # After T015 completes, run tool module instrumentation in parallel:
-Task: "T016 [US1] Instrument filter tool lifecycle spans using shared helper in src/backend/api/agents/tools/filter_tools.py"
-Task: "T017 [US1] Instrument analysis tool lifecycle spans using shared helper in src/backend/api/agents/tools/analysis_tools.py"
-Task: "T018 [US1] Instrument chart tool lifecycle spans using shared helper in src/backend/api/agents/tools/chart_tools.py"
+Task: "T016 [US1] Instrument filter tool lifecycle spans using shared helper in src/backend/logistics/agents/tools/filter_tools.py"
+Task: "T017 [US1] Instrument analysis tool lifecycle spans using shared helper in src/backend/logistics/agents/tools/analysis_tools.py"
+Task: "T018 [US1] Instrument chart tool lifecycle spans using shared helper in src/backend/logistics/agents/tools/chart_tools.py"
 ```
 
 ## Parallel Example: User Story 2
 
 ```bash
 # Run attribute schema and A2A instrumentation in parallel once outbound flow work starts:
-Task: "T021 [US2] Instrument outbound A2A request spans in recommendation flow in src/backend/api/agents/tools/recommendation_tools.py"
-Task: "T024 [US2] Add explicit A2A trace attributes and status mapping in src/backend/api/agents/utils/telemetry_constants.py"
+Task: "T021 [US2] Instrument outbound A2A request spans in recommendation flow in src/backend/logistics/agents/tools/recommendation_tools.py"
+Task: "T024 [US2] Add explicit A2A trace attributes and status mapping in src/backend/logistics/agents/utils/telemetry_constants.py"
 ```
 
 ## Parallel Example: User Story 3

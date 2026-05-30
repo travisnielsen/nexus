@@ -4,11 +4,11 @@ Date: 2026-05-29
 
 ## Scope
 
-- API service: src/backend/api/pyproject.toml, src/backend/api/uv.lock
-- MCP service: src/backend/mcp/pyproject.toml, src/backend/mcp/uv.lock
-- A2A service: src/backend/agent-a2a/pyproject.toml, src/backend/agent-a2a/uv.lock
+- API service: src/backend/logistics/pyproject.toml, src/backend/logistics/uv.lock
+- MCP service: src/backend/logistics-data/pyproject.toml, src/backend/logistics-data/uv.lock
+- A2A service: src/backend/recommendations/pyproject.toml, src/backend/recommendations/uv.lock
 - Frontend app: src/frontend/package.json, src/frontend/package-lock.json
-- Foundry client migration: src/backend/api/clients.py
+- Foundry client migration: src/backend/logistics/clients.py
 
 ## Authoritative Sources Used
 
@@ -26,9 +26,9 @@ Date: 2026-05-29
 1. Upgraded backend direct dependencies across API/MCP/A2A manifests.
 2. Upgraded frontend direct dependencies and dev dependencies.
 3. Regenerated all scoped lockfiles:
-   - src/backend/api/uv.lock
-   - src/backend/mcp/uv.lock
-   - src/backend/agent-a2a/uv.lock
+   - src/backend/logistics/uv.lock
+   - src/backend/logistics-data/uv.lock
+   - src/backend/recommendations/uv.lock
    - src/frontend/package-lock.json
 4. Migrated chat client factory to Foundry-native client:
    - from: agent_framework.azure.AzureAIClient
@@ -47,8 +47,8 @@ Date: 2026-05-29
 - Frontend ESLint major conflict:
   - blocker: eslint-config-next 16.2.6 peer support currently up to eslint 9
   - resolution: selected highest compatible stable eslint: ^9.39.4
-- A2A SDK major compatibility conflict (agent-a2a service):
-  - blocker: existing `src/backend/agent-a2a/main.py` targets pre-1.0 A2A SDK surface
+- A2A SDK major compatibility conflict (recommendations service):
+  - blocker: existing `src/backend/recommendations/main.py` targets pre-1.0 A2A SDK surface
   - resolution: selected latest known-compatible line for this service: `a2a-sdk>=0.3.25,<1.0.0`
 - API async credential transport dependency:
   - blocker: API startup failed with `ImportError: aiohttp package is not installed`

@@ -1,17 +1,17 @@
-name: Deploy MCP Server to Azure Container Apps
+name: Deploy Logistics Service to Azure Container Apps
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'src/backend/mcp/**'
+      - 'src/backend/logistics/**'
   workflow_dispatch:
 
 env:
   REGISTRY: ${{ vars.AZURE_CONTAINER_REGISTRY }}
-  IMAGE_NAME: logistics-mcp
-  CONTAINER_APP_NAME: ${{ vars.AZURE_MCP_CONTAINER_APP_NAME }}
+  IMAGE_NAME: logistics-agui
+  CONTAINER_APP_NAME: ${{ vars.AZURE_CONTAINER_APP_NAME }}
   RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
 
 permissions:
@@ -41,8 +41,8 @@ jobs:
               --registry ${{ env.REGISTRY }} \
               --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
               --image ${{ env.IMAGE_NAME }}:latest \
-              --file ./src/backend/mcp/Dockerfile \
-              ./src/backend/mcp
+              --file ./src/backend/logistics/Dockerfile \
+              ./src/backend/logistics
 
       - name: Deploy to Azure Container Apps
         uses: azure/cli@v2

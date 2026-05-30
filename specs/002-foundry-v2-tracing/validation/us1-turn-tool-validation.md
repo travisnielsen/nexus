@@ -8,5 +8,5 @@
 
 ## Evidence
 
-- Use src/backend/api/scripts/validate_turn_traces.py output.
+- Use src/backend/logistics/scripts/validate_turn_traces.py output.
 - Attach screenshots from Foundry V2 portal trace view.

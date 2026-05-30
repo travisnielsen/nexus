@@ -5,15 +5,15 @@
             "name": "root"
         },
         {
-            "path": "src/backend/api",
+            "path": "src/backend/logistics",
             "name": "backend-api"
         },
         {
-            "path": "src/backend/mcp",
+            "path": "src/backend/logistics-data",
             "name": "backend-mcp"
         },
         {
-            "path": "src/backend/agent-a2a",
+            "path": "src/backend/recommendations",
             "name": "backend-a2a"
         },
         {

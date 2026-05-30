@@ -7,8 +7,8 @@ Define the externally visible behavior and boundary contracts that MUST remain c
 ## Contract 1: Backend Agent Client Factory
 
 - In-scope files:
-  - `src/backend/api/clients.py`
-  - `src/backend/api/agents/logistics_agent.py`
+  - `src/backend/logistics/clients.py`
+  - `src/backend/logistics/agents/logistics_agent.py`
 - Requirements:
   - The factory MUST return a `SupportsChatGetResponse` compatible client.
   - Default implementation MUST be Foundry-native (`FoundryChatClient`).
@@ -20,8 +20,8 @@ Define the externally visible behavior and boundary contracts that MUST remain c
 ## Contract 2: AG-UI/CopilotKit Streaming Behavior
 
 - In-scope files:
-  - `src/backend/api/main.py`
-  - `src/backend/api/patches/agui_event_stream.py`
+  - `src/backend/logistics/main.py`
+  - `src/backend/logistics/patches/agui_event_stream.py`
   - `src/frontend/src/app/api/copilotkit/route.ts`
 - Requirements:
   - AG-UI lifecycle/tool/state events MUST remain protocol-compatible.
@@ -33,9 +33,9 @@ Define the externally visible behavior and boundary contracts that MUST remain c
 ## Contract 3: MCP-mediated Data Path Integrity
 
 - In-scope files:
-  - `src/backend/api/agents/utils/mcp_client.py`
-  - `src/backend/api/agents/utils/data_helpers.py`
-  - `src/backend/mcp/main.py`
+  - `src/backend/logistics/agents/utils/mcp_client.py`
+  - `src/backend/logistics/agents/utils/data_helpers.py`
+  - `src/backend/logistics-data/main.py`
 - Requirements:
   - Feature MUST NOT introduce direct product-path SQL/Azure AI Search access bypassing MCP service interfaces.
   - Existing MCP REST and tool/resource access patterns MUST remain operational.

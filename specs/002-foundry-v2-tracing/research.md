@@ -9,7 +9,7 @@
   - No additional correlation design beyond existing OpenTelemetry: rejected because current trace views lack guaranteed turn/tool/A2A linkage.
 - Sources:
   - MAF skill: `.github/skills/microsoft-agent-framework/SKILL.md`, `.github/skills/microsoft-agent-framework/references/python.md`
-  - Repo context: `src/backend/api/main.py`, `src/frontend/src/app/api/copilotkit/[[...path]]/route.ts`
+  - Repo context: `src/backend/logistics/main.py`, `src/frontend/src/app/api/copilotkit/[[...path]]/route.ts`
   - CopilotKit/AG-UI docs MCP: `mcp_copilotkit_mc_search-ag-ui-docs`
 
 ## Decision 2: Use Foundry-native and Azure Monitor instrumentation with explicit GenAI tracing gates
@@ -45,7 +45,7 @@
   - Isolate A2A traces from turn traces: rejected because it breaks debugging flow requested by spec.
 - Sources:
   - Spec requirements FR-004, FR-005, FR-006, FR-007
-  - Existing A2A architecture in `src/backend/api/agents/tools/recommendation_tools.py` and `src/backend/agent-a2a`
+  - Existing A2A architecture in `src/backend/logistics/agents/tools/recommendation_tools.py` and `src/backend/recommendations`
 
 ## Decision 5: Use cadence backend as a reference for stable telemetry naming and selective FoundryAgent usage
 
@@ -58,7 +58,7 @@
   - Blindly copy cadence architecture: rejected because this repo has different domain flows and AG-UI constraints.
   - Ignore cadence lessons: rejected because user explicitly requested cadence as reference and it contains relevant tracing improvements.
 - Sources:
-  - `travisnielsen/cadence` backend excerpts (`src/backend/workflow/clients.py`, `src/backend/config/settings.py`, `src/backend/api/monitoring.py`)
+  - `travisnielsen/cadence` backend excerpts (`src/backend/workflow/clients.py`, `src/backend/config/settings.py`, `src/backend/logistics/monitoring.py`)
 
 ## Decision 6: Identify and retire obsolete preview-era tracing customizations
 
@@ -68,7 +68,7 @@
   - Keep all historical tracing customizations indefinitely: rejected due maintenance cost and signal quality impact.
   - Remove all customizations at once: rejected because some AG-UI context behavior is still required.
 - Sources:
-  - Local code: `src/backend/api/patches/*`, `src/backend/api/monitoring.py`
+  - Local code: `src/backend/logistics/patches/*`, `src/backend/logistics/monitoring.py`
   - Prior upgrade notes and runtime analysis context
 
 ## Implementation Notes for Foundry V2 Traceability

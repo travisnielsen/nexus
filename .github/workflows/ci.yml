@@ -32,9 +32,9 @@ jobs:
 
       - name: Sync backend dependencies
         run: |
-          uv sync --project src/backend/api --dev
-          uv sync --project src/backend/mcp --dev
-          uv sync --project src/backend/agent-a2a --dev
+          uv sync --project src/backend/logistics --dev
+          uv sync --project src/backend/logistics-data --dev
+          uv sync --project src/backend/recommendations --dev
 
       - name: Run backend checks
         run: uv run --project . poe check
