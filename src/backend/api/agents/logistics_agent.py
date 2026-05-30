@@ -10,10 +10,13 @@ All tool implementations have been moved to the tools/ directory for better orga
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
-from agent_framework import Agent, SupportsChatGetResponse
+from agent_framework import SupportsChatGetResponse
+from agent_framework.foundry import FoundryAgent
 from agent_framework_ag_ui import AgentFrameworkAgent
+from opentelemetry import trace
 
 from patches.agui_event_stream import attach_agui_context_sync
 
@@ -30,8 +33,10 @@ from .tools import (
     get_recommendations,
     reset_filters,
 )
+from .utils import get_trace_identity
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("logistics.agent")
 
 
 # State schema for the logistics agent
@@ -98,9 +103,15 @@ def _load_system_prompt() -> str:
 
 def create_logistics_agent(chat_client: SupportsChatGetResponse) -> AgentFrameworkAgent:
     """Instantiate the Logistics demo agent backed by Microsoft Agent Framework."""
-    base_agent = Agent(
-        client=chat_client,
+    foundry_agent_name = os.getenv("FOUNDRY_AGENT_NAME", "logistics-agent")
+    foundry_agent_version = os.getenv("FOUNDRY_AGENT_VERSION") or None
+
+    base_agent = FoundryAgent(
+        project_client=chat_client.project_client,  # pyright: ignore[reportAttributeAccessIssue]
+        agent_name=foundry_agent_name,
+        agent_version=foundry_agent_version,
         name="logistics-agent",
+        id="logistics-agent",
         instructions=_load_system_prompt(),
         tools=[
             # Dashboard filter tools - these set activeFilter in state
@@ -128,5 +139,22 @@ def create_logistics_agent(chat_client: SupportsChatGetResponse) -> AgentFramewo
 
     # Safer than global monkey patching: attach context sync to this instance only.
     attach_agui_context_sync(agui_agent)
+
+    original_run = agui_agent.run
+
+    async def traced_run(input_data: dict[str, object]):
+        with tracer.start_as_current_span("agent.run") as span:
+            span.set_attribute("gen_ai.agent.name", "logistics-agent")
+            identity = get_trace_identity()
+            if identity:
+                span.set_attribute("gen_ai.conversation.id", identity.conversation_id)
+                if identity.run_id:
+                    span.set_attribute("gen_ai.run.id", identity.run_id)
+                if identity.turn_id:
+                    span.set_attribute("gen_ai.turn.id", identity.turn_id)
+            async for event in original_run(input_data):
+                yield event
+
+    agui_agent.run = traced_run
 
     return agui_agent

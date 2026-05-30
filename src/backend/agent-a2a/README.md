@@ -26,6 +26,12 @@ FOUNDRY_MODEL=gpt-4o-mini
 
 # Server port (optional, defaults to 5002)
 PORT=5002
+
+# OpenTelemetry / App Insights
+ENABLE_INSTRUMENTATION=true
+TELEMETRY_MODE=appinsights
+# APPLICATIONINSIGHTS_CONNECTION_STRING=InstrumentationKey=...;IngestionEndpoint=...
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 ```
 
 1. Authenticate with Azure:

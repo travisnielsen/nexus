@@ -149,6 +149,14 @@ ENABLE_SENSITIVE_DATA=false
 ENABLE_CONSOLE_EXPORTERS=false
 ```
 
+### Foundry V2 Validation Workflow
+
+1. Keep `AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=false` for normal runs; enable it only for targeted Foundry GenAI span validation on verified-compatible SDK versions.
+2. Start services and run at least one multi-turn conversation with tool calls.
+3. Run dashboard diagnostics and load recent conversations.
+4. Review the trace coverage panel (minimum 24-hour operational window).
+5. Cross-check results with baseline KQL queries in `specs/002-foundry-v2-tracing/validation/trace-baseline-kql.md`.
+
 ---
 
 ## Dashboard Options

@@ -15,8 +15,40 @@ Environment variables:
 
 import logging
 import os
+from importlib import metadata
 
 logger = logging.getLogger(__name__)
+
+
+def _is_genai_tracing_supported() -> tuple[bool, str]:
+    """Return whether the experimental GenAI tracing path is safe to enable.
+
+    The current stack can break AG-UI streaming when this experimental path wraps
+    response streams that the agent framework expects to expose `.parse()`.
+    """
+    force_enable = os.getenv("FORCE_ENABLE_EXPERIMENTAL_GENAI_TRACING", "false").lower()
+    if force_enable == "true":
+        return True, "forced by FORCE_ENABLE_EXPERIMENTAL_GENAI_TRACING=true"
+
+    package_names = [
+        "agent-framework-openai",
+        "agent-framework-foundry",
+        "azure-ai-projects",
+        "openai",
+    ]
+    resolved_versions: dict[str, str] = {}
+    for package_name in package_names:
+        try:
+            resolved_versions[package_name] = metadata.version(package_name)
+        except metadata.PackageNotFoundError:
+            resolved_versions[package_name] = "not-installed"
+
+    version_summary = ", ".join(f"{name}={version}" for name, version in resolved_versions.items())
+
+    return (
+        False,
+        f"blocked by default pending a verified-compatible SDK matrix ({version_summary})",
+    )
 
 
 def is_observability_enabled() -> bool:
@@ -35,6 +67,17 @@ def configure_observability() -> None:
     if not is_observability_enabled():
         logger.info("Observability disabled (ENABLE_INSTRUMENTATION != true)")
         return
+
+    if os.getenv("AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING", "").lower() == "true":
+        supported, reason = _is_genai_tracing_supported()
+        if supported:
+            logger.info("AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=true (%s)", reason)
+        else:
+            os.environ["AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING"] = "false"
+            logger.warning(
+                "AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING was requested but disabled: %s",
+                reason,
+            )
 
     try:
         telemetry_mode = os.getenv("TELEMETRY_MODE", "appinsights").lower()

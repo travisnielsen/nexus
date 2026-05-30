@@ -11,7 +11,9 @@ from agent_framework_ag_ui import AgentFrameworkAgent, add_agent_framework_fasta
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from opentelemetry import trace
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # ============================================================================
 # IMPORTANT: Import patches FIRST before any other imports
@@ -20,11 +22,16 @@ from pydantic import BaseModel
 # ============================================================================
 import patches  # noqa: F401 - side effects only
 from agents import create_logistics_agent  # type: ignore
+from agents.tools.trace_helpers import validate_trace_identity_payload
 from agents.utils import (
+    TraceIdentityHeaders,
+    clear_trace_identity,
     get_flight_by_id_from_mcp,
     get_flight_summary_from_mcp,
     get_flights_from_mcp,
     get_historical_from_mcp,
+    get_trace_identity,
+    set_trace_identity,
 )
 from middleware import (  # type: ignore
     AzureADAuthMiddleware,
@@ -53,6 +60,7 @@ logging.getLogger("agent_framework_ag_ui").setLevel(
 )
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("logistics.api")
 
 # Check if Azure AD authentication is configured and enabled
 AUTH_CONFIGURED = bool(
@@ -147,6 +155,48 @@ app = FastAPI(
     else None,
 )
 
+
+class TraceIdentityMiddleware(BaseHTTPMiddleware):
+    """Extract and validate trace identity headers for request-scoped context."""
+
+    async def dispatch(self, request: Request, call_next):
+        header_payload = {
+            "x_trace_conversation_id": request.headers.get("x-trace-conversation-id"),
+            "x_trace_turn_id": request.headers.get("x-trace-turn-id"),
+            "x_trace_run_id": request.headers.get("x-trace-run-id"),
+            "x_trace_tool_call_id": request.headers.get("x-trace-tool-call-id"),
+            "x_trace_a2a_interaction_id": request.headers.get("x-trace-a2a-interaction-id"),
+        }
+
+        try:
+            parsed_headers = TraceIdentityHeaders.model_validate(header_payload)
+            identity = parsed_headers.to_identity()
+        except Exception as exc:
+            clear_trace_identity()
+            raise HTTPException(status_code=400, detail="Invalid trace identity headers") from exc
+
+        set_trace_identity(identity)
+        try:
+            if request.url.path.startswith("/logistics"):
+                with tracer.start_as_current_span("turn.lifecycle") as span:
+                    if identity:
+                        span.set_attribute("gen_ai.conversation.id", identity.conversation_id)
+                        if identity.turn_id:
+                            span.set_attribute("gen_ai.turn.id", identity.turn_id)
+                        if identity.run_id:
+                            span.set_attribute("gen_ai.run.id", identity.run_id)
+                    response = await call_next(request)
+            else:
+                response = await call_next(request)
+            if identity:
+                response.headers["x-trace-conversation-id"] = identity.conversation_id
+                if identity.run_id:
+                    response.headers["x-trace-run-id"] = identity.run_id
+            return response
+        finally:
+            clear_trace_identity()
+
+
 # IMPORTANT: Middleware runs in reverse order of addition
 # CORS must be added AFTER auth so it runs FIRST (handles preflight before auth)
 app.add_middleware(
@@ -156,6 +206,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(TraceIdentityMiddleware)
 
 # Add Azure AD auth middleware only if configured
 # This runs AFTER CORS, so preflight OPTIONS requests are handled first
@@ -210,6 +261,8 @@ async def create_conversation():
         conversation = await openai_client.conversations.create()
 
         logger.info("Created Azure Foundry conversation: %s", conversation.id)
+
+        validate_trace_identity_payload({"conversation_id": conversation.id})
 
         return {"conversationId": conversation.id}
     except Exception as e:
@@ -392,6 +445,10 @@ async def submit_recommendation_feedback(payload: RecommendationFeedbackPayload)
 
     Currently logs feedback for analysis. Backend storage will be implemented later.
     """
+    identity = get_trace_identity()
+    if identity:
+        validate_trace_identity_payload(identity.model_dump())
+
     logger.info("=" * 60)
     logger.info("RECOMMENDATION FEEDBACK RECEIVED")
     logger.info("=" * 60)

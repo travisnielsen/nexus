@@ -1,6 +1,6 @@
 import { IPublicClientApplication } from '@azure/msal-browser'
 import { logAnalyticsScopes } from './msalConfig'
-import type { QueryResult, ParsedSpan, RecentConversation } from './types'
+import type { QueryResult, ParsedSpan, RecentConversation, TraceCoverageSummary } from './types'
 
 /**
  * Log Analytics API client for querying Application Insights data
@@ -15,6 +15,59 @@ export class LogAnalyticsClient {
   constructor(msalInstance: IPublicClientApplication, workspaceId: string) {
     this.msalInstance = msalInstance
     this.workspaceId = workspaceId
+  }
+
+  /**
+   * Compute trace coverage metrics over a validated operational window.
+   * The minimum supported window is 24 hours.
+   */
+  async getTraceCoverageSummary(hours: number = 24): Promise<TraceCoverageSummary> {
+    const windowHours = Math.max(24, Math.floor(hours))
+    const kql = `
+      let window = ${windowHours}h;
+      let turns = AppDependencies
+      | where TimeGenerated > ago(window)
+      | where Name has "invoke_agent" or Name has "run"
+      | summarize turns=count();
+      let toolCalls = AppDependencies
+      | where TimeGenerated > ago(window)
+      | where Name has "tool" or tostring(Properties["gen_ai.operation.name"]) == "execute_tool"
+      | summarize tools=count();
+      let a2aCalls = AppDependencies
+      | where TimeGenerated > ago(window)
+      | where Name has "a2a" or tostring(Properties["gen_ai.a2a.operation"]) != ""
+      | summarize a2a=count();
+      turns
+      | extend k=1
+      | join kind=inner (toolCalls | extend k=1) on k
+      | join kind=inner (a2aCalls | extend k=1) on k
+      | project turns, tools, a2a
+    `
+
+    const result = await this.query(kql)
+    const row = result.tables?.[0]?.rows?.[0]
+    if (!row) {
+      return {
+        windowHours,
+        sampledTurns: 0,
+        turnCoveragePct: 0,
+        toolCoveragePct: 0,
+        a2aCoveragePct: 0,
+      }
+    }
+
+    const sampledTurns = Number(row[0] || 0)
+    const toolCount = Number(row[1] || 0)
+    const a2aCount = Number(row[2] || 0)
+    const denominator = sampledTurns || 1
+
+    return {
+      windowHours,
+      sampledTurns,
+      turnCoveragePct: sampledTurns > 0 ? 100 : 0,
+      toolCoveragePct: sampledTurns > 0 ? Math.min(100, (toolCount / denominator) * 100) : 0,
+      a2aCoveragePct: sampledTurns > 0 ? Math.min(100, (a2aCount / denominator) * 100) : 0,
+    }
   }
 
   /**

@@ -98,3 +98,11 @@ export interface SelectionState {
   span: ParsedSpan | null
   spans: ParsedSpan[]
 }
+
+export interface TraceCoverageSummary {
+  windowHours: number
+  turnCoveragePct: number
+  toolCoveragePct: number
+  a2aCoveragePct: number
+  sampledTurns: number
+}

@@ -13,6 +13,7 @@ from agent_framework import tool
 from pydantic import Field
 
 from ..utils import get_historical_sync, get_predictions_sync
+from .trace_helpers import traced_tool_span
 
 
 @tool(
@@ -30,14 +31,15 @@ def get_predicted_payload(
     ] = None,
 ) -> dict:
     """Retrieve predicted payload for upcoming flights and return structured data."""
-    result = get_predictions_sync(days=count, route=route)
-    predictions = result.get("predictions", [])
+    with traced_tool_span("get_predicted_payload"):
+        result = get_predictions_sync(days=count, route=route)
+        predictions = result.get("predictions", [])
 
-    return {
-        "message": f"Predicted payload for {len(predictions)} upcoming days. The dashboard has been updated.",
-        "predictions": predictions,
-        "routes": result.get("routes", []),
-    }
+        return {
+            "message": f"Predicted payload for {len(predictions)} upcoming days. The dashboard has been updated.",
+            "predictions": predictions,
+            "routes": result.get("routes", []),
+        }
 
 
 @tool(
@@ -59,21 +61,24 @@ def get_historical_payload(
     ] = None,
 ) -> dict:
     """Retrieve historical and predicted payload data and return structured data."""
-    result = get_historical_sync(days=days, route=route, include_predictions=include_predictions)
+    with traced_tool_span("get_historical_payload"):
+        result = get_historical_sync(
+            days=days, route=route, include_predictions=include_predictions
+        )
 
-    historical = result.get("historical", [])
-    predictions = result.get("predictions", [])
-    summary = result.get("summary", {})
+        historical = result.get("historical", [])
+        predictions = result.get("predictions", [])
+        summary = result.get("summary", {})
 
-    # Combine for backward compatibility with dashboard
-    result_data = historical + predictions
+        # Combine for backward compatibility with dashboard
+        result_data = historical + predictions
 
-    historical_count = len(historical)
-    predicted_count = len(predictions)
-    avg_pounds = summary.get("averagePounds", 0)
+        historical_count = len(historical)
+        predicted_count = len(predictions)
+        avg_pounds = summary.get("averagePounds", 0)
 
-    return {
-        "message": f"Historical payload data ({historical_count} days + {predicted_count} predictions). Average daily weight: {avg_pounds:,} lbs. The chart has been updated.",
-        "historical_data": result_data,
-        "summary": summary,
-    }
+        return {
+            "message": f"Historical payload data ({historical_count} days + {predicted_count} predictions). Average daily weight: {avg_pounds:,} lbs. The chart has been updated.",
+            "historical_data": result_data,
+            "summary": summary,
+        }

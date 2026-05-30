@@ -53,7 +53,7 @@ class PatchConfig:
     def from_environment(cls) -> PatchConfig:
         """Load patch configuration from environment variables."""
         config = cls(
-            agui_event_stream=_env_bool("PATCH_AGUI_CONTEXT_SYNC", True),
+            agui_event_stream=_env_bool("PATCH_AGUI_CONTEXT_SYNC", False),
         )
 
         logger.debug("Patch config: agui_event_stream=%s", config.agui_event_stream)

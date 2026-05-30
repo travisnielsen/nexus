@@ -52,7 +52,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 ├── src/backend/                # All backend services
 │   ├── api/               # FastAPI + Microsoft Agent Framework (main API)
 │   │   ├── main.py            # FastAPI app, REST endpoints, agent setup
-│   │   ├── clients.py         # Chat client factory (FoundryChatClient)
+│   │   ├── clients.py         # Foundry project client factory (FoundryChatClient)
 │   │   ├── monitoring.py      # OpenTelemetry observability setup
 │   │   ├── Dockerfile         # Production Dockerfile (for ACR/Azure deployment)
 │   │   ├── Dockerfile.local   # Local dev Dockerfile (includes Azure CLI)
@@ -136,7 +136,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
   - `agent-framework-ag-ui` - AG-UI protocol support
   - `agent-framework-azure-ai` - Azure AI Foundry integration
   - `agent-framework-a2a` - A2A protocol support
-- **Azure AI Foundry** for LLM access via `FoundryChatClient`
+- **Azure AI Foundry** via hybrid runtime (`FoundryChatClient` project client + `FoundryAgent` agent execution)
 - **Azure AD** authentication (optional)
 - **OpenTelemetry** for observability
 
@@ -580,5 +580,5 @@ Patches can be disabled via environment variables:
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
-shell commands, and other important information, read [specs/001-upgrade-stack-versions/plan.md](../specs/001-upgrade-stack-versions/plan.md)
+shell commands, and other important information, read [specs/002-foundry-v2-tracing/plan.md](../specs/002-foundry-v2-tracing/plan.md)
 <!-- SPECKIT END -->

@@ -2,11 +2,18 @@ import { useState, useCallback, useMemo } from 'react'
 import { useMsal, AuthenticatedTemplate, UnauthenticatedTemplate } from '@azure/msal-react'
 import { LogAnalyticsClient } from './lib/logAnalyticsClient'
 import { buildSpanTree } from './lib/utils'
-import type { ParsedSpan, TreeNode, RecentConversation, DashboardConfig } from './lib/types'
+import type {
+  ParsedSpan,
+  TreeNode,
+  RecentConversation,
+  DashboardConfig,
+  TraceCoverageSummary,
+} from './lib/types'
 import { Sidebar } from './components/Sidebar'
 import { DetailPanel } from './components/DetailPanel'
 import { ConfigPanel } from './components/ConfigPanel'
 import { LoginButton } from './components/LoginButton'
+import { TraceCoverageSummaryPanel } from './components/TraceCoverageSummary'
 
 function App() {
   const { instance } = useMsal()
@@ -33,6 +40,7 @@ function App() {
     totalDependencies: number
     dependenciesWithConvId: number
   } | null>(null)
+  const [coverageSummary, setCoverageSummary] = useState<TraceCoverageSummary | null>(null)
 
   // Build tree from spans
   const tree = useMemo(() => {
@@ -70,6 +78,8 @@ function App() {
       setError(null)
       const recent = await client.getRecentConversations(config.hoursToQuery, 20)
       setRecentConversations(recent)
+      const coverage = await client.getTraceCoverageSummary(config.hoursToQuery)
+      setCoverageSummary(coverage)
       
       // If no conversations found, run diagnostics automatically
       if (recent.length === 0) {
@@ -165,10 +175,13 @@ function App() {
             />
 
             {/* Detail Panel */}
-            <DetailPanel
-              node={selectedNode}
-              spans={spans}
-            />
+            <div className="flex-1 flex flex-col">
+              <TraceCoverageSummaryPanel summary={coverageSummary} loading={loading} />
+              <DetailPanel
+                node={selectedNode}
+                spans={spans}
+              />
+            </div>
           </>
         )}
       </AuthenticatedTemplate>
