@@ -21,7 +21,7 @@ This script:
 
 - Validates prerequisites (`uv`, optional Node.js)
 - Installs Python runtimes (`3.11`, `3.12`, `3.13`) via `uv`
-- Syncs backend dependencies for `api`, `mcp`, and `agent-a2a` with `uv sync --dev`
+- Syncs backend dependencies for `api`, `mcp`, and `recommendations` with `uv sync --dev`
 - Installs frontend dependencies in `src/frontend` via `npm install`
 - Configures git hooks in `.githooks/`
 
@@ -44,17 +44,17 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 Each backend project has its own `pyproject.toml`:
 
 ```bash
-cd src/backend/api && uv sync --dev
-cd src/backend/mcp && uv sync --dev
-cd src/backend/agent-a2a && uv sync --dev
+cd src/backend/logistics && uv sync --dev
+cd src/backend/logistics-data && uv sync --dev
+cd src/backend/recommendations && uv sync --dev
 ```
 
 Or use the monorepo Poe tasks from the repo root:
 
 ```bash
-uv run --project . poe setup-api
-uv run --project . poe setup-mcp
-uv run --project . poe setup-a2a
+uv run --project . poe setup-logistics
+uv run --project . poe setup-logistics-data
+uv run --project . poe setup-recommendations
 ```
 
 ### Install Frontend Dependencies
@@ -78,7 +78,7 @@ This starts four concurrent processes with colored output:
 | **[ui]**  | Next.js frontend     | http://localhost:3000   |
 | **[mcp]** | MCP server (DuckDB)  | http://localhost:8001   |
 | **[a2a]** | A2A recommendations  | http://localhost:5002   |
-| **[api]** | Backend API (MAF)    | http://localhost:8000   |
+| **[logistics]** | Backend API (MAF)    | http://localhost:8000   |
 
 Or start services individually:
 
@@ -87,13 +87,13 @@ Or start services individually:
 cd src/frontend && npm run dev:ui
 
 # Backend API
-cd src/backend/api && uv run uvicorn main:app --port 8000 --reload
+cd src/backend/logistics && uv run uvicorn main:app --port 8000 --reload
 
 # MCP Server
-cd src/backend/mcp && uv run uvicorn main:rest_app --port 8001 --reload
+cd src/backend/logistics-data && uv run uvicorn main:rest_app --port 8001 --reload
 
 # A2A Agent
-cd src/backend/agent-a2a && uv run uvicorn main:app --port 5002 --reload
+cd src/backend/recommendations && uv run uvicorn main:app --port 5002 --reload
 ```
 
 ## VS Code Setup
@@ -133,9 +133,9 @@ Poe tasks are defined in `pyproject.toml` at the repo root and in each backend p
 | Task             | Description                                  |
 | ---------------- | -------------------------------------------- |
 | `bootstrap`      | Run `devsetup.sh`                            |
-| `setup-api`      | Install API dependencies                     |
-| `setup-mcp`      | Install MCP dependencies                     |
-| `setup-a2a`      | Install A2A dependencies                     |
+| `setup-logistics`      | Install API dependencies                     |
+| `setup-logistics-data`      | Install MCP dependencies                     |
+| `setup-recommendations`      | Install A2A dependencies                     |
 | `setup-frontend` | Install frontend dependencies                |
 | `check`          | Run all backend checks (api + mcp + a2a)     |
 | `format`         | Format all backend code (api + mcp + a2a)    |

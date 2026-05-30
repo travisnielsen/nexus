@@ -64,7 +64,7 @@ The server loads data into DuckDB for SQL query capabilities:
 ./devsetup.sh
 
 # Or only for this service
-cd src/backend/mcp
+cd src/backend/logistics-data
 uv sync --dev
 ```
 

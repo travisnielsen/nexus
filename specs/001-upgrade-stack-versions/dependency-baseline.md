@@ -4,14 +4,14 @@ Created: 2026-05-29
 
 ## Scope
 
-- Backend API: `src/backend/api/pyproject.toml`
-- Backend MCP: `src/backend/mcp/pyproject.toml`
-- Backend A2A: `src/backend/agent-a2a/pyproject.toml`
+- Backend API: `src/backend/logistics/pyproject.toml`
+- Backend MCP: `src/backend/logistics-data/pyproject.toml`
+- Backend A2A: `src/backend/recommendations/pyproject.toml`
 - Frontend: `src/frontend/package.json`
 
 ## Python Baseline (pre-upgrade)
 
-### `src/backend/api/pyproject.toml`
+### `src/backend/logistics/pyproject.toml`
 - a2a-sdk: `<1.0.0`
 - agent-framework-a2a: `>=1.0.0b260225`
 - agent-framework-ag-ui: `>=1.0.0b260225`
@@ -23,7 +23,7 @@ Created: 2026-05-29
 - uvicorn: `>=0.27.0`
 - pydantic: `>=2.12.0`
 
-### `src/backend/mcp/pyproject.toml`
+### `src/backend/logistics-data/pyproject.toml`
 - mcp: `>=1.25.0`
 - httpx: `>=0.27.0,<1.0`
 - uvicorn: `>=0.27.0`
@@ -32,7 +32,7 @@ Created: 2026-05-29
 - pyjwt[crypto]: `>=2.8.0`
 - cachetools: `>=5.3.0`
 
-### `src/backend/agent-a2a/pyproject.toml`
+### `src/backend/recommendations/pyproject.toml`
 - a2a-sdk[http-server]: `>=0.3.22,<1.0.0`
 - fastapi: `>=0.110.0`
 - uvicorn: `>=0.27.0`

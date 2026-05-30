@@ -11,7 +11,7 @@ Upgrade all scoped backend and frontend components to current stable dependency 
 ## Technical Context
 
 **Language/Version**:
-- Python 3.12+ (`src/backend/api`, `src/backend/mcp`, `src/backend/agent-a2a`)
+- Python 3.12+ (`src/backend/logistics`, `src/backend/logistics-data`, `src/backend/recommendations`)
 - TypeScript 5 + Node.js toolchain (`src/frontend`)
 
 **Primary Dependencies**:
@@ -90,7 +90,7 @@ src/
 │   │   └── agents/
 │   ├── mcp/
 │   │   └── pyproject.toml
-│   └── agent-a2a/
+│   └── recommendations/
 │       └── pyproject.toml
 ├── frontend/
 │   ├── package.json

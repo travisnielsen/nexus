@@ -1,11 +1,11 @@
-name: Deploy A2A Agent to Azure Container Apps
+name: Deploy Recommendations Service to Azure Container Apps
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'src/backend/agent-a2a/**'
+      - 'src/backend/recommendations/**'
   workflow_dispatch:
 
 env:
@@ -41,8 +41,8 @@ jobs:
               --registry ${{ env.REGISTRY }} \
               --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
               --image ${{ env.IMAGE_NAME }}:latest \
-              --file ./src/backend/agent-a2a/Dockerfile \
-              ./src/backend/agent-a2a
+              --file ./src/backend/recommendations/Dockerfile \
+              ./src/backend/recommendations
 
       - name: Deploy to Azure Container Apps
         uses: azure/cli@v2

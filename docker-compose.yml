@@ -14,13 +14,13 @@ services:
   # MCP Server - Flight data API with DuckDB
   mcp:
     build:
-      context: ./src/backend/mcp
+      context: ./src/backend/logistics-data
       dockerfile: Dockerfile
     container_name: nexus-mcp
     ports:
       - "8001:8001"
     env_file:
-      - ./src/backend/mcp/.env
+      - ./src/backend/logistics-data/.env
     environment:
       # Override for Docker
       - MCP_HOST=0.0.0.0
@@ -36,15 +36,15 @@ services:
       - nexus-network
 
   # A2A Recommendations Agent
-  agent-a2a:
+  recommendations:
     build:
-      context: ./src/backend/agent-a2a
+      context: ./src/backend/recommendations
       dockerfile: Dockerfile
     container_name: nexus-a2a
     ports:
       - "5002:5002"
     env_file:
-      - ./src/backend/agent-a2a/.env
+      - ./src/backend/recommendations/.env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
       interval: 30s
@@ -57,7 +57,7 @@ services:
   # Backend API - FastAPI + Agent Framework
   backend:
     build:
-      context: ./src/backend/api
+      context: ./src/backend/logistics
       dockerfile: Dockerfile.local
     container_name: nexus-backend
     ports:
@@ -67,13 +67,13 @@ services:
       # Note: Not read-only because Azure CLI needs to write session files (az.sess)
       - ${HOME}/.azure:/root/.azure
     env_file:
-      # Load environment from src/backend/api/.env (Azure AI, auth, telemetry settings)
-      - ./src/backend/api/.env
+      # Load environment from src/backend/logistics/.env (Azure AI, auth, telemetry settings)
+      - ./src/backend/logistics/.env
     environment:
       # Override service URLs to use Docker service names
       - MCP_SERVER_URL=http://mcp:8001
       - MCP_AUTH_ENABLED=false
-      - RECOMMENDATIONS_AGENT_URL=http://agent-a2a:5002
+      - RECOMMENDATIONS_AGENT_URL=http://recommendations:5002
       - AZURE_EXPERIMENTAL_ENABLE_GENAI_TRACING=false
       - PATCH_AGUI_CONTEXT_SYNC=false
       # Telemetry - connect to host for monitoring stack
@@ -81,7 +81,7 @@ services:
     depends_on:
       mcp:
         condition: service_healthy
-      agent-a2a:
+      recommendations:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

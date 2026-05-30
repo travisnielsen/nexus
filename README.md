@@ -8,9 +8,9 @@ An AI-powered logistics dashboard that combines conversational interfaces with r
 
 | Directory | Description |
 |-----------|-------------|
-| [`src/backend/api`](src/backend/api/) | FastAPI + Microsoft Agent Framework (MAF) backend. Hosts the logistics agent, REST endpoints, and AG-UI SSE stream for CopilotKit communication. |
-| [`src/backend/mcp`](src/backend/mcp/) | MCP (Model Context Protocol) server. Provides flight data via DuckDB with both REST API and MCP protocol endpoints for AI agents. |
-| [`src/backend/agent-a2a`](src/backend/agent-a2a/) | A2A (Agent-to-Agent) recommendations agent. Provides logistics recommendations when called by the main agent. |
+| [`src/backend/logistics`](src/backend/logistics/) | FastAPI + Microsoft Agent Framework (MAF) backend. Hosts the logistics agent, REST endpoints, and AG-UI SSE stream for CopilotKit communication. |
+| [`src/backend/logistics-data`](src/backend/logistics-data/) | MCP (Model Context Protocol) server. Provides flight data via DuckDB with both REST API and MCP protocol endpoints for AI agents. |
+| [`src/backend/recommendations`](src/backend/recommendations/) | A2A (Agent-to-Agent) recommendations agent. Provides logistics recommendations when called by the main agent. |
 | [`src/frontend`](src/frontend/) | Next.js 16 + React 19 dashboard with CopilotKit integration. Provides the conversational UI and data visualization. |
 | [`infra`](infra/) | Terraform infrastructure-as-code for Azure deployment. Provisions Container Apps, AI Foundry, and supporting resources. |
 | [`src/monitoring`](src/monitoring/) | Observability tools including an Azure dashboard for Application Insights traces and a local OpenTelemetry stack (Grafana Tempo). |
@@ -65,7 +65,7 @@ The backend requires Azure AI Foundry for LLM access. Follow the steps in [infra
 
 Create `.env` files for each module using the values from your Azure deployment:
 
-**src/backend/api/.env**
+**src/backend/logistics/.env**
 ```env
 # Azure AI Configuration (required)
 FOUNDRY_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
@@ -87,12 +87,12 @@ ENABLE_INSTRUMENTATION=true
 APPLICATIONINSIGHTS_CONNECTION_STRING=<from-terraform-output>
 ```
 
-**src/backend/mcp/.env**
+**src/backend/logistics-data/.env**
 ```env
 AUTH_ENABLED=false
 ```
 
-**src/backend/agent-a2a/.env**
+**src/backend/recommendations/.env**
 ```env
 # Azure AI Configuration (required)
 FOUNDRY_PROJECT_ENDPOINT=https://<your-ai-foundry>.api.azureml.ms
@@ -125,7 +125,7 @@ Use the monorepo setup script from the repository root:
 The script will:
 - verify `uv` is installed
 - install Python runtimes (`3.11`, `3.12`, `3.13`) via `uv`
-- run `uv sync --dev` for `src/backend/api`, `src/backend/mcp`, and `src/backend/agent-a2a`
+- run `uv sync --dev` for `src/backend/logistics`, `src/backend/logistics-data`, and `src/backend/recommendations`
 - install frontend dependencies in `src/frontend` (if Node.js is installed)
 - configure local git hooks from `.githooks/`
 
@@ -148,7 +148,7 @@ This starts:
 - **[ui]** Next.js frontend on http://localhost:3000
 - **[mcp]** MCP server on http://localhost:8001
 - **[a2a]** A2A agent on http://localhost:5002
-- **[api]** Backend API on http://localhost:8000
+- **[logistics]** Backend API on http://localhost:8000
 
 #### Option B: Using Docker Compose
 

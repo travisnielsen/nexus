@@ -7,7 +7,7 @@ Define non-negotiable tracing, correlation, and compatibility guarantees for end
 ## Contract 1: Turn Trace Completeness
 
 - In-scope paths:
-  - `src/backend/api/main.py`
+  - `src/backend/logistics/main.py`
   - `src/frontend/src/app/api/copilotkit/[[...path]]/route.ts`
   - `src/frontend/src/components/NoAuthCopilotKit.tsx`
   - `src/frontend/src/components/AuthenticatedCopilotKit.tsx`
@@ -19,8 +19,8 @@ Define non-negotiable tracing, correlation, and compatibility guarantees for end
 ## Contract 2: Tool Call Trace Coverage
 
 - In-scope paths:
-  - `src/backend/api/agents/tools/`
-  - `src/backend/api/agents/logistics_agent.py`
+  - `src/backend/logistics/agents/tools/`
+  - `src/backend/logistics/agents/logistics_agent.py`
 - Requirements:
   - All tool calls executed during a turn MUST emit trace records linked to the parent turn.
   - Tool call failures MUST emit explicit failure status and error context.
@@ -29,8 +29,8 @@ Define non-negotiable tracing, correlation, and compatibility guarantees for end
 ## Contract 3: A2A Interaction Trace Coverage
 
 - In-scope paths:
-  - `src/backend/api/agents/tools/recommendation_tools.py`
-  - `src/backend/agent-a2a/main.py`
+  - `src/backend/logistics/agents/tools/recommendation_tools.py`
+  - `src/backend/recommendations/main.py`
 - Requirements:
   - All A2A interactions initiated during a turn MUST emit child trace spans linked to the originating turn.
   - A2A failures and timeouts MUST be trace-visible with actionable metadata.
@@ -40,8 +40,8 @@ Define non-negotiable tracing, correlation, and compatibility guarantees for end
 
 - In-scope paths:
   - `src/frontend/src/app/api/copilotkit/[[...path]]/route.ts`
-  - `src/backend/api/main.py`
-  - `src/backend/api/patches/agui_event_stream.py`
+  - `src/backend/logistics/main.py`
+  - `src/backend/logistics/patches/agui_event_stream.py`
 - Requirements:
   - AG-UI event lifecycle semantics (`RUN_*`, `TOOL_CALL_*`, state updates) MUST remain compatible for existing UI behavior.
   - CopilotKit thread continuity behavior MUST remain functionally equivalent.
@@ -50,9 +50,9 @@ Define non-negotiable tracing, correlation, and compatibility guarantees for end
 ## Contract 5: MCP Data Path Integrity
 
 - In-scope paths:
-  - `src/backend/api/agents/utils/mcp_client.py`
-  - `src/backend/api/agents/utils/data_helpers.py`
-  - `src/backend/mcp/main.py`
+  - `src/backend/logistics/agents/utils/mcp_client.py`
+  - `src/backend/logistics/agents/utils/data_helpers.py`
+  - `src/backend/logistics-data/main.py`
 - Requirements:
   - Tracing implementation MUST NOT introduce direct product-path SQL or Azure AI Search dependencies for operational dashboard data.
   - MCP-mediated data contracts MUST remain the source of truth for operational data.
@@ -60,8 +60,8 @@ Define non-negotiable tracing, correlation, and compatibility guarantees for end
 ## Contract 6: Obsolete Customization Retirement Safety
 
 - In-scope paths:
-  - `src/backend/api/monitoring.py`
-  - `src/backend/api/patches/`
+  - `src/backend/logistics/monitoring.py`
+  - `src/backend/logistics/patches/`
 - Requirements:
   - Any preview-era or legacy tracing customization selected for retirement MUST have documented rationale and replacement coverage proof.
   - Required context synchronization behavior MUST remain intact after cleanup.

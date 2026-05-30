@@ -3,9 +3,9 @@
 ## Services
 
 - Frontend CopilotKit proxy: src/frontend/src/app/api/copilotkit/[[...path]]/route.ts
-- Backend AG-UI endpoint: src/backend/api/main.py (/logistics)
-- Tool execution modules: src/backend/api/agents/tools/*.py
-- A2A receiver: src/backend/agent-a2a/main.py
+- Backend AG-UI endpoint: src/backend/logistics/main.py (/logistics)
+- Tool execution modules: src/backend/logistics/agents/tools/*.py
+- A2A receiver: src/backend/recommendations/main.py
 
 ## Span Sources
 

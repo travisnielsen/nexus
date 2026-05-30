@@ -14,11 +14,11 @@ PASS after remediation.
 
 Initial run identified two upgrade-related regressions:
 1. Missing direct dependency for `pydantic_settings` import in API middleware.
-2. `a2a-sdk` 1.x API incompatibility with current `src/backend/agent-a2a/main.py` imports and symbols.
+2. `a2a-sdk` 1.x API incompatibility with current `src/backend/recommendations/main.py` imports and symbols.
 
 Applied remediations:
-- Added `pydantic-settings>=2.14.1` to `src/backend/api/pyproject.toml` and regenerated `src/backend/api/uv.lock`.
-- Capped agent-a2a SDK to compatible line `a2a-sdk[http-server]>=0.3.25,<1.0.0` in `src/backend/agent-a2a/pyproject.toml` and regenerated `src/backend/agent-a2a/uv.lock`.
+- Added `pydantic-settings>=2.14.1` to `src/backend/logistics/pyproject.toml` and regenerated `src/backend/logistics/uv.lock`.
+- Capped recommendations SDK to compatible line `a2a-sdk[http-server]>=0.3.25,<1.0.0` in `src/backend/recommendations/pyproject.toml` and regenerated `src/backend/recommendations/uv.lock`.
 
 Final run status:
 - API: ruff PASS, basedpyright PASS

@@ -10,15 +10,15 @@ Regressions were detected during post-upgrade quality-gate execution and remedia
 
 1. API type-check import failure
 - Signal: `Import "pydantic_settings" could not be resolved`
-- Scope: `src/backend/api/middleware/auth.py`
+- Scope: `src/backend/logistics/middleware/auth.py`
 - Root cause: dependency became non-transitive after upgrades.
 - Remediation: added direct dependency `pydantic-settings>=2.14.1` in API manifest and regenerated lockfile.
 - Status: resolved.
 
 1. A2A service SDK API incompatibility
-- Signal: multiple basedpyright failures in `src/backend/agent-a2a/main.py` with `a2a-sdk` 1.x.
+- Signal: multiple basedpyright failures in `src/backend/recommendations/main.py` with `a2a-sdk` 1.x.
 - Root cause: current service code targets pre-1.0 A2A SDK surface.
-- Remediation: constrained agent-a2a project dependency to `a2a-sdk[http-server]>=0.3.25,<1.0.0` and regenerated lockfile.
+- Remediation: constrained recommendations project dependency to `a2a-sdk[http-server]>=0.3.25,<1.0.0` and regenerated lockfile.
 - Status: resolved.
 
 1. Frontend lint peer-compatibility warning
@@ -30,7 +30,7 @@ Regressions were detected during post-upgrade quality-gate execution and remedia
 1. API startup regression after dependency cleanup
 - Signal: API failed at startup with `ImportError: aiohttp package is not installed`.
 - Root cause: async Azure credential transport path requires aiohttp; package had been removed during lockfile refresh.
-- Remediation: added direct dependency `aiohttp>=3.13.2` to `src/backend/api/pyproject.toml` and regenerated `src/backend/api/uv.lock`.
+- Remediation: added direct dependency `aiohttp>=3.13.2` to `src/backend/logistics/pyproject.toml` and regenerated `src/backend/logistics/uv.lock`.
 - Status: resolved.
 
 1. Frontend CopilotKit/AG-UI runtime regression

@@ -99,9 +99,9 @@ main() {
   check_prerequisites
   install_python_versions
 
-  setup_python_project "src/backend/api" "api"
-  setup_python_project "src/backend/mcp" "mcp"
-  setup_python_project "src/backend/agent-a2a" "agent-a2a"
+  setup_python_project "src/backend/logistics" "logistics"
+  setup_python_project "src/backend/logistics-data" "logistics-data"
+  setup_python_project "src/backend/recommendations" "recommendations"
   setup_frontend
   setup_git_hooks
 

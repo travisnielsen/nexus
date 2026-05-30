@@ -4,7 +4,7 @@ $BackendDir = Join-Path $PSScriptRoot "..\backend"
 
 Write-Host "Setting up backend Python projects..." -ForegroundColor Cyan
 
-$projects = @("api", "mcp", "agent-a2a")
+$projects = @("logistics", "logistics-data", "recommendations")
 
 foreach ($project in $projects) {
     Write-Host ""

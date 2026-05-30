@@ -86,7 +86,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   │   │   └── utilization.json # Utilization schema
 │   │   └── pyproject.toml
 │   │
-│   └── agent-a2a/          # A2A Recommendations Agent
+│   └── recommendations/          # A2A Recommendations Agent
 │       ├── main.py            # A2A FastAPI application
 │       └── pyproject.toml
 │
@@ -108,9 +108,9 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │
 ├── .github/
 │   ├── workflows/         # GitHub Actions CI/CD
-│   │   ├── deploy-api.yml      # Deploy backend API to Container Apps
+│   │   ├── deploy-logistics.yml      # Deploy backend API to Container Apps
 │   │   ├── deploy-frontend.yml # Deploy Next.js frontend to Container Apps
-│   │   ├── deploy-mcp.yml      # Deploy MCP server to Container Apps
+│   │   ├── deploy-logistics-data.yml      # Deploy MCP server to Container Apps
 │   │   └── deploy-dashboard.yml # Deploy azure-dashboard to Storage static website
 │   └── copilot-instructions.md  # This file
 │
@@ -153,7 +153,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 
 ### Agent Tools
 
-Agent tools are defined in `src/backend/api/agents/tools/`. Each tool:
+Agent tools are defined in `src/backend/logistics/agents/tools/`. Each tool:
 1. Uses the `@tool` decorator from MAF with `name` and `description`
 2. Uses `Annotated` type hints with `Field` for parameter descriptions
 3. Returns structured dict data for UI state updates
@@ -169,7 +169,7 @@ Current tools in `logistics_agent.py`:
 | `get_historical_payload` | Get historical payload data for charts |
 | `get_predicted_payload` | Get predicted payload data for charts |
 
-**System Prompt**: Loaded from `src/backend/api/agents/prompts/logistics_agent.md` at runtime.
+**System Prompt**: Loaded from `src/backend/logistics/agents/prompts/logistics_agent.md` at runtime.
 
 Example tool pattern:
 ```python
@@ -200,9 +200,9 @@ The frontend maintains local display state and syncs filter context to the backe
 ### Data Access
 
 All flight data flows through the MCP server (source of truth):
-1. **MCP Server** (`src/backend/mcp/`) - Hosts all data with DuckDB for SQL queries
-2. **MCP Client** (`src/backend/api/agents/utils/mcp_client.py`) - HTTP client using `httpx`
-3. **Data Helpers** (`src/backend/api/agents/utils/data_helpers.py`) - Shared data access for agent tools
+1. **MCP Server** (`src/backend/logistics-data/`) - Hosts all data with DuckDB for SQL queries
+2. **MCP Client** (`src/backend/logistics/agents/utils/mcp_client.py`) - HTTP client using `httpx`
+3. **Data Helpers** (`src/backend/logistics/agents/utils/data_helpers.py`) - Shared data access for agent tools
 4. **Backend REST API** - Proxies MCP data to frontend
 
 The MCP server provides:
@@ -227,12 +227,12 @@ Filters use an additive pattern with context synchronization:
 Authentication uses Azure AD (Entra ID):
 - Frontend: MSAL React with `@azure/msal-browser`
 - Backend: `fastapi-azure-auth` middleware
-- MCP: Optional Entra ID auth via `src/backend/mcp/auth.py`
+- MCP: Optional Entra ID auth via `src/backend/logistics-data/auth.py`
 - Can be disabled with `AUTH_ENABLED=false` for development
 
 ### Environment Variables
 
-Backend API (`.env` in `/src/backend/api`):
+Backend API (`.env` in `/src/backend/logistics`):
 ```env
 FOUNDRY_PROJECT_ENDPOINT=https://...
 FOUNDRY_MODEL=gpt-4o-mini
@@ -261,14 +261,14 @@ NEXT_PUBLIC_AUTH_ENABLED=false  # Development only (default: true)
 
 ### Adding a New Agent Tool
 
-1. Create or update a file in `src/backend/api/agents/tools/` (naming convention: `*_tools.py`)
+1. Create or update a file in `src/backend/logistics/agents/tools/` (naming convention: `*_tools.py`)
 2. Define the tool function with `@tool` decorator (with `name` and `description`)
 3. Use `Annotated[type, Field(description="...")]` for parameters
-4. Export from `src/backend/api/agents/tools/__init__.py`
-5. Import in `src/backend/api/agents/logistics_agent.py`
+4. Export from `src/backend/logistics/agents/tools/__init__.py`
+5. Import in `src/backend/logistics/agents/logistics_agent.py`
 6. Add to the agent's tool list in `create_logistics_agent()`
 
-**Note**: Utility functions that are NOT LLM-callable should go in `src/backend/api/agents/utils/` instead.
+**Note**: Utility functions that are NOT LLM-callable should go in `src/backend/logistics/agents/utils/` instead.
 
 ### Adding a New Frontend Action
 
@@ -302,7 +302,7 @@ This starts four concurrent processes with colored output:
 - **[ui]** Next.js frontend on http://localhost:3000
 - **[mcp]** MCP server on http://localhost:8001
 - **[a2a]** A2A agent on http://localhost:5002
-- **[api]** Backend API on http://localhost:8000
+- **[logistics]** Backend API on http://localhost:8000
 
 ```bash
 # Or run with Docker Compose
@@ -311,16 +311,16 @@ docker compose --env-file src/frontend/.env.local up --build
 
 # Or start individually:
 # Frontend: cd src/frontend && npm run dev:ui
-# Backend API: cd src/backend/api && uv run uvicorn main:app --port 8000 --reload
-# MCP: cd src/backend/mcp && uv run uvicorn main:rest_app --port 8001 --reload
-# A2A: cd src/backend/agent-a2a && uv run uvicorn main:app --port 5002 --reload
+# Backend API: cd src/backend/logistics && uv run uvicorn main:app --port 8000 --reload
+# MCP: cd src/backend/logistics-data && uv run uvicorn main:rest_app --port 8001 --reload
+# A2A: cd src/backend/recommendations && uv run uvicorn main:app --port 5002 --reload
 ```
 
 ### Docker Development
 
 The project includes Docker Compose for local development:
 
-- **`docker-compose.yml`** - Orchestrates all 4 services (mcp, agent-a2a, backend, frontend)
+- **`docker-compose.yml`** - Orchestrates all 4 services (mcp, recommendations, backend, frontend)
 - **`Dockerfile.local`** - Backend with Azure CLI for credential pass-through
 - **`Dockerfile`** - Production build (no Azure CLI, uses Managed Identity)
 - **`.dockerignore`** - Each backend project has a `.dockerignore` to exclude local `.venv` directories
@@ -390,10 +390,10 @@ Five workflows handle CI/CD deployment to Azure:
 
 | Workflow | Trigger Path | Deploys To |
 |----------|--------------|------------|
-| `deploy-api.yml` | `src/backend/api/**` | Container App (API) |
+| `deploy-logistics.yml` | `src/backend/logistics/**` | Container App (API) |
 | `deploy-frontend.yml` | `src/frontend/**` | Container App (Frontend) |
-| `deploy-mcp.yml` | `src/backend/mcp/**` | Container App (MCP) |
-| `deploy-a2a.yml` | `src/backend/agent-a2a/**` | Container App (A2A) |
+| `deploy-logistics-data.yml` | `src/backend/logistics-data/**` | Container App (MCP) |
+| `deploy-recommendations.yml` | `src/backend/recommendations/**` | Container App (A2A) |
 | `deploy-dashboard.yml` | `src/monitoring/azure-dashboard/**` | Storage static website |
 
 ### Required GitHub Variables
@@ -457,13 +457,13 @@ VITE_LOG_ANALYTICS_WORKSPACE_ID=... # Log Analytics workspace to query
 
 1. **MCP is required** - The backend requires the MCP server to be running for flight data
 2. **A2A is optional** - Recommendations work without the A2A agent (fallback to mock data)
-3. **Patches must load first** - `src/backend/api/patches/` package must be imported before other modules
+3. **Patches must load first** - `src/backend/logistics/patches/` package must be imported before other modules
 4. **AG-UI protocol** - Agent communication uses Server-Sent Events (SSE)
 5. **Session management** - Uses `AgentSession` with `use_service_session=True`. Frontend creates Azure Foundry conversations (`conv_*` IDs) via `POST /api/conversations` and passes them as CopilotKit `threadId`.
 6. **Filter state** - Frontend tracks `activeFilter` locally; synced to backend via `useCopilotReadable` context
 7. **Additive filters** - `filter_flights` merges with existing filters; use `reset_filters` to clear first
 8. **Monitoring** - OpenTelemetry configured in `monitoring.py`; supports Azure Monitor and OTLP exporters
-9. **System prompts** - Agent instructions stored in `src/backend/api/agents/prompts/` as markdown files for easy editing
+9. **System prompts** - Agent instructions stored in `src/backend/logistics/agents/prompts/` as markdown files for easy editing
 
 ## Known Issues and Workarounds
 
@@ -483,7 +483,7 @@ If a user interacts with the UI (e.g., clicks Clear) while the agent is streamin
 
 ## Monitoring and Observability
 
-The backend uses OpenTelemetry for distributed tracing, configured in `src/backend/api/monitoring.py`.
+The backend uses OpenTelemetry for distributed tracing, configured in `src/backend/logistics/monitoring.py`.
 
 ### Configuration
 
@@ -568,7 +568,7 @@ dependencies
 
 **Note**: Each HTTP POST to `/logistics` creates a new `operation_Id` (trace).
 
-### Patches Package (`src/backend/api/patches/`)
+### Patches Package (`src/backend/logistics/patches/`)
 The patches package applies context synchronization workarounds:
 
 | Patch | File | Purpose |

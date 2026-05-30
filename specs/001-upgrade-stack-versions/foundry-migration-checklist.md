@@ -9,7 +9,7 @@ Migrate backend chat client usage to Foundry-native `FoundryChatClient` while pr
 ## Checklist
 
 - [X] Confirm authoritative docs/source for `FoundryChatClient` and current support status.
-- [X] Update `src/backend/api/clients.py` to use `agent_framework.foundry.FoundryChatClient`.
+- [X] Update `src/backend/logistics/clients.py` to use `agent_framework.foundry.FoundryChatClient`.
 - [X] Preserve return contract as `SupportsChatGetResponse`.
 - [X] Preserve async credential flow (`azure.identity.aio`).
 - [X] Maintain `create_logistics_agent` behavior and tool registration semantics.

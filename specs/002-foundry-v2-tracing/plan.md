@@ -46,7 +46,7 @@ Implement full, end-to-end tracing visibility per conversation turn in Foundry V
 - Must remove or simplify obsolete preview-era telemetry hooks when safe
 
 **Scale/Scope**:
-- In scope: `src/backend/api`, `src/backend/agent-a2a`, frontend CopilotKit proxy paths, monitoring docs/contracts
+- In scope: `src/backend/logistics`, `src/backend/recommendations`, frontend CopilotKit proxy paths, monitoring docs/contracts
 - Out of scope: redesign of business tools, MCP data model, and non-tracing product features
 
 ## Constitution Check
@@ -96,7 +96,7 @@ src/
 │   │   │   ├── logistics_agent.py
 │   │   │   └── tools/
 │   │   └── patches/
-│   └── agent-a2a/
+│   └── recommendations/
 │       └── main.py
 ├── frontend/
 │   └── src/

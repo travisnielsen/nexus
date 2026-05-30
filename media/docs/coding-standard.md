@@ -112,7 +112,7 @@ cursor.execute(query, (flight_id,))
 ### Quality Commands
 
 ```bash
-# Per project (from src/backend/api, src/backend/mcp, or src/backend/agent-a2a)
+# Per project (from src/backend/logistics, src/backend/logistics-data, or src/backend/recommendations)
 uv run poe check       # Lint + typecheck
 uv run poe format      # Format + auto-fix
 uv run poe lint        # Lint only
@@ -168,7 +168,7 @@ async with httpx.AsyncClient() as client:
 Each backend project is self-contained. Use direct imports within the project:
 
 ```python
-# From src/backend/api/
+# From src/backend/logistics/
 from agents.tools.filter_tools import filter_flights
 from agents.utils.mcp_client import MCPClient
 from middleware.auth import AzureADAuthMiddleware

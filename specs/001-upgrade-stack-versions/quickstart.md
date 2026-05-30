@@ -20,7 +20,7 @@ rg --files -g '**/package.json'
 
 ```bash
 # API service
-cd src/backend/api
+cd src/backend/logistics
 uv lock --upgrade
 uv sync --dev
 
@@ -30,7 +30,7 @@ uv lock --upgrade
 uv sync --dev
 
 # A2A service
-cd ../agent-a2a
+cd ../recommendations
 uv lock --upgrade
 uv sync --dev
 ```
@@ -49,9 +49,9 @@ npm install
 
 ## 5. Apply Foundry-native client migration
 
-- Update `src/backend/api/clients.py` to use `agent_framework.foundry.FoundryChatClient`.
+- Update `src/backend/logistics/clients.py` to use `agent_framework.foundry.FoundryChatClient`.
 - Keep `SupportsChatGetResponse` return contract unchanged.
-- Preserve existing agent behavior in `src/backend/api/agents/logistics_agent.py`.
+- Preserve existing agent behavior in `src/backend/logistics/agents/logistics_agent.py`.
 
 ## 6. Validate quality gates
 
@@ -65,7 +65,7 @@ npm run build
 ```
 
 Expected outcome:
-- Python checks: all ruff and basedpyright checks pass across api/mcp/agent-a2a.
+- Python checks: all ruff and basedpyright checks pass across api/mcp/recommendations.
 - Frontend checks: lint passes and Next.js production build completes.
 
 ## 7. Validate runtime and protocol behavior
