@@ -1,4 +1,4 @@
-# main.tf - Modular Infrastructure Configuration
+# main.tf - compatibility bootstrap for shared foundation resources
 
 # Data sources
 data "azurerm_client_config" "current" {}
@@ -6,6 +6,11 @@ data "azurerm_subscription" "current" {}
 
 data "external" "me" {
   program = ["az", "account", "show", "--query", "user"]
+}
+
+# Get the public IP of the machine running Terraform
+data "http" "deployer_ip" {
+  url = "https://api.ipify.org"
 }
 
 # Random naming
@@ -21,17 +26,6 @@ resource "random_string" "alpha_prefix" {
   length  = 1
   lower   = true
   numeric = false
-}
-
-# Local values with alphabetic prefix
-locals {
-  identifier = "${random_string.alpha_prefix.result}${random_string.naming.result}"
-  tags = {
-    Environment     = "Demo"
-    Owner          = lookup(data.external.me.result, "name")
-    SecurityControl = "Ignore"
-    ManagedBy      = "Terraform"
-  }
 }
 
 # Resource Group

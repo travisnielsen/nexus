@@ -14,6 +14,36 @@ It is assumed you have administrative permissions to an Azure subscription as we
 
 Coming soon
 
+## Validate Private Networking (After Deploy)
+
+From the `infra/` directory, run:
+
+```bash
+terraform output -raw resource_group_name
+
+az network private-dns zone list -g <resource-group-name> -o table
+az network private-endpoint list -g <resource-group-name> -o table
+
+az containerapp show -g <resource-group-name> -n "$(terraform output -raw frontend_container_app_name)" --query 'properties.configuration.ingress.external' -o tsv
+az containerapp show -g <resource-group-name> -n "$(terraform output -raw api_container_app_name)" --query 'properties.configuration.ingress.external' -o tsv
+az containerapp show -g <resource-group-name> -n "$(terraform output -raw mcp_container_app_name)" --query 'properties.configuration.ingress.external' -o tsv
+az containerapp show -g <resource-group-name> -n "$(terraform output -raw a2a_container_app_name)" --query 'properties.configuration.ingress.external' -o tsv
+```
+
+Expected exposure profile:
+- `frontend`: public ingress (`true`)
+- `logistics` API: public ingress (`true`)
+- `logistics-data` (MCP): internal ingress (`false`)
+- `recommendations`: internal ingress (`false`)
+
+Private endpoint checks:
+- Cosmos DB SQL endpoint is provisioned with private DNS (`privatelink.documents.azure.com`)
+- Foundry private endpoint is provisioned with private DNS (`privatelink.services.ai.azure.com`)
+
+NAT egress checks:
+- Confirm NAT Gateway is deployed and associated to the Container Apps infrastructure subnet.
+- Validate required outbound calls to public endpoints use the NAT egress path rather than default outbound access.
+
 ## Install Dependencies
 
 From the repository root, run:

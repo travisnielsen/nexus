@@ -152,3 +152,96 @@ Some Azure services (like AI Foundry) are only available in specific regions. Th
 - `eastus2` for AI Foundry resources
 
 Adjust `region` and `region_aifoundry` variables if needed.
+
+## Terraform to GitHub Variable Sync
+
+Use `infra/scripts/update-github-vars-from-terraform.sh` to synchronize selected Terraform outputs into GitHub repository variables used by deployment workflows.
+
+Requirements:
+- `terraform`
+- `gh` with authenticated session (`gh auth login`)
+
+Usage:
+
+```bash
+cd infra
+./scripts/update-github-vars-from-terraform.sh --repo <owner/repo> --dry-run
+./scripts/update-github-vars-from-terraform.sh --repo <owner/repo>
+```
+
+Execution permissions:
+
+```bash
+chmod +x ./scripts/update-github-vars-from-terraform.sh
+```
+
+Mapped variables:
+- `AZURE_SUBSCRIPTION_ID`
+- `AZURE_RESOURCE_GROUP`
+- `AZURE_CONTAINER_REGISTRY`
+- `AZURE_API_CONTAINER_APP_NAME`
+- `AZURE_FRONTEND_CONTAINER_APP_NAME`
+- `AZURE_MCP_CONTAINER_APP_NAME`
+- `AZURE_A2A_CONTAINER_APP_NAME`
+- `AGENT_API_BASE_URL`
+- `FOUNDRY_PROJECT_ENDPOINT`
+
+Script behavior:
+- Idempotent update logic (`added`, `changed`, `unchanged` summary)
+- Dry-run preview without mutating GitHub variables
+- Non-zero exit for missing required Terraform outputs or GitHub update failures
+
+Troubleshooting:
+- `GitHub CLI is not authenticated`: run `gh auth login` and retry.
+- Missing Terraform output mapping errors: run `terraform output -json | jq keys` and verify required outputs exist.
+- Variable update permission errors: ensure token/user has repository `Actions: write` access.
+
+## Private Endpoint DNS and Validation Runbook
+
+This environment uses private endpoints for in-scope data-plane dependencies and links private DNS zones to the workload VNET.
+
+Current private DNS zones:
+- `privatelink.documents.azure.com` (Cosmos DB SQL)
+- `privatelink.services.ai.azure.com` (Azure AI Foundry endpoint)
+
+Post-deployment validation flow:
+
+```bash
+# 1) Confirm private DNS zones and VNET links
+az network private-dns zone list -g "$(terraform output -raw resource_group_name)" -o table
+az network private-dns link vnet list -g "$(terraform output -raw resource_group_name)" -z privatelink.documents.azure.com -o table
+az network private-dns link vnet list -g "$(terraform output -raw resource_group_name)" -z privatelink.services.ai.azure.com -o table
+
+# 2) Confirm private endpoints are provisioned and connected
+az network private-endpoint list -g "$(terraform output -raw resource_group_name)" -o table
+
+# 3) Confirm Container Apps exposure model
+az containerapp show -g "$(terraform output -raw resource_group_name)" -n "$(terraform output -raw frontend_container_app_name)" --query 'properties.configuration.ingress.external' -o tsv
+az containerapp show -g "$(terraform output -raw resource_group_name)" -n "$(terraform output -raw api_container_app_name)" --query 'properties.configuration.ingress.external' -o tsv
+az containerapp show -g "$(terraform output -raw resource_group_name)" -n "$(terraform output -raw mcp_container_app_name)" --query 'properties.configuration.ingress.external' -o tsv
+az containerapp show -g "$(terraform output -raw resource_group_name)" -n "$(terraform output -raw a2a_container_app_name)" --query 'properties.configuration.ingress.external' -o tsv
+```
+
+Expected results:
+- Cosmos DB and Foundry private endpoint resources exist and are in `Approved` connection state.
+- Frontend and logistics API ingress are public (`true`).
+- MCP and recommendations ingress are internal-only (`false`).
+
+## NAT Egress Operator Guidance
+
+Design intent:
+- Workloads requiring public endpoint access egress through NAT Gateway rather than default outbound behavior.
+- NAT is associated to the Container Apps infrastructure subnet in this feature scope.
+
+Destination scope examples:
+- Public Microsoft control-plane/service endpoints required by platform components.
+- External package/image sources required during runtime operations where applicable.
+
+Troubleshooting NAT egress:
+
+```bash
+az network nat gateway show -g "$(terraform output -raw resource_group_name)" -n "$(terraform state show azurerm_nat_gateway.workload | awk '/name\s+=/{print $3}' | tr -d '"')"
+az network vnet subnet show -g "$(terraform output -raw resource_group_name)" --vnet-name "$(terraform state show azurerm_virtual_network.core | awk '/name\s+=/{print $3}' | tr -d '"')" --name snet-containerapps-infra --query natGateway.id -o tsv
+```
+
+If the subnet `natGateway.id` is empty, re-apply Terraform and verify `azurerm_subnet_nat_gateway_association.container_apps_infra` exists in state.
