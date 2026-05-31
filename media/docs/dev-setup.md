@@ -160,3 +160,43 @@ See [Getting Started](getting-started.md) for the full list of environment varia
 - [Coding Standard](coding-standard.md) — Code style and conventions
 - [Contributing](../../CONTRIBUTING.md) — Git conventions, PR guidelines
 - [Glossary](glossary.md) — Abbreviations and terms
+
+## Terraform Output Sync Script
+
+For infrastructure workflows, use `infra/scripts/update-github-vars-from-terraform.sh` to synchronize Terraform outputs to GitHub repository variables.
+
+Usage:
+
+```bash
+cd infra
+./scripts/update-github-vars-from-terraform.sh --repo <owner/repo> --dry-run
+./scripts/update-github-vars-from-terraform.sh --repo <owner/repo>
+```
+
+The script reports added/changed/unchanged variables and exits non-zero if required outputs are missing or variable updates fail.
+
+Recommended CI/CD operator flow:
+1. Run Terraform update (`terraform apply`) in `infra/`.
+1. Preview variable updates:
+
+```bash
+cd infra
+./scripts/update-github-vars-from-terraform.sh --repo <owner/repo> --dry-run
+```
+
+1. Apply variable updates:
+
+```bash
+./scripts/update-github-vars-from-terraform.sh --repo <owner/repo>
+```
+
+1. Trigger deployment workflows only after the sync reports no missing required values.
+
+## Azure Deployment Exposure Model
+
+When deploying to Azure Container Apps in this feature scope:
+- Frontend and logistics API stay publicly reachable.
+- logistics-data (MCP) and recommendations stay internal-only.
+
+Operational prerequisite for GitHub-hosted runners:
+- Azure Container Registry public network access must remain enabled so public runners can build/push/pull images during deployment workflows.

@@ -4,15 +4,21 @@ variable "subscription_id" {
 }
 
 variable "region" {
-  type    = string
-  default = "westus3"
+  type        = string
+  default     = "westus3"
   description = "Azure region to deploy resources."
 }
 
 variable "region_aifoundry" {
-  type    = string
-  default = "eastus2"
+  type        = string
+  default     = "eastus2"
   description = "Azure region to deploy AI Foundry resources."
+}
+
+variable "region_alternative" {
+  type        = string
+  default     = "eastus"
+  description = "Alternative Azure region to deploy resources."
 }
 
 variable "frontend_app_client_id" {
@@ -34,4 +40,10 @@ variable "mcp_app_client_id" {
 variable "github_actions_principal_id" {
   type        = string
   description = "Object ID of the GitHub Actions service principal (github-actions-nexus) for RBAC assignments."
+}
+
+variable "utility_vm_admin_password" {
+  type        = string
+  sensitive   = true
+  description = "Administrator password for the utility Windows VM; provide this value via terraform.tfvars."
 }

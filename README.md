@@ -61,6 +61,13 @@ The backend requires Azure AI Foundry for LLM access. Follow the steps in [infra
 
 > **Note**: For local development, you can set `auth_enabled = false` to skip authentication setup.
 
+Deployment exposure model for this feature:
+- Public ingress: frontend and logistics API
+- Internal-only ingress: logistics-data (MCP) and recommendations
+
+CI/CD prerequisite for public GitHub-hosted runners:
+- Azure Container Registry public network access remains enabled so hosted runners can push and pull deployment images.
+
 ### 2. Create Environment Files
 
 Create `.env` files for each module using the values from your Azure deployment:

@@ -67,12 +67,6 @@ output "storage_account_id" {
   value       = module.ai_foundry.storage_account_id
 }
 
-output "static_website_url" {
-  description = "Static website URL for the frontend"
-  value       = module.ai_storage.resource.primary_web_endpoint
-  sensitive   = true
-}
-
 # ==============================================================
 # Container App Outputs
 # ==============================================================
@@ -90,4 +84,82 @@ output "container_app_identity_client_id" {
 output "container_registry_login_server" {
   description = "Container Registry login server"
   value       = module.container_registry.resource.login_server
+}
+
+output "container_registry_name" {
+  description = "Container Registry resource name"
+  value       = module.container_registry.resource.name
+}
+
+# ==============================================================
+# Service Endpoint Outputs
+# ==============================================================
+
+output "frontend_url" {
+  description = "Container App URL for Next.js frontend"
+  value       = "https://${azurerm_container_app.frontend.ingress[0].fqdn}"
+}
+
+output "logistics_url" {
+  description = "Container App URL for backend API"
+  value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
+}
+
+output "logistics_mcp_url" {
+  description = "Container App URL for MCP server"
+  value       = "https://${azurerm_container_app.mcp.ingress[0].fqdn}"
+}
+
+output "recommendations_url" {
+  description = "Internal URL for the A2A recommendations agent"
+  value       = "https://${azurerm_container_app.a2a.ingress[0].fqdn}"
+}
+
+output "logistics_container_app_name" {
+  description = "Container App name for backend API"
+  value       = azurerm_container_app.api.name
+}
+
+output "frontend_container_app_name" {
+  description = "Container App name for frontend"
+  value       = azurerm_container_app.frontend.name
+}
+
+output "logistics_mcp_container_app_name" {
+  description = "Container App name for MCP service"
+  value       = azurerm_container_app.mcp.name
+}
+
+output "recommendations_container_app_name" {
+  description = "Container App name for recommendations service"
+  value       = azurerm_container_app.a2a.name
+}
+
+output "foundry_project_endpoint" {
+  description = "Foundry project endpoint used by backend services"
+  value       = local.ai_project_endpoint
+}
+
+# ==============================================================
+# GitHub Actions Deployment Variables (mapped to script expectations)
+# ==============================================================
+
+output "api_container_app_name" {
+  description = "Container App name for backend API (GitHub Actions mapping)"
+  value       = azurerm_container_app.api.name
+}
+
+output "mcp_container_app_name" {
+  description = "Container App name for MCP service (GitHub Actions mapping)"
+  value       = azurerm_container_app.mcp.name
+}
+
+output "a2a_container_app_name" {
+  description = "Container App name for A2A recommendations service (GitHub Actions mapping)"
+  value       = azurerm_container_app.a2a.name
+}
+
+output "api_url" {
+  description = "Backend API URL (GitHub Actions mapping)"
+  value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
 }

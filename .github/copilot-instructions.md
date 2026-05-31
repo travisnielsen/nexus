@@ -111,7 +111,7 @@ This is an **Enterprise Data Agent** - an agent-assisted logistics dashboard for
 │   │   ├── deploy-logistics.yml      # Deploy backend API to Container Apps
 │   │   ├── deploy-frontend.yml # Deploy Next.js frontend to Container Apps
 │   │   ├── deploy-logistics-data.yml      # Deploy MCP server to Container Apps
-│   │   └── deploy-dashboard.yml # Deploy azure-dashboard to Storage static website
+│   │   └── deploy-recommendations.yml # Deploy A2A recommendations service to Container Apps
 │   └── copilot-instructions.md  # This file
 │
 └── src/scripts/               # Setup and run scripts
@@ -350,7 +350,6 @@ The project deploys to Azure using Terraform (`infra/`). All resources are creat
 | **Container App (A2A)** | A2A recommendations agent (port 5002, internal only) |
 | **Container Registry** | Stores Docker images for all services |
 | **Storage Account (AI)** | AI Foundry blob storage and NL2SQL data |
-| **Storage Account (Dashboard)** | Static website hosting for azure-dashboard |
 | **AI Foundry Hub + Project** | Azure AI services, model deployments, agent service |
 | **Cosmos DB** | Thread storage for AI Foundry agent service |
 | **AI Search** | Vector search for RAG scenarios |
@@ -379,14 +378,13 @@ Key variables in `terraform.tfvars`:
 | `api_url` | Container App URL for backend API |
 | `mcp_url` | Container App URL for MCP server |
 | `a2a_url` | Internal URL for the A2A recommendations agent |
-| `dashboard_url` | Static website URL for azure-dashboard |
 | `dashboard_storage_account_name` | Storage account name for dashboard deployment |
 | `appinsights_instrumentation_key` | Application Insights instrumentation key (GUID) |
 | `appinsights_ingestion_endpoint` | Application Insights ingestion endpoint URL |
 
 ## GitHub Actions Deployment
 
-Five workflows handle CI/CD deployment to Azure:
+Four workflows handle CI/CD deployment to Azure:
 
 | Workflow | Trigger Path | Deploys To |
 |----------|--------------|------------|
@@ -394,7 +392,6 @@ Five workflows handle CI/CD deployment to Azure:
 | `deploy-frontend.yml` | `src/frontend/**` | Container App (Frontend) |
 | `deploy-logistics-data.yml` | `src/backend/logistics-data/**` | Container App (MCP) |
 | `deploy-recommendations.yml` | `src/backend/recommendations/**` | Container App (A2A) |
-| `deploy-dashboard.yml` | `src/monitoring/azure-dashboard/**` | Storage static website |
 
 ### Required GitHub Variables
 
@@ -411,25 +408,18 @@ Configure these in Settings → Secrets and variables → Actions → Variables:
 | `AZURE_API_CONTAINER_APP_NAME` | API container app name |
 | `AZURE_MCP_CONTAINER_APP_NAME` | MCP container app name |
 | `AZURE_A2A_CONTAINER_APP_NAME` | A2A recommendations agent container app name |
-| `AZURE_DASHBOARD_STORAGE_ACCOUNT` | Dashboard storage account name |
 | `NEXT_PUBLIC_AZURE_AD_CLIENT_ID` | Frontend app registration client ID |
 | `NEXT_PUBLIC_AZURE_AD_TENANT_ID` | Tenant ID for frontend auth |
 | `NEXT_PUBLIC_AUTH_ENABLED` | Enable auth in frontend (true/false) |
 | `NEXT_PUBLIC_APPINSIGHTS_INGESTION_ENDPOINT` | App Insights ingestion endpoint (optional) |
 | `AGENT_API_BASE_URL` | Backend API URL for frontend |
-| `VITE_AZURE_CLIENT_ID` | Dashboard app registration client ID |
-| `VITE_LOG_ANALYTICS_WORKSPACE_ID` | Log Analytics workspace ID for dashboard |
+| `FOUNDRY_PROJECT_ENDPOINT` | Azure AI Foundry project endpoint for backend service configuration |
 
-### Azure Dashboard Deployment
+### Infrastructure Refactor Precedence
 
-The `src/monitoring/azure-dashboard` is a Vite + React app that queries Application Insights for trace visualization. It deploys to Azure Storage static website hosting.
-
-Environment variables are baked in at build time:
-```env
-VITE_AZURE_CLIENT_ID=...       # App Registration for MSAL auth
-VITE_AZURE_TENANT_ID=...       # Azure AD tenant
-VITE_LOG_ANALYTICS_WORKSPACE_ID=... # Log Analytics workspace to query
-```
+- For private-networking refactors in `specs/003-private-networking`, the Cadence-style Terraform concern split under `infra/` is the authoritative structure.
+- Apply Azure AVM guidance within that structure; do not replace concern ownership boundaries with module-driven layout changes.
+- Keep dashboard static website infrastructure resources and compatibility outputs in place for 003 scope while the dashboard deployment workflow remains retired.
 
 ## Code Style Guidelines
 
@@ -580,5 +570,5 @@ Patches can be disabled via environment variables:
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
-shell commands, and other important information, read [specs/002-foundry-v2-tracing/plan.md](../specs/002-foundry-v2-tracing/plan.md)
+shell commands, and other important information, read [specs/003-private-networking/plan.md](../specs/003-private-networking/plan.md)
 <!-- SPECKIT END -->
