@@ -38,6 +38,19 @@ _a2a_agent: A2AAgent | None = None
 _tracer = trace.get_tracer("logistics.a2a")
 
 
+GET_RECOMMENDATIONS_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "flight_id": {
+            "type": ["string", "null"],
+            "description": "ID or flight number of the flight to show recommendations for. If not provided, uses the currently selected flight from the UI.",
+        },
+    },
+    "required": ["flight_id"],
+}
+
+
 def _get_a2a_agent() -> A2AAgent:
     """Get or create the A2A agent client."""
     global _a2a_agent
@@ -106,6 +119,7 @@ async def call_recommendations_agent(query: str) -> str:
 @tool(
     name="get_recommendations",
     description="Display risk mitigation recommendations for a high-risk or critical flight. Shows interactive recommendations in the chat with feedback options. Use when user asks about recommendations, mitigation strategies, or what to do about a risky flight. Can also show optimization suggestions for under-utilized (low risk) flights.",
+    schema=GET_RECOMMENDATIONS_SCHEMA,
 )
 async def get_recommendations(
     flight_id: Annotated[

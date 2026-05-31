@@ -19,9 +19,68 @@ from .trace_helpers import traced_tool_span
 logger = logging.getLogger(__name__)
 
 
+FILTER_FLIGHTS_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "route_from": {
+            "type": ["string", "null"],
+            "description": "Origin airport code (e.g., LAX)",
+        },
+        "route_to": {
+            "type": ["string", "null"],
+            "description": "Destination airport code (e.g., ORD)",
+        },
+        "utilization": {
+            "type": ["string", "null"],
+            "description": "Utilization filter: 'over' (>95% capacity), 'near_capacity' (85-95%), 'optimal' (50-85%), 'under' (<50%). Use 'over' for over capacity flights.",
+        },
+        "risk_level": {
+            "type": ["string", "null"],
+            "description": "Risk level filter: critical, high, medium, low",
+        },
+        "date_from": {
+            "type": ["string", "null"],
+            "description": "Start date (YYYY-MM-DD)",
+        },
+        "date_to": {
+            "type": ["string", "null"],
+            "description": "End date (YYYY-MM-DD)",
+        },
+        "limit": {
+            "type": ["integer", "null"],
+            "description": "Max flights to return (default 100, max 100)",
+        },
+    },
+    "required": [
+        "route_from",
+        "route_to",
+        "utilization",
+        "risk_level",
+        "date_from",
+        "date_to",
+        "limit",
+    ],
+}
+
+
+RESET_FILTERS_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "limit": {
+            "type": ["integer", "null"],
+            "description": "Max flights to return (default 100, max 100)",
+        },
+    },
+    "required": ["limit"],
+}
+
+
 @tool(
     name="filter_flights",
     description="Filter flights in the dashboard. Filters are ALWAYS additive - new filters combine with existing ones. Use reset_filters to clear all filters first.",
+    schema=FILTER_FLIGHTS_SCHEMA,
 )
 def filter_flights(
     route_from: Annotated[
@@ -108,6 +167,7 @@ def filter_flights(
 @tool(
     name="reset_filters",
     description="UI ACTION: Remove all active filters from the dashboard. Use ONLY when user explicitly wants to CLEAR or RESET filters, NOT for questions about flights. Trigger words: 'clear filter', 'reset filter', 'remove filter', 'show unfiltered'.",
+    schema=RESET_FILTERS_SCHEMA,
 )
 def reset_filters(
     limit: Annotated[

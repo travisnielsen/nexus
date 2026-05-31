@@ -39,11 +39,11 @@ data "azapi_resource" "ai_foundry_hub" {
 }
 
 locals {
-  # The endpoint property gives us the hub URL directly
-  # Format: https://<hub-name>-<random>.services.ai.azure.com/
-  ai_hub_endpoint     = data.azapi_resource.ai_foundry_hub.output.properties.endpoint
+  # Normalize endpoint domain to services.ai so private DNS/PE routing is used.
+  ai_hub_endpoint_raw = trimsuffix(data.azapi_resource.ai_foundry_hub.output.properties.endpoint, "/")
+  ai_hub_endpoint     = replace(local.ai_hub_endpoint_raw, ".cognitiveservices.azure.com", ".services.ai.azure.com")
   ai_project_name     = module.ai_foundry.ai_foundry_project_name["nexus"]
-  ai_project_endpoint = "${trimsuffix(local.ai_hub_endpoint, "/")}/api/projects/${local.ai_project_name}"
+  ai_project_endpoint = "${local.ai_hub_endpoint}/api/projects/${local.ai_project_name}"
 }
 
 resource "azurerm_user_assigned_identity" "api_identity" {

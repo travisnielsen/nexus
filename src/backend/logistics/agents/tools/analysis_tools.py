@@ -24,6 +24,41 @@ from .trace_helpers import traced_tool_span
 
 logger = logging.getLogger(__name__)
 
+ANALYZE_FLIGHTS_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "question": {
+            "type": "string",
+            "description": "The user's question about the currently displayed flights",
+            "default": "general summary",
+        },
+        "analyze_utilization": {
+            "type": ["string", "null"],
+            "description": "Optional: Filter analysis to specific utilization status ('optimal', 'over', 'under', 'near_capacity')",
+        },
+        "analyze_route_from": {
+            "type": ["string", "null"],
+            "description": "Optional: Filter analysis to flights from this airport code",
+        },
+        "analyze_route_to": {
+            "type": ["string", "null"],
+            "description": "Optional: Filter analysis to flights to this airport code",
+        },
+        "analyze_risk": {
+            "type": ["string", "null"],
+            "description": "Optional: Filter analysis to specific risk level ('critical', 'high', 'medium', 'low')",
+        },
+    },
+    "required": [
+        "question",
+        "analyze_utilization",
+        "analyze_route_from",
+        "analyze_route_to",
+        "analyze_risk",
+    ],
+}
+
 
 @tool(
     name="analyze_flights",
@@ -39,6 +74,7 @@ Optional filter parameters let you analyze subsets:
 
 These filters are for ANALYSIS ONLY - they do not change the dashboard view.
 """,
+    schema=ANALYZE_FLIGHTS_SCHEMA,
 )
 def analyze_flights(
     question: Annotated[

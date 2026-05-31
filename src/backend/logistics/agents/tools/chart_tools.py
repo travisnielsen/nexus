@@ -15,10 +15,51 @@ from pydantic import Field
 from ..utils import get_historical_sync, get_predictions_sync
 from .trace_helpers import traced_tool_span
 
+GET_PREDICTED_PAYLOAD_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "count": {
+            "type": "integer",
+            "description": "Number of prediction days to return.",
+            "default": 7,
+        },
+        "route": {
+            "type": ["string", "null"],
+            "description": "Optional route filter (e.g., 'LAX → ORD' or 'LAX-ORD').",
+        },
+    },
+    "required": ["count", "route"],
+}
+
+
+GET_HISTORICAL_PAYLOAD_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "days": {
+            "type": "integer",
+            "description": "Number of historical days to retrieve.",
+            "default": 7,
+        },
+        "include_predictions": {
+            "type": "boolean",
+            "description": "Whether to include prediction days.",
+            "default": True,
+        },
+        "route": {
+            "type": ["string", "null"],
+            "description": "Optional route filter (e.g., 'LAX → ORD' or 'LAX-ORD').",
+        },
+    },
+    "required": ["days", "include_predictions", "route"],
+}
+
 
 @tool(
     name="get_predicted_payload",
     description="Get predicted payload data for upcoming flights. This updates the dashboard display automatically.",
+    schema=GET_PREDICTED_PAYLOAD_SCHEMA,
 )
 def get_predicted_payload(
     count: Annotated[
@@ -45,6 +86,7 @@ def get_predicted_payload(
 @tool(
     name="get_historical_payload",
     description="Get historical payload data and predictions for trend analysis. This updates the dashboard chart.",
+    schema=GET_HISTORICAL_PAYLOAD_SCHEMA,
 )
 def get_historical_payload(
     days: Annotated[
