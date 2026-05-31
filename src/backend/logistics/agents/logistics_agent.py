@@ -11,11 +11,14 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
-from agent_framework import SupportsChatGetResponse
-from agent_framework.foundry import FoundryAgent
+from agent_framework import Agent, FunctionTool, SupportsChatGetResponse
+from agent_framework.foundry import FoundryAgent, to_prompt_agent
 from agent_framework_ag_ui import AgentFrameworkAgent
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from opentelemetry import trace
 
 from patches.agui_event_stream import attach_agui_context_sync
@@ -101,31 +104,71 @@ def _load_system_prompt() -> str:
     return prompt_path.read_text().strip()
 
 
+def _build_tools() -> list[FunctionTool | Callable[..., Any]]:
+    """Shared tool list for both bootstrap and runtime agents."""
+    return [
+        # Dashboard filter tools - these set activeFilter in state
+        # The frontend's useRenderToolCall triggers immediate REST fetch on tool start
+        filter_flights,
+        reset_filters,
+        # Analysis tools - answer questions about data
+        analyze_flights,
+        # Recommendations with feedback - calls A2A agent for dynamic recommendations
+        get_recommendations,
+        # Chart data tools
+        get_historical_payload,
+        get_predicted_payload,
+    ]
+
+
+async def ensure_foundry_agent_exists(chat_client: SupportsChatGetResponse) -> None:
+    """Create a Foundry prompt agent on first deployment when it does not exist."""
+    foundry_agent_name = os.getenv("FOUNDRY_AGENT_NAME", "logistics-agent")
+    project_client = chat_client.project_client  # pyright: ignore[reportAttributeAccessIssue]
+
+    try:
+        await project_client.agents.get(agent_name=foundry_agent_name)
+        logger.info("Foundry agent '%s' exists; using latest version", foundry_agent_name)
+        return
+    except ResourceNotFoundError:
+        logger.info("Foundry agent '%s' not found; creating initial version", foundry_agent_name)
+    except HttpResponseError:
+        # Propagate non-404 API failures so startup fails fast with a clear platform error.
+        raise
+
+    seed_agent = Agent(
+        client=chat_client,
+        name=foundry_agent_name,
+        description="Manages shipping logistics data, flight payloads, and utilization analysis.",
+        instructions=_load_system_prompt(),
+        tools=_build_tools(),
+    )
+
+    created = await project_client.agents.create_version(
+        agent_name=foundry_agent_name,
+        definition=to_prompt_agent(seed_agent),
+        description="Initial logistics agent version created during startup bootstrap.",
+    )
+    logger.info(
+        "Created Foundry agent '%s' initial version '%s'",
+        foundry_agent_name,
+        getattr(created, "version", "unknown"),
+    )
+
+
 def create_logistics_agent(chat_client: SupportsChatGetResponse) -> AgentFrameworkAgent:
     """Instantiate the Logistics demo agent backed by Microsoft Agent Framework."""
     foundry_agent_name = os.getenv("FOUNDRY_AGENT_NAME", "logistics-agent")
-    foundry_agent_version = os.getenv("FOUNDRY_AGENT_VERSION") or None
 
     base_agent = FoundryAgent(
         project_client=chat_client.project_client,  # pyright: ignore[reportAttributeAccessIssue]
         agent_name=foundry_agent_name,
-        agent_version=foundry_agent_version,
+        # Always bind by name and let Foundry resolve latest active version.
+        agent_version=None,
         name="logistics-agent",
         id="logistics-agent",
         instructions=_load_system_prompt(),
-        tools=[
-            # Dashboard filter tools - these set activeFilter in state
-            # The frontend's useRenderToolCall triggers immediate REST fetch on tool start
-            filter_flights,
-            reset_filters,
-            # Analysis tools - answer questions about data
-            analyze_flights,
-            # Recommendations with feedback - calls A2A agent for dynamic recommendations
-            get_recommendations,
-            # Chart data tools
-            get_historical_payload,
-            get_predicted_payload,
-        ],
+        tools=_build_tools(),
     )
 
     agui_agent = AgentFrameworkAgent(

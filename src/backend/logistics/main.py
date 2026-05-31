@@ -21,7 +21,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 # See patches.py for details on the issues being fixed.
 # ============================================================================
 import patches  # noqa: F401 - side effects only
-from agents import create_logistics_agent  # type: ignore
+from agents import create_logistics_agent, ensure_foundry_agent_exists  # type: ignore
 from agents.tools.trace_helpers import validate_trace_identity_payload
 from agents.utils import (
     TraceIdentityHeaders,
@@ -88,6 +88,9 @@ async def _init_chat_client():
     from clients import build_responses_client  # type: ignore
 
     chat_client = build_responses_client()
+
+    # First deployment bootstrap: create Foundry agent if missing.
+    await ensure_foundry_agent_exists(chat_client)
 
     logistics_agent = create_logistics_agent(chat_client)
 
