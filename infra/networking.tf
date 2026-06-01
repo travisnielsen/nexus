@@ -33,6 +33,13 @@ resource "azurerm_subnet" "foundry_injection" {
   resource_group_name  = azurerm_resource_group.shared_rg.name
   virtual_network_name = azurerm_virtual_network.core.name
   address_prefixes     = [local.subnet_prefixes.foundry_injection]
+
+  delegation {
+    name = "agent-delegation"
+    service_delegation {
+      name = "Microsoft.App/environments"
+    }
+  }
 }
 
 resource "azurerm_subnet" "utility" {
@@ -48,6 +55,12 @@ resource "azurerm_private_dns_zone" "cosmos_sql" {
   tags                = local.tags
 }
 
+resource "azurerm_private_dns_zone" "storage_blob" {
+  name                = "privatelink.blob.core.windows.net"
+  resource_group_name = azurerm_resource_group.shared_rg.name
+  tags                = local.tags
+}
+
 resource "azurerm_private_dns_zone_virtual_network_link" "cosmos_sql" {
   name                  = "${local.identifier}-cosmos-link"
   private_dns_zone_name = azurerm_private_dns_zone.cosmos_sql.name
@@ -57,8 +70,29 @@ resource "azurerm_private_dns_zone_virtual_network_link" "cosmos_sql" {
   tags                  = local.tags
 }
 
+resource "azurerm_private_dns_zone_virtual_network_link" "storage_blob" {
+  name                  = "${local.identifier}-storage-link"
+  private_dns_zone_name = azurerm_private_dns_zone.storage_blob.name
+  resource_group_name   = azurerm_resource_group.shared_rg.name
+  virtual_network_id    = azurerm_virtual_network.core.id
+  registration_enabled  = false
+  tags                  = local.tags
+}
+
 resource "azurerm_private_dns_zone" "foundry" {
   name                = "privatelink.services.ai.azure.com"
+  resource_group_name = azurerm_resource_group.shared_rg.name
+  tags                = local.tags
+}
+
+resource "azurerm_private_dns_zone" "foundry_cognitiveservices" {
+  name                = "privatelink.cognitiveservices.azure.com"
+  resource_group_name = azurerm_resource_group.shared_rg.name
+  tags                = local.tags
+}
+
+resource "azurerm_private_dns_zone" "foundry_openai" {
+  name                = "privatelink.openai.azure.com"
   resource_group_name = azurerm_resource_group.shared_rg.name
   tags                = local.tags
 }
@@ -72,6 +106,24 @@ resource "azurerm_private_dns_zone" "search" {
 resource "azurerm_private_dns_zone_virtual_network_link" "foundry" {
   name                  = "${local.identifier}-foundry-link"
   private_dns_zone_name = azurerm_private_dns_zone.foundry.name
+  resource_group_name   = azurerm_resource_group.shared_rg.name
+  virtual_network_id    = azurerm_virtual_network.core.id
+  registration_enabled  = false
+  tags                  = local.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "foundry_cognitiveservices" {
+  name                  = "${local.identifier}-foundry-cognitiveservices-link"
+  private_dns_zone_name = azurerm_private_dns_zone.foundry_cognitiveservices.name
+  resource_group_name   = azurerm_resource_group.shared_rg.name
+  virtual_network_id    = azurerm_virtual_network.core.id
+  registration_enabled  = false
+  tags                  = local.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "foundry_openai" {
+  name                  = "${local.identifier}-foundry-openai-link"
+  private_dns_zone_name = azurerm_private_dns_zone.foundry_openai.name
   resource_group_name   = azurerm_resource_group.shared_rg.name
   virtual_network_id    = azurerm_virtual_network.core.id
   registration_enabled  = false

@@ -201,7 +201,10 @@ Troubleshooting:
 This environment uses private endpoints for in-scope data-plane dependencies and links private DNS zones to the workload VNET.
 
 Current private DNS zones:
+- `privatelink.blob.core.windows.net` (Storage account)
 - `privatelink.documents.azure.com` (Cosmos DB SQL)
+- `privatelink.cognitiveservices.azure.com` (Azure AI Foundry account)
+- `privatelink.openai.azure.com` (Azure AI Foundry account)
 - `privatelink.services.ai.azure.com` (Azure AI Foundry endpoint)
 
 Post-deployment validation flow:
@@ -209,7 +212,10 @@ Post-deployment validation flow:
 ```bash
 # 1) Confirm private DNS zones and VNET links
 az network private-dns zone list -g "$(terraform output -raw resource_group_name)" -o table
+az network private-dns link vnet list -g "$(terraform output -raw resource_group_name)" -z privatelink.blob.core.windows.net -o table
 az network private-dns link vnet list -g "$(terraform output -raw resource_group_name)" -z privatelink.documents.azure.com -o table
+az network private-dns link vnet list -g "$(terraform output -raw resource_group_name)" -z privatelink.cognitiveservices.azure.com -o table
+az network private-dns link vnet list -g "$(terraform output -raw resource_group_name)" -z privatelink.openai.azure.com -o table
 az network private-dns link vnet list -g "$(terraform output -raw resource_group_name)" -z privatelink.services.ai.azure.com -o table
 
 # 2) Confirm private endpoints are provisioned and connected
@@ -223,9 +229,11 @@ az containerapp show -g "$(terraform output -raw resource_group_name)" -n "$(ter
 ```
 
 Expected results:
-- Cosmos DB and Foundry private endpoint resources exist and are in `Approved` connection state.
+- Storage, Cosmos DB, and Foundry private endpoint resources exist and are in `Approved` connection state.
 - Frontend and logistics API ingress are public (`true`).
 - MCP and recommendations ingress are internal-only (`false`).
+
+If the utility VM still shows a private-access warning in the Foundry portal, verify private DNS resolution from that VM first. Foundry networking is validated through private endpoint reachability and DNS, not a subnet-based portal allow-list.
 
 ## NAT Egress Operator Guidance
 
