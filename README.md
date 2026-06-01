@@ -40,6 +40,80 @@ An AI-powered logistics dashboard that combines conversational interfaces with r
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+## Azure Infrastructure Topology
+
+### Private Networking Architecture
+
+All Azure services communicate over a private VNet with no public endpoints exposed for backend data services. The networking is structured across four subnet roles:
+
+| Subnet role | Purpose |
+|-------------|---------|
+| Container Apps infrastructure subnet | Container Apps Environment (delegated to `Microsoft.App/environments`) |
+| Private endpoint subnet | Private endpoints for all PaaS services |
+| Foundry injection subnet | AI Foundry Agent Service network injection (delegated to `Microsoft.App/environments`) |
+| Utility subnet | Utility/jumpbox VM access for private network diagnostics |
+
+### AI Foundry Agent Service — Capability Hosts
+
+The Foundry Agent Service uses a two-tier **capability host** chain to enable Cosmos DB-backed session/thread storage:
+
+```
+AI Foundry Account
+  └── capabilityHost (account-level)          ← required prerequisite for project capability host
+        ├── capabilityHostKind: Agents
+        └── customerSubnet: <foundry-injection-subnet>
+
+AI Foundry Project
+  └── capabilityHost (project-level)          ← wired to BYO data services
+        ├── storageConnections: [blob storage]
+        ├── threadStorageConnections: [cosmos db]
+        └── vectorStoreConnections: [ai search]
+```
+
+**Network injection** routes all agent service traffic through the Foundry injection subnet. This subnet must be delegated to `Microsoft.App/environments` for the capability host to accept the customer subnet.
+
+> **Important**: In a standard private networking deployment, the platform creates the required capability-host chain as part of setup. In this repository's current Terraform path (AVM module `Azure/avm-ptn-aiml-ai-foundry/azurerm` with `network_injections` enabled), the account-level capability host may need a one-time bootstrap via Azure REST API (`2025-10-01-preview`) before Terraform can create the project-level capability host.
+
+### Microsoft Learn References
+
+| Topic | Document |
+|-------|----------|
+| Network isolation overview (inbound + outbound, VNet injection, DNS) | [How to configure network isolation for Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/how-to/configure-private-link) |
+| VNet injection step-by-step, subnet delegation, BYO resources, DNS zone table | [Set up private networking for Foundry Agent Service](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/virtual-networks) |
+| Architecture deep-dive: capability host, data proxy, IP allocation, subnet sizing | [Deep dive into Foundry Agent Service networking](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/agents-networking-deep-dive) |
+| Subnet delegation to `Microsoft.App/environments`, sizing, IP reservation rules | [Virtual network configuration – Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/custom-virtual-networks) |
+
+### Bring-Your-Own (BYO) Services
+
+The Foundry project connects to customer-managed instances of each backing service (`create_byor = false`):
+
+| Service | Role | Connection type |
+|---------|------|-----------------|
+| **Cosmos DB** | Thread/session storage for Foundry Agent conversations | `threadStorageConnections` |
+| **Azure Blob Storage** | Agent artifact and file storage | `storageConnections` |
+| **Azure AI Search** | Vector store for RAG | `vectorStoreConnections` |
+
+The project's system-managed identity is granted:
+- `Cosmos DB Built-in Data Contributor` (scoped to the enterprise memory database)
+- `Storage Blob Data Owner` (scoped to project containers)
+
+### Private DNS Zones
+
+All DNS zones are linked to the core VNet and resolve service hostnames to private IP addresses in `snet-private-endpoints`:
+
+| DNS Zone | Service |
+|----------|---------|
+| `privatelink.services.ai.azure.com` | Azure AI Foundry (primary endpoint) |
+| `privatelink.cognitiveservices.azure.com` | Azure AI Foundry (Cognitive Services endpoint) |
+| `privatelink.openai.azure.com` | Azure OpenAI model deployments |
+| `privatelink.search.windows.net` | Azure AI Search |
+| `privatelink.documents.azure.com` | Azure Cosmos DB (SQL API) |
+| `privatelink.blob.core.windows.net` | Azure Blob Storage |
+
+The `FOUNDRY_PROJECT_ENDPOINT` env var uses the `.services.ai.azure.com` domain so that Container App traffic resolves via private DNS and routes through the private endpoint rather than the public Cognitive Services hostname.
+
+---
+
 ## Documentation
 
 - **[Getting Started](media/docs/getting-started.md)** — Prerequisites, installation, configuration, and running the application locally

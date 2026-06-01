@@ -117,7 +117,7 @@ resource "azurerm_container_app" "api" {
       }
       env {
         name  = "FOUNDRY_MODEL"
-        value = "gpt-4o-mini"
+        value = "gpt-5.2-chat"
       }
       env {
         name  = "FOUNDRY_EMBEDDING_MODEL"
@@ -388,7 +388,7 @@ resource "azurerm_container_app" "a2a" {
 
       env {
         name  = "FOUNDRY_MODEL"
-        value = "gpt-4.1-mini"
+        value = "gpt-5.2-chat"
       }
     }
   }

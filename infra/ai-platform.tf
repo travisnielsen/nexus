@@ -48,8 +48,12 @@ module "ai_foundry" {
 
   # AI Foundry configuration - enable agent service for thread storage in Cosmos DB
   ai_foundry = {
-    create_ai_agent_service       = false
-    private_dns_zone_resource_ids = [azurerm_private_dns_zone.foundry.id]
+    create_ai_agent_service = true
+    private_dns_zone_resource_ids = [
+      azurerm_private_dns_zone.foundry.id,
+      azurerm_private_dns_zone.foundry_cognitiveservices.id,
+      azurerm_private_dns_zone.foundry_openai.id,
+    ]
     network_injections = [
       {
         scenario                   = "agent"
