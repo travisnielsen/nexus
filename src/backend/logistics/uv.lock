@@ -209,9 +209,9 @@ name = "aiologic"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "sniffio" },
+    { name = "sniffio", marker = "python_full_version < '3.13'" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
-    { name = "wrapt" },
+    { name = "wrapt", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a8/13/50b91a3ea6b030d280d2654be97c48b6ed81753a50286ee43c646ba36d3c/aiologic-0.16.0.tar.gz", hash = "sha256:c267ccbd3ff417ec93e78d28d4d577ccca115d5797cdbd16785a551d9658858f", size = 225952, upload-time = "2025-11-27T23:48:41.195Z" }
 wheels = [
@@ -274,6 +274,7 @@ dependencies = [
     { name = "agent-framework-foundry" },
     { name = "aiohttp" },
     { name = "azure-ai-projects" },
+    { name = "azure-cosmos" },
     { name = "azure-identity" },
     { name = "azure-monitor-opentelemetry" },
     { name = "fastapi" },
@@ -303,6 +304,7 @@ requires-dist = [
     { name = "agent-framework-foundry", specifier = ">=1.7.0" },
     { name = "aiohttp", specifier = ">=3.13.2" },
     { name = "azure-ai-projects", specifier = ">=2.1.0" },
+    { name = "azure-cosmos", specifier = ">=4.14.1" },
     { name = "azure-identity", specifier = ">=1.25.3" },
     { name = "azure-monitor-opentelemetry", specifier = ">=1.8.8" },
     { name = "fastapi", specifier = ">=0.133.0,<0.133.1" },
@@ -396,6 +398,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ce/ab/a937e4af8afec9d437d55252f2a3a4419fc3fc7d5e5d54022622bd11b2b6/azure_core_tracing_opentelemetry-1.0.0b13.tar.gz", hash = "sha256:6cb2f8dfd5dee6c11843db0205fc92e2434e1a272c169c953afe92483aafc7eb", size = 25832, upload-time = "2026-05-01T00:59:57.941Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/43/01/8898c2506cae6a57c1b76d930d2af94764a65354bc863feb2684235851ce/azure_core_tracing_opentelemetry-1.0.0b13-py3-none-any.whl", hash = "sha256:4dacd3a9f117f11f98e89305e161c951b8df85b984f3b56130614de9cd9887f9", size = 12112, upload-time = "2026-05-01T00:59:59.149Z" },
+]
+
+[[package]]
+name = "azure-cosmos"
+version = "4.16.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fe/2a/0f2bba256e56626ba2cec97ab81dd002ff47ead1329767760b619afd927a/azure_cosmos-4.16.1.tar.gz", hash = "sha256:fa15d13702b470265a67e2dd9c0794021e6b776856dac6c223dcacc4d8e1d8d1", size = 2377651, upload-time = "2026-06-02T01:08:07.656Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/b4/9c984ad33ca9e5c378ea472fc9aa38e719c245a4fa58a99d6dabbe0f9a17/azure_cosmos-4.16.1-py3-none-any.whl", hash = "sha256:43717215ec1433c1ea0f0e3d465f9182fb5afff3ae2331e595367122297872f1", size = 499044, upload-time = "2026-06-02T01:08:10.111Z" },
 ]
 
 [[package]]
@@ -700,7 +715,7 @@ name = "culsans"
 version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiologic" },
+    { name = "aiologic", marker = "python_full_version < '3.13'" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d9/e3/49afa1bc180e0d28008ec6bcdf82a4072d1c7a41032b5b759b60814ca4b0/culsans-0.11.0.tar.gz", hash = "sha256:0b43d0d05dce6106293d114c86e3fb4bfc63088cfe8ff08ed3fe36891447fe33", size = 107546, upload-time = "2025-12-31T23:15:38.196Z" }

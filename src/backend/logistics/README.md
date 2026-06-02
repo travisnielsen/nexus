@@ -149,12 +149,24 @@ PATCH_AGUI_CONTEXT_SYNC=false
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check |
+| `/api/conversations` | POST | Create a Foundry `conv_*` conversation ID for chat/session continuity |
+| `/api/sessions` | GET | List latest user-scoped sessions (zero-turn sessions excluded) |
+| `/api/sessions/{session_id}` | GET | Load session transcript, linkage, and artifact restoration manifest |
+| `/api/sessions/{session_id}` | PATCH | Rename a session title |
+| `/api/sessions/{session_id}` | DELETE | Soft-delete a session from product history |
 | `/logistics/data/flights` | GET | Get flights with filtering |
 | `/logistics/data/flights/{id}` | GET | Get a specific flight |
 | `/logistics/data/summary` | GET | Get flight statistics |
 | `/logistics/data/historical` | GET | Get historical data with predictions |
-| `/copilotkit` | POST | AG-UI SSE endpoint for CopilotKit |
+| `/logistics` | POST (SSE) | AG-UI runtime endpoint used by CopilotKit proxy |
 | `/recommendations/feedback` | POST | Submit feedback on recommendations |
+
+## Session Persistence Notes
+
+- Session APIs are user-scoped through backend auth middleware and request user identity resolution.
+- Transcript replay source contract uses Foundry Conversations API items list operations (no raw Cosmos transcript parsing).
+- Session metadata bootstrap uses idempotent create-if-not-exists for configured Cosmos database/container.
+- Current metadata repository is an in-memory scaffold; service bootstrap and contracts are prepared for Cosmos-backed repository wiring.
 
 ## Patches
 

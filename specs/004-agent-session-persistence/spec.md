@@ -26,6 +26,8 @@
 - Q: How broad should AG-UI artifact restoration be in the first release? -> A: Rehydrate only a defined supported subset in v1, with transcript fallback for all other artifacts.
 - Q: How should default session titles be generated? -> A: Use the first meaningful user message, truncated, with a timestamp fallback, and always display session date/time in the history list.
 - Q: How should the history list handle sessions that can no longer be restored? -> A: Keep them visible with an unavailable state and block resume.
+- Q: How should newly created but zero-turn sessions be handled in history? -> A: Do not show sessions in history until at least one user turn is persisted.
+- Q: Should session history be available when running without authentication? -> A: No. In no-auth mode, session history sidebar/features are not available.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -43,6 +45,8 @@ As a returning user, I can open session history and resume a prior conversation 
 2. **Given** a persisted session in the history list, **When** the user selects that session, **Then** the chat window loads the prior user and agent messages for that session.
 3. **Given** a user resumes a prior session, **When** the user sends a new message, **Then** the agent continues the existing conversation rather than starting a disconnected new one.
 4. **Given** a user resumes a session that contains previously established agent context, **When** the session finishes loading, **Then** the agent can use that context in its next response.
+5. **Given** a session was created but has no persisted user turn yet, **When** history is rendered, **Then** that zero-turn session is not shown in the visible session list.
+6. **Given** the app is running in no-auth mode, **When** the user opens chat, **Then** the session history sidebar is not shown and session history actions are unavailable.
 
 ---
 
@@ -108,6 +112,12 @@ As a user reviewing an earlier conversation, I can see prior tool-generated chat
 - **FR-018**: The system MUST provide clear user-visible states for loading, unavailable history, partial restoration, rename failure, and delete failure outcomes.
 - **FR-019**: If a user attempts to switch sessions while an agent run is active, the system MUST require the active run to finish or be explicitly canceled before switching.
 - **FR-020**: If a session remains listed but its backing history can no longer be restored, the system MUST keep the session visible with an unavailable state and MUST block resume attempts for that entry.
+- **FR-021**: The frontend MUST persist session history view state and session metadata cache locally in browser localStorage so session list interactions are immediately responsive.
+- **FR-022**: On application startup, the frontend MUST hydrate session state from localStorage first, then synchronize with backend session APIs and reconcile differences deterministically.
+- **FR-023**: User interactions for session rename and delete MUST apply locally first for responsiveness and MUST then invoke backend APIs for durable thread metadata updates/deletes.
+- **FR-024**: If local and backend session states diverge, the system MUST reconcile to backend-authoritative durable state while preserving clear user feedback about pending, synced, or failed operations.
+- **FR-025**: The session history list MUST exclude zero-turn conversations and only include sessions with at least one persisted user turn (a Foundry conversation item with `type=message` and `role=user` retrievable through supported Conversations APIs).
+- **FR-026**: When authentication is disabled (no-auth mode), the session history sidebar and session history actions (list/load/rename/delete) MUST be unavailable in the frontend.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -129,6 +139,10 @@ As a user reviewing an earlier conversation, I can see prior tool-generated chat
 - **SC-006**: Authorization and privacy validation shows zero cases where one user can view, rename, delete, or resume another user's session.
 - **SC-007**: 100% of sessions shown in the 20-entry history list receive an initial user-friendly title before first display and show a date/time indicator in the list.
 - **SC-008**: 100% of unrecoverable sessions that remain in the visible history list are marked unavailable and do not allow resume attempts.
+- **SC-009**: At least 95% of session history open, rename, and delete interactions render immediate local UI feedback within 100 ms before backend round-trip completion.
+- **SC-010**: At least 99% of local-to-backend sync operations converge to backend-authoritative state within 10 seconds of app startup or mutation dispatch under normal network conditions.
+- **SC-011**: 100% of zero-turn conversations are excluded from visible session history in validation scenarios covering fresh page load and immediate switch-to-history behavior.
+- **SC-012**: 100% of no-auth mode validation runs show no session history sidebar/actions and no session history API calls initiated from the UI.
 
 ## Assumptions
 
@@ -142,3 +156,6 @@ As a user reviewing an earlier conversation, I can see prior tool-generated chat
 - Unrecoverable sessions may remain visible in the history list for user awareness, but they are non-resumable and clearly marked unavailable.
 - Session deletion hides the session from the product experience immediately, while underlying Foundry or platform retention rules may remove the backing record later.
 - The flyout session history experience will remain usable across supported desktop and responsive layouts without requiring a separate mobile-only workflow.
+- Browser localStorage is available for supported clients and session cache keys can be scoped to authenticated user context.
+- Conversation creation may occur before the first user turn; those zero-turn sessions are intentionally hidden from session history until a user message is persisted.
+- No-auth mode is treated as a chat-only experience and does not expose session history features.

@@ -28,6 +28,16 @@ from .mcp_client import (
     get_routes_from_mcp,
     get_routes_sync,
 )
+from .session_models import (
+    CanonicalSessionLinkage,
+    SessionBlockedResponse,
+    SessionErrorResponse,
+    SessionListResponse,
+    SessionLoadResponse,
+    SessionMutationResult,
+    SessionRenameRequest,
+    SessionSummary,
+)
 from .trace_context import clear_trace_identity, get_trace_identity, set_trace_identity
 from .trace_models import TraceIdentity, TraceIdentityHeaders
 
@@ -56,6 +66,14 @@ __all__ = [
     "get_historical_sync",
     "get_predictions_sync",
     "get_routes_sync",
+    "CanonicalSessionLinkage",
+    "SessionSummary",
+    "SessionListResponse",
+    "SessionLoadResponse",
+    "SessionBlockedResponse",
+    "SessionErrorResponse",
+    "SessionRenameRequest",
+    "SessionMutationResult",
     "TraceIdentity",
     "TraceIdentityHeaders",
     "set_trace_identity",

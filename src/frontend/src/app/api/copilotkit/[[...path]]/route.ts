@@ -3,10 +3,41 @@ import {
   ExperimentalEmptyAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
+import { InMemoryAgentRunner } from "@copilotkit/runtime/v2";
 import { HttpAgent } from "@ag-ui/client";
 import { NextRequest, NextResponse } from "next/server";
 
 import { extractTraceIdentityFromBody } from "@/lib/traceTypes";
+
+// CopilotKit's InMemoryAgentRunner keeps a module-scoped per-thread `isRunning`
+// flag. If a prior run's SSE stream is still in flight (client aborted, backend
+// slow) a new run on the same thread throws "Thread already running". Patch
+// run() to stop the stale run and retry once so the next user interaction
+// recovers instead of failing.
+const proto = InMemoryAgentRunner.prototype as unknown as {
+  run: (request: { threadId: string; [k: string]: unknown }) => unknown;
+  stop: (request: { threadId: string }) => Promise<boolean>;
+  __nexusPatched?: boolean;
+};
+if (!proto.__nexusPatched) {
+  const originalRun = proto.run;
+  const originalStop = proto.stop;
+  proto.run = function patchedRun(request) {
+    try {
+      return originalRun.call(this, request);
+    } catch (err) {
+      if (err instanceof Error && err.message === "Thread already running") {
+        console.warn(
+          `[copilotkit] Recovering stale 'Thread already running' for ${request.threadId}`,
+        );
+        void originalStop.call(this, { threadId: request.threadId }).catch(() => {});
+        return originalRun.call(this, request);
+      }
+      throw err;
+    }
+  };
+  proto.__nexusPatched = true;
+}
 
 const AGENT_API_BASE_URL = process.env.AGENT_API_BASE_URL || "http://localhost:8000";
 const LOGISTICS_AGENT_URL =
