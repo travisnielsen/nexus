@@ -5,6 +5,7 @@ import {
   listSessions,
   loadSession,
   renameSession,
+  type SessionBlockedResponse,
   type SessionLoadApiResponse,
   type SessionLoadResponse,
   type SessionMutationResult,
@@ -39,6 +40,12 @@ export interface SessionHistoryState {
   ) => Promise<SessionLoadResponse | null>;
   rename: (sessionId: string, title: string) => Promise<void>;
   remove: (sessionId: string) => Promise<void>;
+}
+
+function isBlockedSessionResponse(
+  payload: SessionLoadApiResponse,
+): payload is SessionBlockedResponse {
+  return "blocked" in payload && payload.blocked === true;
 }
 
 export function useSessionHistory(
@@ -125,7 +132,7 @@ export function useSessionHistory(
           undefined,
           accessToken,
         );
-        if ("blocked" in payload && payload.blocked) {
+        if (isBlockedSessionResponse(payload)) {
           setError(payload.reason || "Session is unavailable and cannot be resumed");
           setLoadedSession(null);
           setRestorationStatus("none");
