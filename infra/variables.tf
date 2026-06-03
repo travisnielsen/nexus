@@ -47,3 +47,21 @@ variable "utility_vm_admin_password" {
   sensitive   = true
   description = "Administrator password for the utility Windows VM; provide this value via terraform.tfvars."
 }
+
+variable "session_metadata_cosmos_database" {
+  type        = string
+  default     = "logistics_session_metadata"
+  description = "Cosmos SQL database name for Logistics API session metadata."
+}
+
+variable "session_metadata_cosmos_container" {
+  type        = string
+  default     = "sessions"
+  description = "Cosmos SQL container name for Logistics API session metadata."
+}
+
+variable "session_metadata_cosmos_partition_key_path" {
+  type        = string
+  default     = "/user_id"
+  description = "Partition key path for the session metadata Cosmos SQL container."
+}

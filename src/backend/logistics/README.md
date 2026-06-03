@@ -134,6 +134,14 @@ MCP_SERVER_URL=http://localhost:8001
 # A2A Agent
 RECOMMENDATIONS_AGENT_URL=http://localhost:5002
 
+# Session metadata persistence (Cosmos DB)
+SESSION_METADATA_COSMOS_DB_ENDPOINT=https://<account>.documents.azure.com:443/
+# Backward-compatible aliases (optional):
+# SESSION_METADATA_COSMOS_ENDPOINT=https://<account>.documents.azure.com:443/
+# COSMOS_DB_ENDPOINT=https://<account>.documents.azure.com:443/
+SESSION_METADATA_COSMOS_DATABASE=logistics_session_metadata
+SESSION_METADATA_COSMOS_CONTAINER=sessions
+
 # Logging
 AGENT_FRAMEWORK_LOG_LEVEL=WARNING  # DEBUG for verbose
 
@@ -149,12 +157,24 @@ PATCH_AGUI_CONTEXT_SYNC=false
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check |
+| `/api/conversations` | POST | Create a Foundry `conv_*` conversation ID for chat/session continuity |
+| `/api/sessions` | GET | List latest user-scoped sessions (zero-turn sessions excluded) |
+| `/api/sessions/{session_id}` | GET | Load session transcript, linkage, and artifact restoration manifest |
+| `/api/sessions/{session_id}` | PATCH | Rename a session title |
+| `/api/sessions/{session_id}` | DELETE | Soft-delete a session from product history |
 | `/logistics/data/flights` | GET | Get flights with filtering |
 | `/logistics/data/flights/{id}` | GET | Get a specific flight |
 | `/logistics/data/summary` | GET | Get flight statistics |
 | `/logistics/data/historical` | GET | Get historical data with predictions |
-| `/copilotkit` | POST | AG-UI SSE endpoint for CopilotKit |
+| `/logistics` | POST (SSE) | AG-UI runtime endpoint used by CopilotKit proxy |
 | `/recommendations/feedback` | POST | Submit feedback on recommendations |
+
+## Session Persistence Notes
+
+- Session APIs are user-scoped through backend auth middleware and request user identity resolution.
+- Transcript replay source contract uses Foundry Conversations API items list operations (no raw Cosmos transcript parsing).
+- Session metadata database/container lifecycle is Terraform-managed. The API validates store availability at startup/first use and returns unavailable responses when resources are missing or inaccessible.
+- Session metadata repository uses Cosmos DB when one of these is configured: `SESSION_METADATA_COSMOS_DB_ENDPOINT`, `SESSION_METADATA_COSMOS_ENDPOINT`, or `COSMOS_DB_ENDPOINT`. If none are set, local dev falls back to in-memory metadata.
 
 ## Patches
 

@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { CopilotKit } from "@copilotkit/react-core";
 import { useAccessToken } from "@/lib/useAccessToken";
+import { SessionHistoryContext } from "@/lib/sessionHistoryContext";
+import { useSessionHistory } from "@/lib/useSessionHistory";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { loginRequest } from "@/lib/msalConfig";
-import { ThreadIdContext, NewChatContext } from "./NoAuthCopilotKit";
+import { ThreadIdContext, NewChatContext, ResumeSessionContext } from "./NoAuthCopilotKit";
 
 /**
  * Create a new Azure Foundry conversation via the backend API.
@@ -44,7 +46,9 @@ export function AuthenticatedCopilotKit({ children }: AuthenticatedCopilotKitPro
   const [convError, setConvError] = useState<string | null>(null);
   const { accessToken, isLoading } = useAccessToken();
   const isAuthenticated = useIsAuthenticated();
-  const { instance } = useMsal();
+  const { instance, accounts } = useMsal();
+  const userCacheKey = accounts[0]?.homeAccountId ?? "authenticated";
+  const sessionHistory = useSessionHistory(userCacheKey, accessToken);
 
   const initConversation = useCallback(async (token: string) => {
     try {
@@ -87,6 +91,10 @@ export function AuthenticatedCopilotKit({ children }: AuthenticatedCopilotKitPro
       initConversation(accessToken);
     }
   }, [accessToken, initConversation]);
+
+  const handleResumeSession = useCallback((sessionId: string) => {
+    setThreadId(sessionId);
+  }, []);
 
   // Force sign-in if not authenticated
   const handleSignIn = async () => {
@@ -174,11 +182,15 @@ export function AuthenticatedCopilotKit({ children }: AuthenticatedCopilotKitPro
       headers={headers}
       threadId={threadId}
     >
-      <NewChatContext.Provider value={handleNewChat}>
-        <ThreadIdContext.Provider value={threadId}>
-          {children}
-        </ThreadIdContext.Provider>
-      </NewChatContext.Provider>
+      <SessionHistoryContext.Provider value={sessionHistory}>
+        <ResumeSessionContext.Provider value={handleResumeSession}>
+          <NewChatContext.Provider value={handleNewChat}>
+            <ThreadIdContext.Provider value={threadId}>
+              {children}
+            </ThreadIdContext.Provider>
+          </NewChatContext.Provider>
+        </ResumeSessionContext.Provider>
+      </SessionHistoryContext.Provider>
     </CopilotKit>
   );
 }

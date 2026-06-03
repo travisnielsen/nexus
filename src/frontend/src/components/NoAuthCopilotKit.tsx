@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { CopilotKit } from "@copilotkit/react-core";
+import { SessionHistoryContext } from "@/lib/sessionHistoryContext";
 
 // Context to expose threadId to child components
 export const ThreadIdContext = createContext<string | null>(null);
@@ -15,6 +16,11 @@ export function useThreadId(): string | null {
 export const NewChatContext = createContext<(() => void) | null>(null);
 export function useNewChat(): (() => void) | null {
   return useContext(NewChatContext);
+}
+
+export const ResumeSessionContext = createContext<((sessionId: string) => void) | null>(null);
+export function useResumeSession(): ((sessionId: string) => void) | null {
+  return useContext(ResumeSessionContext);
 }
 
 interface NoAuthCopilotKitProps {
@@ -110,11 +116,15 @@ export function NoAuthCopilotKit({ children }: NoAuthCopilotKitProps) {
       agent="logistics_agent"
       threadId={threadId}
     >
-      <NewChatContext.Provider value={handleNewChat}>
-        <ThreadIdContext.Provider value={threadId}>
-          {children}
-        </ThreadIdContext.Provider>
-      </NewChatContext.Provider>
+      <SessionHistoryContext.Provider value={null}>
+        <ResumeSessionContext.Provider value={null}>
+          <NewChatContext.Provider value={handleNewChat}>
+            <ThreadIdContext.Provider value={threadId}>
+              {children}
+            </ThreadIdContext.Provider>
+          </NewChatContext.Provider>
+        </ResumeSessionContext.Provider>
+      </SessionHistoryContext.Provider>
     </CopilotKit>
   );
 }
