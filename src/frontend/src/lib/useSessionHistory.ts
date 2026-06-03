@@ -5,6 +5,7 @@ import {
   listSessions,
   loadSession,
   renameSession,
+  type SessionLoadApiResponse,
   type SessionLoadResponse,
   type SessionMutationResult,
   type SessionSummary,
@@ -23,6 +24,7 @@ import {
 export interface SessionHistoryState {
   sessions: SessionSummary[];
   isLoading: boolean;
+  isRestoringSession: boolean;
   error: string | null;
   selectedSessionId: string | null;
   restorationStatus: "full" | "partial" | "none";
@@ -30,7 +32,7 @@ export interface SessionHistoryState {
   artifactFallbackNotices: ArtifactFallbackNotice[];
   loadedSession: SessionLoadResponse | null;
   mutationStatusBySession: Record<string, "pending" | "synced" | "failed">;
-  refresh: () => Promise<void>;
+  refresh: (options?: { silent?: boolean }) => Promise<void>;
   selectSession: (
     sessionId: string,
     options?: { blockReason?: string | null },
@@ -46,6 +48,7 @@ export function useSessionHistory(
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRestoringSession, setIsRestoringSession] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restorationStatus, setRestorationStatus] = useState<"full" | "partial" | "none">("none");
   const [restoredArtifacts, setRestoredArtifacts] = useState<HydratedArtifact[]>([]);
@@ -55,11 +58,13 @@ export function useSessionHistory(
     Record<string, "pending" | "synced" | "failed">
   >({});
 
-  const hydrateFromCache = useCallback(() => {
+  const hydrateFromCache = useCallback((): boolean => {
     const cached = loadSessionCache(userCacheKey);
-    if (cached) {
+    if (cached && cached.sessions.length > 0) {
       setSessions(cached.sessions);
+      return true;
     }
+    return false;
   }, [userCacheKey]);
 
   const persist = useCallback(
@@ -75,11 +80,12 @@ export function useSessionHistory(
     [userCacheKey],
   );
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options?: { silent?: boolean }) => {
     if (!accessToken) {
       return;
     }
-    setIsLoading(true);
+    const silent = options?.silent ?? false;
+    if (!silent) setIsLoading(true);
     setError(null);
     try {
       const data = await listSessions(undefined, accessToken);
@@ -95,7 +101,7 @@ export function useSessionHistory(
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load sessions");
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, [persist, accessToken]);
 
@@ -107,13 +113,27 @@ export function useSessionHistory(
       }
 
       setError(null);
+      setIsRestoringSession(true);
       setIsLoading(true);
       try {
         if (!accessToken) {
           throw new Error("Authentication token unavailable");
         }
         setSelectedSessionId(sessionId);
-        const payload = await loadSession(sessionId, undefined, accessToken);
+        const payload: SessionLoadApiResponse = await loadSession(
+          sessionId,
+          undefined,
+          accessToken,
+        );
+        if ("blocked" in payload && payload.blocked) {
+          setError(payload.reason || "Session is unavailable and cannot be resumed");
+          setLoadedSession(null);
+          setRestorationStatus("none");
+          setRestoredArtifacts([]);
+          setArtifactFallbackNotices([]);
+          return null;
+        }
+
         const hydrated = hydrateSessionArtifacts(payload);
         setLoadedSession(payload);
         setRestorationStatus(hydrated.restorationStatus);
@@ -124,6 +144,7 @@ export function useSessionHistory(
         setError(err instanceof Error ? err.message : "Failed to load session");
         return null;
       } finally {
+        setIsRestoringSession(false);
         setIsLoading(false);
       }
     },
@@ -145,7 +166,7 @@ export function useSessionHistory(
           throw new Error(result.conflict_reason || "Rename rejected");
         }
         setMutationStatusBySession((prev) => ({ ...prev, [sessionId]: "synced" }));
-        await refresh();
+        await refresh({ silent: true });
       } catch (err) {
         setSessions(previous);
         persist(previous);
@@ -169,7 +190,7 @@ export function useSessionHistory(
           throw new Error(result.conflict_reason || "Delete rejected");
         }
         setMutationStatusBySession((prev) => ({ ...prev, [sessionId]: "synced" }));
-        await refresh();
+        await refresh({ silent: true });
       } catch (err) {
         setSessions(previous);
         persist(previous);
@@ -181,9 +202,11 @@ export function useSessionHistory(
   );
 
   useEffect(() => {
-    hydrateFromCache();
+    const hasCachedData = hydrateFromCache();
     if (accessToken) {
-      void refresh();
+      // If cache data was rendered immediately, sync in background without blocking the UI.
+      // If no cache exists, show the loading state so the flyout isn't empty indefinitely.
+      void refresh({ silent: hasCachedData });
     }
   }, [hydrateFromCache, refresh, accessToken]);
 
@@ -191,6 +214,7 @@ export function useSessionHistory(
     () => ({
       sessions,
       isLoading,
+      isRestoringSession,
       error,
       selectedSessionId,
       restorationStatus,
@@ -206,6 +230,7 @@ export function useSessionHistory(
     [
       sessions,
       isLoading,
+      isRestoringSession,
       error,
       selectedSessionId,
       restorationStatus,

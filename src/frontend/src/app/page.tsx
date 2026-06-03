@@ -14,6 +14,7 @@ import { HistoricalChart } from "@/components/HistoricalChart";
 import { RecommendationsCard } from "@/components/RecommendationsCard";
 import { HydratedAssistantMessage } from "@/components/HydratedAssistantMessage";
 import { SessionHistoryFlyout } from "@/components/SessionHistoryFlyout";
+import { useSessionHistoryContext } from "@/lib/sessionHistoryContext";
 // useNewChat is exported from NoAuthCopilotKit for "New Chat" functionality
 
 // Prefix for system action messages - these are hidden from the chat UI but sent to the LLM
@@ -61,6 +62,9 @@ export type { RecommendationsCardProps };
 
 export default function LogisticsPage() {
   const [themeColor, setThemeColor] = useState("#1e3a5f"); // Dark navy blue for logistics
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [isSessionSwitching, setIsSessionSwitching] = useState(false);
+  const sessionHistory = useSessionHistoryContext();
 
   // Get access token for authenticated API calls (returns null when auth is disabled)
   const accessToken = useSafeAccessToken();
@@ -112,7 +116,12 @@ export default function LogisticsPage() {
       } as CopilotKitCSSProperties}
       className="relative h-screen flex flex-col bg-gray-900"
     >
-      <SessionHistoryFlyout />
+      <SessionHistoryFlyout
+        open={sessionsOpen}
+        onClose={() => setSessionsOpen(false)}
+        onSessionSelectStart={() => setIsSessionSwitching(true)}
+        onSessionSelectEnd={() => setIsSessionSwitching(false)}
+      />
 
       {/* Navigation Bar */}
       <nav className="h-16 px-6 flex items-center justify-between border-b border-gray-700 flex-shrink-0">
@@ -125,6 +134,18 @@ export default function LogisticsPage() {
             </svg>
             <span className="text-xl font-bold text-white">Logistics Explorer</span>
           </div>
+          <button
+            onClick={() => setSessionsOpen(true)}
+            className="flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors text-sm"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            Sessions
+          </button>
           <a href="#" className="text-gray-300 hover:text-white transition-colors">Docs</a>
           <a href="#" className="text-gray-300 hover:text-white transition-colors">About</a>
         </div>
@@ -140,9 +161,17 @@ export default function LogisticsPage() {
           <LogisticsDashboard themeColor={themeColor} />
 
           {/* Chat panel - 30% on large screens, full width on smaller */}
-          <div className="w-full lg:w-[30%] h-[40vh] lg:h-full border border-gray-700 rounded-xl shadow-lg overflow-hidden flex-shrink-0 flex flex-col">
+          <div className="relative w-full lg:w-[30%] h-[40vh] lg:h-full border border-gray-700 rounded-xl shadow-lg overflow-hidden flex-shrink-0 flex flex-col">
+            {isSessionSwitching ? (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-900/55 backdrop-blur-sm">
+                <div className="flex items-center gap-3 rounded-lg border border-gray-600 bg-gray-900/85 px-4 py-3 text-sm text-gray-100 shadow-xl">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+                  <span>Loading session...</span>
+                </div>
+              </div>
+            ) : null}
             <CopilotChat
-              className="h-full"
+              className="flex-1 min-h-0"
               labels={{
                 title: "Logistics Assistant",
                 initial: getInitialGreeting()

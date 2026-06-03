@@ -9,6 +9,7 @@
 **Input**: User description: "create a new specification for agent session / persistence. This spec must uphold the current Agent Framework conversation_id rooted session linkage across Foundry V2 Agent Service, Agent Framework, and CopilotKit. Here are some initial requirements:
 
 - UX in CopilotKit for displaying session history as a vertical list that can fly out from the left hand side.
+- UX in CopilotKit for displaying session history as a vertical list in a left-side slide-in drawer.
 - Click a previous session loads the user-agent session chat history.
 - If possible, the UI components generated from AG-UI tool calls are re-hydrated in the chat window.
 - Loading a previous session restores agent context. LLM is able to continue a past conversation based on that context
@@ -41,12 +42,13 @@ As a returning user, I can open session history and resume a prior conversation 
 
 **Acceptance Scenarios**:
 
-1. **Given** a user has one or more persisted sessions, **When** the user opens the session history flyout, **Then** the system displays up to the 20 most recent sessions as a vertical list ordered by most recent activity and shows a date/time indicator for each entry.
+1. **Given** a user has one or more persisted sessions, **When** the user opens the session history drawer, **Then** the system displays up to the 20 most recent sessions as a vertical list ordered by most recent activity and shows a date/time indicator for each entry.
 2. **Given** a persisted session in the history list, **When** the user selects that session, **Then** the chat window loads the prior user and agent messages for that session.
 3. **Given** a user resumes a prior session, **When** the user sends a new message, **Then** the agent continues the existing conversation rather than starting a disconnected new one.
 4. **Given** a user resumes a session that contains previously established agent context, **When** the session finishes loading, **Then** the agent can use that context in its next response.
 5. **Given** a session was created but has no persisted user turn yet, **When** history is rendered, **Then** that zero-turn session is not shown in the visible session list.
 6. **Given** the app is running in no-auth mode, **When** the user opens chat, **Then** the session history sidebar is not shown and session history actions are unavailable.
+7. **Given** the user selects a resumable session from the drawer, **When** restore starts, **Then** the drawer closes immediately and the chat panel shows a clear loading overlay until restore finishes.
 
 ---
 
@@ -92,7 +94,7 @@ As a user reviewing an earlier conversation, I can see prior tool-generated chat
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST provide session history in CopilotKit as a left-side flyout containing a vertical list of the authenticated user's persisted sessions.
+- **FR-001**: The system MUST provide session history in CopilotKit as a left-side slide-in drawer containing a vertical list of the authenticated user's persisted sessions.
 - **FR-002**: The session history list MUST display up to the 20 most recent sessions in reverse chronological order and show both a user-friendly title and a date/time indicator for each session.
 - **FR-003**: The system MUST assign an initial user-friendly title to each new session before the session is first shown in the history list, using the first meaningful user message when available and a timestamp fallback otherwise.
 - **FR-004**: Users MUST be able to select a prior session from the history list and load its prior user-agent transcript into the active chat window.
@@ -109,7 +111,7 @@ As a user reviewing an earlier conversation, I can see prior tool-generated chat
 - **FR-015**: The system MUST scope session history, session loading, and session mutations to the authorized user and MUST prevent exposure of another user's sessions or session titles.
 - **FR-016**: The system MUST preserve existing operational data access behavior through MCP service interfaces; session persistence changes MUST not alter how operational flight data is sourced.
 - **FR-017**: Service-boundary validation contracts MUST verify identifier continuity, history retrieval, mutation behavior, authorization, and supported-artifact restoration behavior across CopilotKit, the backend API, Agent Framework session handling, Foundry Agent Service persistence, and any feature-owned session metadata.
-- **FR-018**: The system MUST provide clear user-visible states for loading, unavailable history, partial restoration, rename failure, and delete failure outcomes.
+- **FR-018**: The system MUST provide clear user-visible states for loading, unavailable history, partial restoration, rename failure, and delete failure outcomes, including an explicit chat-panel loading overlay during session restore.
 - **FR-019**: If a user attempts to switch sessions while an agent run is active, the system MUST require the active run to finish or be explicitly canceled before switching.
 - **FR-020**: If a session remains listed but its backing history can no longer be restored, the system MUST keep the session visible with an unavailable state and MUST block resume attempts for that entry.
 - **FR-021**: The frontend MUST persist session history view state and session metadata cache locally in browser localStorage so session list interactions are immediately responsive.
@@ -118,6 +120,8 @@ As a user reviewing an earlier conversation, I can see prior tool-generated chat
 - **FR-024**: If local and backend session states diverge, the system MUST reconcile to backend-authoritative durable state while preserving clear user feedback about pending, synced, or failed operations.
 - **FR-025**: The session history list MUST exclude zero-turn conversations and only include sessions with at least one persisted user turn (a Foundry conversation item with `type=message` and `role=user` retrievable through supported Conversations APIs).
 - **FR-026**: When authentication is disabled (no-auth mode), the session history sidebar and session history actions (list/load/rename/delete) MUST be unavailable in the frontend.
+- **FR-027**: Terraform infrastructure MUST provision the session metadata Cosmos SQL database and container for each environment, and the Logistics API MUST treat missing resources as an unavailable-store condition instead of performing runtime resource creation.
+- **FR-028**: If the provisioned session metadata store is unreachable or denied by networking or RBAC policy, the API MUST emit a clear operational error and degrade gracefully (session history APIs return unavailable status) without crashing core chat functionality.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -155,7 +159,8 @@ As a user reviewing an earlier conversation, I can see prior tool-generated chat
 - When exact restoration of a prior AG-UI artifact is not possible, preserving transcript continuity is the higher priority outcome.
 - Unrecoverable sessions may remain visible in the history list for user awareness, but they are non-resumable and clearly marked unavailable.
 - Session deletion hides the session from the product experience immediately, while underlying Foundry or platform retention rules may remove the backing record later.
-- The flyout session history experience will remain usable across supported desktop and responsive layouts without requiring a separate mobile-only workflow.
+- The drawer-based session history experience will remain usable across supported desktop and responsive layouts without requiring a separate mobile-only workflow.
 - Browser localStorage is available for supported clients and session cache keys can be scoped to authenticated user context.
 - Conversation creation may occur before the first user turn; those zero-turn sessions are intentionally hidden from session history until a user message is persisted.
 - No-auth mode is treated as a chat-only experience and does not expose session history features.
+- Session metadata Cosmos database/container provisioning is owned by Terraform or equivalent deployment infrastructure before the Logistics API starts serving requests.

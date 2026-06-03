@@ -54,6 +54,24 @@ resource "azurerm_role_assignment" "api_cosmos" {
   principal_id         = azurerm_user_assigned_identity.api_identity.principal_id
 }
 
+# Grant API identity control-plane permission required for
+# create-if-not-exists bootstrap of SQL databases/containers.
+resource "azurerm_role_assignment" "api_cosmos_operator" {
+  scope                = module.ai_cosmosdb.resource_id
+  role_definition_name = "Cosmos DB Operator"
+  principal_id         = azurerm_user_assigned_identity.api_identity.principal_id
+}
+
+# Grant API identity data-plane permission for session metadata item CRUD.
+resource "azurerm_cosmosdb_sql_role_assignment" "api_identity" {
+  resource_group_name = azurerm_resource_group.shared_rg.name
+  account_name        = module.ai_cosmosdb.name
+  # Built-in Data Contributor role: 00000000-0000-0000-0000-000000000002
+  role_definition_id = "${module.ai_cosmosdb.resource_id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002"
+  principal_id       = azurerm_user_assigned_identity.api_identity.principal_id
+  scope              = module.ai_cosmosdb.resource_id
+}
+
 # Grant GitHub Actions service principal ACR Push access
 resource "azurerm_role_assignment" "gha_acr_push" {
   scope                = module.container_registry.resource_id

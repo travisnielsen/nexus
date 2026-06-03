@@ -109,13 +109,13 @@
   - Repo private-networking baseline: `specs/003-private-networking/plan.md`
   - Session persistence API contract in `specs/004-agent-session-persistence/contracts/session-persistence-api-contract.md`
 
-## Decision 8: Use idempotent Cosmos metadata bootstrap (create-if-not-exists)
+## Decision 8: Provision Cosmos metadata resources through deployment infrastructure, not API bootstrap
 
-- Decision: The Logistics API owns session metadata schema bootstrap and must execute idempotent create-if-not-exists logic for Cosmos DB resources required by this feature (database/container and indexes/partition policy if absent).
-- Rationale: Session persistence rollout must be safe across environments where metadata resources may not yet exist, while avoiding duplicate creation or destructive reconfiguration in existing environments.
+- Decision: Terraform or equivalent deployment infrastructure owns session metadata Cosmos DB resource provisioning for this feature, and the Logistics API only validates configured database/container availability at runtime.
+- Rationale: Session metadata provisioning belongs to the environment deployment boundary, avoids requiring elevated create permissions in the runtime API identity, and keeps runtime failure modes explicit when infrastructure drift or RBAC issues leave the store unavailable.
 - Alternatives considered:
+  - API-side runtime Cosmos resource provisioning: rejected because it couples infrastructure creation to application startup/first use and requires permissions the service should not hold.
   - Manual one-time portal provisioning only: rejected because it increases drift risk and weakens deployment repeatability.
-  - Fail startup when resources are missing: rejected because it creates avoidable operational outages during first deployment.
 - Sources:
   - Feature implementation refinement requirement
   - Session persistence API contract in `specs/004-agent-session-persistence/contracts/session-persistence-api-contract.md`

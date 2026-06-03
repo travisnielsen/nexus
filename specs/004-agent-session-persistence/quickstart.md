@@ -24,18 +24,19 @@
    - Soft-delete session (product-level removal)
 3. Add FastAPI endpoints under `src/backend/logistics/main.py` and enforce auth scope.
 4. Keep Foundry conversation persistence as canonical transcript/context source.
-5. Add idempotent Cosmos metadata bootstrap (create-if-not-exists for required database/container) owned by Logistics API.
+5. Ensure Terraform (or equivalent deployment infrastructure) provisions required Cosmos metadata database/container and keep API runtime behavior validation-only.
 
-## 4. Implement frontend history flyout and resume flow
+## 4. Implement frontend history drawer and resume flow
 
-1. Add a left-side flyout component displaying up to 20 sessions.
+1. Add a left-side slide-in drawer component displaying up to 20 sessions.
 2. Implement localStorage-backed session cache (user-scoped keyspace) and hydrate from local cache at startup.
-3. Bind row click to session load and thread switch using canonical session ID.
+3. Bind row click to session load and thread switch using canonical session ID, and close the drawer immediately after selecting a resumable session.
 4. Add rename and delete actions with local-first UX and backend reconciliation.
 5. Implement startup background sync and conflict reconciliation to backend-authoritative state.
 6. Display pending/synced/failed sync status for local-first mutations.
 7. Display per-entry date/time and unavailable-state labels.
 8. Block session switching while active run is streaming unless canceled/completed.
+9. Show an explicit loading indicator in the chat panel (overlay + spinner) while session restore is in flight.
 
 ## 5. Implement AG-UI artifact restoration subset
 
@@ -52,14 +53,14 @@
 5. Load a session with supported artifact(s); verify restoration.
 6. Load a session with unsupported artifact(s); verify transcript fallback messaging.
 7. Validate unavailable session entry remains visible but blocked for resume.
-8. Validate first-run environment auto-creates required Cosmos metadata resources.
-9. Validate repeat startup/access path is idempotent and does not duplicate resources.
+8. Validate required Cosmos metadata resources exist before API startup via Terraform (or equivalent deployment provisioning).
+9. Validate repeat startup/access path performs validation-only checks and does not attempt runtime resource creation.
 10. Validate startup local cache hydration occurs before backend sync round-trip.
 11. Validate local-first rename/delete converges to backend-authoritative state with clear status indicators.
 12. Measure SC-009 local feedback latency by capturing at least 20 rename/delete/open interactions and computing p95 from browser timestamps.
 13. Measure SC-010 convergence by capturing at least 20 startup/mutation sync events and computing convergence duration p99 under normal local network.
 14. Validate zero-turn conversations are not shown in session history after initial load before first user message.
-15. Validate no-auth mode presents chat-only UX with no session history sidebar/actions.
+15. Validate no-auth mode presents chat-only UX with no session history drawer/actions.
 16. Validate no-auth mode emits no session-history API calls (`/api/sessions/**`) using browser network capture and/or proxy request logs.
 17. Validate operational flight data paths remain MCP-mediated after session persistence changes.
 

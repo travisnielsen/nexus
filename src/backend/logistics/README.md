@@ -134,6 +134,14 @@ MCP_SERVER_URL=http://localhost:8001
 # A2A Agent
 RECOMMENDATIONS_AGENT_URL=http://localhost:5002
 
+# Session metadata persistence (Cosmos DB)
+SESSION_METADATA_COSMOS_DB_ENDPOINT=https://<account>.documents.azure.com:443/
+# Backward-compatible aliases (optional):
+# SESSION_METADATA_COSMOS_ENDPOINT=https://<account>.documents.azure.com:443/
+# COSMOS_DB_ENDPOINT=https://<account>.documents.azure.com:443/
+SESSION_METADATA_COSMOS_DATABASE=logistics_session_metadata
+SESSION_METADATA_COSMOS_CONTAINER=sessions
+
 # Logging
 AGENT_FRAMEWORK_LOG_LEVEL=WARNING  # DEBUG for verbose
 
@@ -165,8 +173,8 @@ PATCH_AGUI_CONTEXT_SYNC=false
 
 - Session APIs are user-scoped through backend auth middleware and request user identity resolution.
 - Transcript replay source contract uses Foundry Conversations API items list operations (no raw Cosmos transcript parsing).
-- Session metadata bootstrap uses idempotent create-if-not-exists for configured Cosmos database/container.
-- Current metadata repository is an in-memory scaffold; service bootstrap and contracts are prepared for Cosmos-backed repository wiring.
+- Session metadata database/container lifecycle is Terraform-managed. The API validates store availability at startup/first use and returns unavailable responses when resources are missing or inaccessible.
+- Session metadata repository uses Cosmos DB when one of these is configured: `SESSION_METADATA_COSMOS_DB_ENDPOINT`, `SESSION_METADATA_COSMOS_ENDPOINT`, or `COSMOS_DB_ENDPOINT`. If none are set, local dev falls back to in-memory metadata.
 
 ## Patches
 

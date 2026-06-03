@@ -29,8 +29,19 @@ function scheduleTranscriptHydration(
   }
 }
 
-export function SessionHistoryFlyout() {
-  const [open, setOpen] = useState(false);
+interface SessionHistoryFlyoutProps {
+  open: boolean;
+  onClose: () => void;
+  onSessionSelectStart?: () => void;
+  onSessionSelectEnd?: () => void;
+}
+
+export function SessionHistoryFlyout({
+  open,
+  onClose,
+  onSessionSelectStart,
+  onSessionSelectEnd,
+}: SessionHistoryFlyoutProps) {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const history = useSessionHistoryContext();
@@ -45,6 +56,16 @@ export function SessionHistoryFlyout() {
     isRunningRef.current = isRunning;
   }, [isRunning]);
 
+  // Close drawer on Escape
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
   const sessions = useMemo(() => history?.sessions ?? [], [history]);
 
   // In no-auth mode, history context is intentionally disabled.
@@ -54,37 +75,50 @@ export function SessionHistoryFlyout() {
 
   return (
     <>
-      <button
-        onClick={() => setOpen((prev) => !prev)}
-        className="fixed left-4 top-20 z-40 rounded-lg border border-gray-700 bg-gray-900/90 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
-      >
-        {open ? "Hide Sessions" : "Sessions"}
-      </button>
+      {/* Backdrop */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ${
+          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      {open ? (
-        <aside className="fixed left-4 top-32 z-40 h-[70vh] w-80 overflow-hidden rounded-xl border border-gray-700 bg-gray-900/95 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-gray-700 px-4 py-3">
-            <h3 className="text-sm font-semibold text-white">Session History</h3>
+      {/* Drawer */}
+      <aside
+        className={`fixed left-0 top-0 z-50 h-full w-80 bg-gray-900 border-r border-gray-700 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+        aria-label="Session history"
+      >
+        <div className="flex items-center justify-between border-b border-gray-700 px-4 py-3 flex-shrink-0">
+          <h3 className="text-sm font-semibold text-white">Session History</h3>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => {
-                if (isRunning) {
-                  return;
-                }
-                if (newChat) {
-                  newChat();
-                }
+                if (isRunning) return;
+                if (newChat) newChat();
               }}
               disabled={isRunning}
-              className="rounded-md bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700"
+              className="rounded-md bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
             >
               New Chat
             </button>
+            <button
+              onClick={onClose}
+              className="rounded-md border border-gray-600 p-1 text-gray-400 hover:bg-gray-700 hover:text-white"
+              aria-label="Close session history"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
+        </div>
 
-          <div className="h-[calc(70vh-56px)] overflow-y-auto p-2">
-            {history.isLoading ? (
-              <p className="px-2 py-3 text-sm text-gray-400">Loading sessions...</p>
-            ) : sessions.length === 0 ? (
+        <div className="flex-1 overflow-y-auto p-2">
+            {sessions.length === 0 ? (
               <p className="px-2 py-3 text-sm text-gray-400">No sessions yet.</p>
             ) : (
               <ul className="space-y-2">
@@ -93,23 +127,38 @@ export function SessionHistoryFlyout() {
                   const unavailable = session.availability === "unavailable";
                   const selectSession = async () => {
                     const wasRunning = isRunningRef.current;
-                    const payload = await history.selectSession(session.session_id, {
-                      blockReason: wasRunning
-                        ? "Finish or cancel the active run before switching sessions."
-                        : null,
-                    });
-                    if (!payload) {
+                    if (wasRunning || unavailable) {
+                      await history.selectSession(session.session_id, {
+                        blockReason: wasRunning
+                          ? "Finish or cancel the active run before switching sessions."
+                          : null,
+                      });
                       return;
                     }
-                    if (!isRunningRef.current && !unavailable && resumeSession) {
-                      resumeSession(session.session_id);
-                      const hydratedMessages = mapTranscriptToChatMessages(payload.transcript);
-                      if (hydratedMessages.length > 0) {
-                        scheduleTranscriptHydration(
-                          setMessages as (messages: unknown[]) => void,
-                          hydratedMessages as unknown[],
-                        );
+
+                    onSessionSelectStart?.();
+                    onClose();
+                    try {
+                      const payload = await history.selectSession(session.session_id, {
+                        blockReason: wasRunning
+                          ? "Finish or cancel the active run before switching sessions."
+                          : null,
+                      });
+                      if (!payload) {
+                        return;
                       }
+                      if (!isRunningRef.current && !unavailable && resumeSession) {
+                        resumeSession(session.session_id);
+                        const hydratedMessages = mapTranscriptToChatMessages(payload.transcript);
+                        if (hydratedMessages.length > 0) {
+                          scheduleTranscriptHydration(
+                            setMessages as (messages: unknown[]) => void,
+                            hydratedMessages as unknown[],
+                          );
+                        }
+                      }
+                    } finally {
+                      onSessionSelectEnd?.();
                     }
                   };
                   return (
@@ -224,9 +273,8 @@ export function SessionHistoryFlyout() {
             )}
 
             {history.error ? <p className="mt-3 text-xs text-red-400">{history.error}</p> : null}
-          </div>
-        </aside>
-      ) : null}
+        </div>
+      </aside>
     </>
   );
 }

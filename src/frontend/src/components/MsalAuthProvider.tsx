@@ -5,40 +5,46 @@ import { PublicClientApplication, EventType, EventMessage, AuthenticationResult 
 import { msalConfig } from "@/lib/msalConfig";
 import { useEffect, useState } from "react";
 
-// Create the MSAL instance outside the component to avoid re-initialization
-const msalInstance = new PublicClientApplication(msalConfig);
-
 export function MsalAuthProvider({ children }: { children: React.ReactNode }) {
+  const [msalInstance, setMsalInstance] = useState<PublicClientApplication | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    // This component is client-only, but guard anyway so module evaluation
+    // never attempts browser APIs in SSR contexts.
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const initializeMsal = async () => {
-      await msalInstance.initialize();
+      const instance = new PublicClientApplication(msalConfig);
+      await instance.initialize();
       
       // Handle redirect response
-      await msalInstance.handleRedirectPromise();
+      await instance.handleRedirectPromise();
 
       // Set active account if there is one
-      const accounts = msalInstance.getAllAccounts();
+      const accounts = instance.getAllAccounts();
       if (accounts.length > 0) {
-        msalInstance.setActiveAccount(accounts[0]);
+        instance.setActiveAccount(accounts[0]);
       }
 
       // Listen for sign-in events
-      msalInstance.addEventCallback((event: EventMessage) => {
+      instance.addEventCallback((event: EventMessage) => {
         if (event.eventType === EventType.LOGIN_SUCCESS && event.payload) {
           const payload = event.payload as AuthenticationResult;
-          msalInstance.setActiveAccount(payload.account);
+          instance.setActiveAccount(payload.account);
         }
       });
 
+      setMsalInstance(instance);
       setIsInitialized(true);
     };
 
     initializeMsal();
   }, []);
 
-  if (!isInitialized) {
+  if (!isInitialized || !msalInstance) {
     return null; // Or a loading spinner
   }
 

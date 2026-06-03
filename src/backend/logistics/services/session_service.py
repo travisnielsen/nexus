@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from datetime import UTC, datetime
-from importlib import import_module
-from typing import Any, Protocol
+from typing import Any, NoReturn, Protocol
 
 from agents.utils.session_models import (
     ArtifactAggregateStatus,
@@ -25,6 +25,14 @@ from agents.utils.session_models import (
 logger = logging.getLogger(__name__)
 
 
+class SessionMetadataStoreUnavailableError(RuntimeError):
+    """Raised when session metadata operations fail due to Cosmos connectivity/RBAC issues."""
+
+
+class SessionTranscriptAccessDeniedError(RuntimeError):
+    """Raised when Foundry transcript APIs deny access for a conversation."""
+
+
 class SessionMetadataRepository(Protocol):
     """Persistence boundary for session metadata.
 
@@ -40,6 +48,10 @@ class SessionMetadataRepository(Protocol):
     async def upsert_title(self, user_id: str, session_id: str, title: str) -> SessionSummary: ...
 
     async def soft_delete(self, user_id: str, session_id: str) -> bool: ...
+
+    async def delete_metadata(self, user_id: str, session_id: str) -> bool: ...
+
+    async def ensure_store(self) -> None: ...
 
 
 class InMemorySessionMetadataRepository:
@@ -82,6 +94,265 @@ class InMemorySessionMetadataRepository:
         del user_sessions[session_id]
         return True
 
+    async def delete_metadata(self, user_id: str, session_id: str) -> bool:
+        user_sessions = self._sessions.get(user_id, {})
+        if session_id not in user_sessions:
+            return False
+        del user_sessions[session_id]
+        return True
+
+    async def ensure_store(self) -> None:
+        return None
+
+
+class CosmosSessionMetadataRepository:
+    """Cosmos-backed repository for durable session metadata."""
+
+    def __init__(self, *, endpoint: str, database: str, container: str) -> None:
+        self._endpoint = endpoint
+        self._database = database
+        self._container = container
+        self._bootstrap_lock = asyncio.Lock()
+        self._bootstrap_state: str = "unknown"
+
+    def _is_owner_resource_missing(self, exc: Exception) -> bool:
+        sub_status = getattr(exc, "sub_status", None)
+        return sub_status == 1003
+
+    def _metadata_store_unavailable_error(
+        self, *, reason: str
+    ) -> SessionMetadataStoreUnavailableError:
+        return SessionMetadataStoreUnavailableError(
+            "Session metadata store unavailable. Ensure Terraform provisioned "
+            f"Cosmos SQL database/container and RBAC correctly ({reason})."
+        )
+
+    async def _ensure_bootstrap_ready(self) -> None:
+        if self._bootstrap_state == "ready":
+            return
+        if self._bootstrap_state == "blocked":
+            raise SessionMetadataStoreUnavailableError(
+                "Session metadata store unavailable. Check Cosmos DB networking and RBAC permissions."
+            )
+
+        async with self._bootstrap_lock:
+            if self._bootstrap_state == "ready":
+                return
+            if self._bootstrap_state == "blocked":
+                raise SessionMetadataStoreUnavailableError(
+                    "Session metadata store unavailable. Check Cosmos DB networking and RBAC permissions."
+                )
+
+            cosmos = self._modules()
+            credential = cosmos.DefaultAzureCredential()
+            client = cosmos.CosmosClient(self._endpoint, credential=credential)
+            try:
+                try:
+                    database = client.get_database_client(self._database)
+                    container = database.get_container_client(self._container)
+                    await container.read()
+                    self._bootstrap_state = "ready"
+                    logger.info(
+                        "Session metadata store verified for database=%s container=%s",
+                        self._database,
+                        self._container,
+                    )
+                except cosmos.exceptions.CosmosResourceNotFoundError as exc:
+                    if self._is_owner_resource_missing(exc):
+                        self._bootstrap_state = "blocked"
+                        logger.warning(
+                            "Cosmos session metadata resources are missing (database/container not found). "
+                            "Provision them via Terraform and restart the API. database=%s container=%s",
+                            self._database,
+                            self._container,
+                        )
+                        raise self._metadata_store_unavailable_error(
+                            reason="resource-missing"
+                        ) from exc
+                    raise
+                except cosmos.exceptions.CosmosHttpResponseError as exc:
+                    status_code = getattr(exc, "status_code", None)
+                    if status_code in {401, 403}:
+                        self._bootstrap_state = "blocked"
+                        logger.warning(
+                            "Cosmos session metadata access denied while validating store "
+                            "(status=%s). Session history will remain unavailable until RBAC/network is fixed.",
+                            status_code,
+                        )
+                        raise self._metadata_store_unavailable_error(
+                            reason=f"status-{status_code}"
+                        ) from exc
+                    raise
+            finally:
+                await client.close()
+                await credential.close()
+
+    async def _ensure_ready_or_bootstrap(self) -> None:
+        await self._ensure_bootstrap_ready()
+
+    async def list_recent_sessions(self, user_id: str, limit: int) -> list[SessionSummary]:
+        await self._ensure_ready_or_bootstrap()
+        query = (
+            "SELECT * FROM c "
+            "WHERE c.user_id = @user_id "
+            "AND (NOT IS_DEFINED(c.is_deleted) OR c.is_deleted = false) "
+            "ORDER BY c.last_activity_at DESC"
+        )
+
+        async with self._container_client() as container:
+            results = container.query_items(
+                query=query,
+                parameters=[{"name": "@user_id", "value": user_id}],
+                partition_key=user_id,
+            )
+            rows = [row async for row in results]
+
+        summaries = [self._to_summary(row) for row in rows]
+        return summaries[:limit]
+
+    async def get_session(self, user_id: str, session_id: str) -> SessionSummary | None:
+        await self._ensure_ready_or_bootstrap()
+        row: dict[str, Any] | None = None
+        async with self._container_client() as container:
+            try:
+                row = await container.read_item(item=session_id, partition_key=user_id)
+            except self._exceptions().CosmosResourceNotFoundError as exc:
+                if not self._is_owner_resource_missing(exc):
+                    return None
+                raise self._metadata_store_unavailable_error(reason="resource-missing") from exc
+            if row is None:
+                return None
+        if bool(row.get("is_deleted")):
+            return None
+        return self._to_summary(row)
+
+    async def upsert_summary(self, user_id: str, summary: SessionSummary) -> SessionSummary:
+        await self._ensure_ready_or_bootstrap()
+        doc = self._summary_doc(user_id=user_id, summary=summary)
+        try:
+            async with self._container_client() as container:
+                await container.upsert_item(doc)
+        except self._exceptions().CosmosResourceNotFoundError as exc:
+            if self._is_owner_resource_missing(exc):
+                raise self._metadata_store_unavailable_error(reason="resource-missing") from exc
+            raise
+        return summary
+
+    async def upsert_title(self, user_id: str, session_id: str, title: str) -> SessionSummary:
+        await self._ensure_ready_or_bootstrap()
+        existing = await self.get_session(user_id=user_id, session_id=session_id)
+        now = datetime.now(UTC)
+        summary = SessionSummary(
+            session_id=session_id,
+            title=title.strip(),
+            title_source=TitleSource.USER_EDITED,
+            display_datetime=(existing.display_datetime if existing else now),
+            last_activity_at=now,
+            availability=(existing.availability if existing else SessionAvailability.AVAILABLE),
+        )
+        await self.upsert_summary(user_id=user_id, summary=summary)
+        return summary
+
+    async def soft_delete(self, user_id: str, session_id: str) -> bool:
+        await self._ensure_ready_or_bootstrap()
+        try:
+            async with self._container_client() as container:
+                row = await container.read_item(item=session_id, partition_key=user_id)
+                row["is_deleted"] = True
+                row["deleted_at"] = datetime.now(UTC).isoformat()
+                await container.upsert_item(row)
+                return True
+        except self._exceptions().CosmosResourceNotFoundError as exc:
+            if self._is_owner_resource_missing(exc):
+                raise self._metadata_store_unavailable_error(reason="resource-missing") from exc
+            return False
+
+    async def delete_metadata(self, user_id: str, session_id: str) -> bool:
+        await self._ensure_ready_or_bootstrap()
+        try:
+            async with self._container_client() as container:
+                await container.delete_item(item=session_id, partition_key=user_id)
+                return True
+        except self._exceptions().CosmosResourceNotFoundError as exc:
+            if self._is_owner_resource_missing(exc):
+                raise self._metadata_store_unavailable_error(reason="resource-missing") from exc
+            return False
+
+    async def ensure_store(self) -> None:
+        await self._ensure_bootstrap_ready()
+
+    def _summary_doc(self, *, user_id: str, summary: SessionSummary) -> dict[str, Any]:
+        return {
+            "id": summary.session_id,
+            "user_id": user_id,
+            "session_id": summary.session_id,
+            "title": summary.title,
+            "title_source": summary.title_source.value,
+            "display_datetime": summary.display_datetime.isoformat(),
+            "last_activity_at": summary.last_activity_at.isoformat(),
+            "availability": summary.availability.value,
+            "is_deleted": False,
+            "deleted_at": None,
+        }
+
+    def _to_summary(self, row: dict[str, Any]) -> SessionSummary:
+        return SessionSummary(
+            session_id=str(row.get("session_id") or row.get("id") or ""),
+            title=str(row.get("title") or "").strip() or self._fallback_title(),
+            title_source=TitleSource(
+                str(row.get("title_source") or TitleSource.TIMESTAMP_FALLBACK)
+            ),
+            display_datetime=self._parse_datetime(row.get("display_datetime")),
+            last_activity_at=self._parse_datetime(row.get("last_activity_at")),
+            availability=SessionAvailability(
+                str(row.get("availability") or SessionAvailability.AVAILABLE)
+            ),
+        )
+
+    def _fallback_title(self) -> str:
+        return f"Session {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')}"
+
+    def _parse_datetime(self, value: Any) -> datetime:
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str) and value:
+            parsed = datetime.fromisoformat(value)
+            if parsed.tzinfo is None:
+                return parsed.replace(tzinfo=UTC)
+            return parsed
+        return datetime.now(UTC)
+
+    def _modules(self):
+        azure_cosmos = __import__("azure.cosmos", fromlist=["PartitionKey", "exceptions"])
+        azure_cosmos_aio = __import__("azure.cosmos.aio", fromlist=["CosmosClient"])
+        azure_identity_aio = __import__("azure.identity.aio", fromlist=["DefaultAzureCredential"])
+
+        class CosmosModules:
+            PartitionKey = azure_cosmos.PartitionKey
+            exceptions = azure_cosmos.exceptions
+            CosmosClient = azure_cosmos_aio.CosmosClient
+            DefaultAzureCredential = azure_identity_aio.DefaultAzureCredential
+
+        return CosmosModules
+
+    def _exceptions(self):
+        return self._modules().exceptions
+
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def _container_client(self):
+        cosmos = self._modules()
+        credential = cosmos.DefaultAzureCredential()
+        client = cosmos.CosmosClient(self._endpoint, credential=credential)
+        try:
+            database_client = client.get_database_client(self._database)
+            container_client = database_client.get_container_client(self._container)
+            yield container_client
+        finally:
+            await client.close()
+            await credential.close()
+
 
 class SessionService:
     """Application service for session list/load/mutation operations."""
@@ -93,18 +364,57 @@ class SessionService:
     ):
         self._repository = repository
         self._chat_client = chat_client
-        self._cosmos_endpoint = os.getenv("SESSION_METADATA_COSMOS_ENDPOINT", "").strip()
-        self._cosmos_database = os.getenv(
-            "SESSION_METADATA_COSMOS_DATABASE", "logistics_session_metadata"
+
+    def _raise_metadata_store_error(
+        self,
+        *,
+        operation: str,
+        user_id: str | None,
+        session_id: str | None,
+        exc: Exception,
+    ) -> NoReturn:
+        logger.exception(
+            "Session metadata store operation failed: operation=%s user_id=%s session_id=%s",
+            operation,
+            user_id,
+            session_id,
         )
-        self._cosmos_container = os.getenv("SESSION_METADATA_COSMOS_CONTAINER", "sessions")
+        raise SessionMetadataStoreUnavailableError(
+            "Session metadata store unavailable. Check Cosmos DB networking and RBAC permissions."
+        ) from exc
 
     async def list_sessions(self, *, user_id: str, limit: int = 20) -> SessionListResponse:
-        sessions = await self._repository.list_recent_sessions(user_id=user_id, limit=limit)
+        try:
+            sessions = await self._repository.list_recent_sessions(user_id=user_id, limit=limit)
+        except SessionMetadataStoreUnavailableError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            self._raise_metadata_store_error(
+                operation="list_recent_sessions",
+                user_id=user_id,
+                session_id=None,
+                exc=exc,
+            )
         visible_sessions: list[SessionSummary] = []
         for session in sessions:
             if await self.has_persisted_user_turn(session.session_id):
                 visible_sessions.append(session)
+                continue
+
+            # Keep metadata store aligned with UX requirement: do not retain
+            # empty (zero-turn) sessions in persisted session history.
+            try:
+                await self._repository.delete_metadata(
+                    user_id=user_id, session_id=session.session_id
+                )
+            except SessionMetadataStoreUnavailableError:
+                raise
+            except Exception:
+                logger.exception(
+                    "Failed pruning zero-turn session metadata: user_id=%s session_id=%s",
+                    user_id,
+                    session.session_id,
+                )
         return SessionListResponse(
             sessions=visible_sessions, total=len(visible_sessions), limit=limit
         )
@@ -112,7 +422,17 @@ class SessionService:
     async def seed_session_metadata(self, *, user_id: str, session_id: str) -> SessionSummary:
         """Create initial session metadata so history can discover this session later."""
 
-        existing = await self._repository.get_session(user_id=user_id, session_id=session_id)
+        try:
+            existing = await self._repository.get_session(user_id=user_id, session_id=session_id)
+        except SessionMetadataStoreUnavailableError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            self._raise_metadata_store_error(
+                operation="get_session_for_seed",
+                user_id=user_id,
+                session_id=session_id,
+                exc=exc,
+            )
         if existing is not None:
             return existing
 
@@ -125,17 +445,47 @@ class SessionService:
             last_activity_at=now,
             availability=SessionAvailability.AVAILABLE,
         )
-        return await self._repository.upsert_summary(user_id=user_id, summary=summary)
+        try:
+            return await self._repository.upsert_summary(user_id=user_id, summary=summary)
+        except SessionMetadataStoreUnavailableError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            self._raise_metadata_store_error(
+                operation="upsert_summary_for_seed",
+                user_id=user_id,
+                session_id=session_id,
+                exc=exc,
+            )
 
     async def load_session(
         self, *, user_id: str, session_id: str
     ) -> SessionLoadResponse | SessionBlockedResponse:
-        transcript = await self.read_foundry_transcript_items(session_id)
+        try:
+            transcript = await self.read_foundry_transcript_items(session_id)
+        except SessionTranscriptAccessDeniedError:
+            return SessionBlockedResponse(
+                reason=(
+                    "Session transcript is unavailable because Azure AI Foundry access was denied "
+                    "(403). Verify Foundry networking/firewall access for this environment."
+                ),
+                code="foundry_access_denied",
+            )
+
         restoration_manifest, restoration_status = self.build_artifact_restoration_manifest(
             session_id=session_id,
             transcript=transcript,
         )
-        summary = await self._repository.get_session(user_id=user_id, session_id=session_id)
+        try:
+            summary = await self._repository.get_session(user_id=user_id, session_id=session_id)
+        except SessionMetadataStoreUnavailableError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            self._raise_metadata_store_error(
+                operation="get_session_for_load",
+                user_id=user_id,
+                session_id=session_id,
+                exc=exc,
+            )
         if summary is None:
             derived_title = self.derive_default_title(transcript, session_id=session_id)
             summary = SessionSummary(
@@ -316,7 +666,15 @@ class SessionService:
                 conflict_reason="Title must not be empty",
             )
 
-        await self._repository.upsert_title(user_id=user_id, session_id=session_id, title=title)
+        try:
+            await self._repository.upsert_title(user_id=user_id, session_id=session_id, title=title)
+        except Exception as exc:  # noqa: BLE001
+            self._raise_metadata_store_error(
+                operation="upsert_title",
+                user_id=user_id,
+                session_id=session_id,
+                exc=exc,
+            )
         return SessionMutationResult(
             session_id=session_id,
             mutation_type=MutationType.RENAME,
@@ -329,7 +687,15 @@ class SessionService:
         # conversation is not deleted (Foundry conversation lifecycle is managed
         # separately). Treat as idempotent: if it's already absent, that's still
         # a successful "hide from history" from the user's perspective.
-        await self._repository.soft_delete(user_id=user_id, session_id=session_id)
+        try:
+            await self._repository.soft_delete(user_id=user_id, session_id=session_id)
+        except Exception as exc:  # noqa: BLE001
+            self._raise_metadata_store_error(
+                operation="soft_delete",
+                user_id=user_id,
+                session_id=session_id,
+                exc=exc,
+            )
         return SessionMutationResult(
             session_id=session_id,
             mutation_type=MutationType.DELETE,
@@ -349,42 +715,17 @@ class SessionService:
 
     def _timestamp_fallback_title(self, *, session_id: str | None = None) -> str:
         timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M")
-        suffix = f" ({session_id})" if session_id else ""
-        return f"Session {timestamp}{suffix}"
+        return f"Session {timestamp}"
 
     async def ensure_metadata_store(self) -> None:
-        """Create metadata Cosmos database/container when endpoint is configured."""
-
-        if not self._cosmos_endpoint:
-            logger.info(
-                "SESSION_METADATA_COSMOS_ENDPOINT not set; using in-memory metadata repository"
-            )
-            return
-
-        azure_cosmos = import_module("azure.cosmos")
-        azure_cosmos_aio = import_module("azure.cosmos.aio")
-        azure_identity_aio = import_module("azure.identity.aio")
-
-        PartitionKey = azure_cosmos.PartitionKey
-        CosmosClient = azure_cosmos_aio.CosmosClient
-        DefaultAzureCredential = azure_identity_aio.DefaultAzureCredential
-
-        credential = DefaultAzureCredential()
-        cosmos_client = CosmosClient(self._cosmos_endpoint, credential=credential)
+        """Ensure metadata persistence store is ready for session operations."""
         try:
-            database = await cosmos_client.create_database_if_not_exists(self._cosmos_database)
-            await database.create_container_if_not_exists(
-                id=self._cosmos_container,
-                partition_key=PartitionKey(path="/user_id"),
-            )
-            logger.info(
-                "Session metadata bootstrap complete for database=%s container=%s",
-                self._cosmos_database,
-                self._cosmos_container,
-            )
-        finally:
-            await cosmos_client.close()
-            await credential.close()
+            await self._repository.ensure_store()
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Session metadata store initialization failed")
+            raise SessionMetadataStoreUnavailableError(
+                "Session metadata store initialization failed. Check Cosmos DB networking and RBAC permissions."
+            ) from exc
 
     async def read_foundry_transcript_items(self, session_id: str) -> list[dict[str, Any]]:
         """Read and normalize transcript items from Foundry Conversations API.
@@ -396,7 +737,19 @@ class SessionService:
         if openai_client is None:
             return []
 
-        items_response = await openai_client.conversations.items.list(session_id, order="asc")
+        try:
+            items_response = await openai_client.conversations.items.list(session_id, order="asc")
+        except Exception as exc:  # noqa: BLE001
+            if self._is_foundry_access_denied(exc):
+                logger.warning(
+                    "Foundry transcript access denied for session_id=%s; returning blocked response",
+                    session_id,
+                )
+                raise SessionTranscriptAccessDeniedError(
+                    "Foundry transcript access denied"
+                ) from exc
+            raise
+
         items = self._coerce_items(items_response)
         normalized: list[dict[str, Any]] = []
         seen_ids: set[str] = set()
@@ -456,6 +809,23 @@ class SessionService:
                 return maybe_data
         return []
 
+    def _is_foundry_access_denied(self, exc: Exception) -> bool:
+        status_code = getattr(exc, "status_code", None)
+        if status_code == 403:
+            return True
+
+        response = getattr(exc, "response", None)
+        response_status = getattr(response, "status_code", None)
+        if response_status == 403:
+            return True
+
+        message = str(exc).lower()
+        return (
+            "public access is disabled" in message
+            or "permission denied" in message
+            or "403" in message
+        )
+
     def _normalize_item(self, item: Any) -> dict[str, Any]:
         if hasattr(item, "model_dump"):
             raw = item.model_dump(warnings=False)  # type: ignore[no-untyped-call]
@@ -511,7 +881,28 @@ class SessionService:
 def create_session_service(chat_client: Any | None = None) -> SessionService:
     """Factory for session service wiring.
 
-    TODO: Replace in-memory repository with Cosmos-backed repository.
+    Uses Cosmos metadata repository when endpoint is configured.
     """
+    cosmos_endpoint = (
+        os.getenv("SESSION_METADATA_COSMOS_DB_ENDPOINT", "").strip()
+        or os.getenv("SESSION_METADATA_COSMOS_ENDPOINT", "").strip()
+        or os.getenv("COSMOS_DB_ENDPOINT", "").strip()
+    )
+    cosmos_database = os.getenv("SESSION_METADATA_COSMOS_DATABASE", "logistics_session_metadata")
+    cosmos_container = os.getenv("SESSION_METADATA_COSMOS_CONTAINER", "sessions")
 
-    return SessionService(repository=InMemorySessionMetadataRepository(), chat_client=chat_client)
+    if cosmos_endpoint:
+        repository: SessionMetadataRepository = CosmosSessionMetadataRepository(
+            endpoint=cosmos_endpoint,
+            database=cosmos_database,
+            container=cosmos_container,
+        )
+    else:
+        logger.info(
+            "No Cosmos endpoint set (checked SESSION_METADATA_COSMOS_DB_ENDPOINT, "
+            "SESSION_METADATA_COSMOS_ENDPOINT, COSMOS_DB_ENDPOINT); "
+            "using in-memory metadata repository"
+        )
+        repository = InMemorySessionMetadataRepository()
+
+    return SessionService(repository=repository, chat_client=chat_client)

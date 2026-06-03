@@ -6,7 +6,7 @@
 
 ## Summary
 
-Implement a resumable session history experience that preserves the existing `conv_*` conversation-rooted linkage across CopilotKit, AG-UI, Microsoft Agent Framework (`use_service_session=True`), and Foundry Agent Service v2 persistence. The solution adds a left-side session flyout (latest 20 entries), localStorage-first session interactions for fast responsiveness, startup synchronization and reconciliation with backend APIs, session rename/delete flows, bounded AG-UI artifact rehydration, zero-turn session suppression in visible history, and no-auth chat-only gating (no history sidebar/actions) while preserving MCP-based operational data paths and current chat behavior for new conversations.
+Implement a resumable session history experience that preserves the existing `conv_*` conversation-rooted linkage across CopilotKit, AG-UI, Microsoft Agent Framework (`use_service_session=True`), and Foundry Agent Service v2 persistence. The solution adds a left-side session drawer (latest 20 entries), localStorage-first session interactions for fast responsiveness, startup synchronization and reconciliation with backend APIs, session rename/delete flows, bounded AG-UI artifact rehydration, zero-turn session suppression in visible history, and no-auth chat-only gating (no history drawer/actions) while preserving MCP-based operational data paths and current chat behavior for new conversations.
 
 ## Technical Context
 
@@ -33,7 +33,7 @@ Implement a resumable session history experience that preserves the existing `co
 - In no-auth mode, expose chat-only UX and disable session history sidebar/actions and calls.
 - Artifact rehydration is limited to a supported subset with transcript fallback.
 - Session metadata Cosmos DB path remains private-network only and is not directly reachable from frontend clients.
-- Session metadata backing resources require idempotent Logistics API bootstrap (create-if-not-exists) for first-run safety.
+- Session metadata backing resources are provisioned by Terraform (or equivalent deployment infrastructure) before Logistics API runtime, and API behavior is validation-only.
 - Local cache is user-scoped and treated as a responsiveness layer only; backend APIs remain authoritative for durable state.
 
 **Scale/Scope**: Frontend session flyout + chat resume wiring, backend session management APIs, session metadata persistence contract, AG-UI restoration policy, authorization enforcement, validation assets under `specs/004-agent-session-persistence/`

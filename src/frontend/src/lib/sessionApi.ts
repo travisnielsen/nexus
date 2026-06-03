@@ -29,6 +29,14 @@ export interface SessionLoadResponse {
   restoration_manifest: SessionArtifact[];
 }
 
+export interface SessionBlockedResponse {
+  blocked: true;
+  reason: string;
+  code: string;
+}
+
+export type SessionLoadApiResponse = SessionLoadResponse | SessionBlockedResponse;
+
 export type ArtifactRestorationStatus = "restored" | "unsupported" | "missing_data" | "failed";
 
 export interface SessionArtifact {
@@ -84,14 +92,14 @@ export async function loadSession(
   sessionId: string,
   signal?: AbortSignal,
   accessToken?: string | null,
-): Promise<SessionLoadResponse> {
+): Promise<SessionLoadApiResponse> {
   const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
     method: "GET",
     headers: buildAuthHeaders(accessToken),
     signal,
     cache: "no-store",
   });
-  return parseJson<SessionLoadResponse>(response);
+  return parseJson<SessionLoadApiResponse>(response);
 }
 
 export async function renameSession(

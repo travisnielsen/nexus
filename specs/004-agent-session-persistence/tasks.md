@@ -36,8 +36,8 @@
 - [X] T012 Add typed unavailable/blocked/error response contracts in `src/backend/logistics/agents/utils/session_models.py`
 - [X] T013 Wire session history context provider into authenticated wrapper in `src/frontend/src/components/AuthenticatedCopilotKit.tsx`
 - [X] T014 Gate no-auth wrapper to chat-only mode (no session history sidebar/provider/actions) in `src/frontend/src/components/NoAuthCopilotKit.tsx`
-- [X] T015 Implement Cosmos DB metadata bootstrap (create-if-not-exists for database/container) in `src/backend/logistics/services/session_service.py`
-- [X] T016 Add backend startup/first-use initialization wiring for idempotent metadata bootstrap in `src/backend/logistics/main.py`
+- [X] T015 Implement Cosmos session metadata store availability validation and unavailable-store handling in `src/backend/logistics/services/session_service.py`
+- [X] T016 Add backend startup/first-use validation wiring for session metadata store readiness in `src/backend/logistics/main.py`
 - [X] T017 Implement frontend local cache adapter (load/save/migrate) in `src/frontend/src/lib/sessionCache.ts`
 - [X] T018 Implement startup sync orchestration shell in `src/frontend/src/lib/useSessionHistory.ts`
 - [X] T061 Implement Foundry Conversations API transcript reader (items.list + normalization) in `src/backend/logistics/services/session_service.py`
@@ -50,13 +50,13 @@
 
 **Goal**: Users can browse recent sessions, load one, and continue with preserved context/linkage.
 
-**Independent Test**: Open flyout, select an existing session, verify transcript loads, send follow-up, and confirm conversation continues in the same canonical session.
+**Independent Test**: Open session history drawer, select an existing session, verify transcript loads, send follow-up, and confirm conversation continues in the same canonical session.
 
-- [X] T019 [P] [US1] Implement session history flyout UI shell in `src/frontend/src/components/SessionHistoryFlyout.tsx`
+- [X] T019 [P] [US1] Implement session history drawer UI shell in `src/frontend/src/components/SessionHistoryFlyout.tsx`
 - [X] T020 [US1] Implement latest-20 session query in backend service in `src/backend/logistics/services/session_service.py`
 - [X] T021 [US1] Implement session list API response mapping in `src/backend/logistics/main.py`
 - [X] T064 [US1] Exclude zero-turn sessions from history list query/results in `src/backend/logistics/services/session_service.py`
-- [X] T022 [P] [US1] Render date/time and availability chips in flyout entries in `src/frontend/src/components/SessionHistoryFlyout.tsx`
+- [X] T022 [P] [US1] Render date/time and availability chips in drawer entries in `src/frontend/src/components/SessionHistoryFlyout.tsx`
 - [X] T023 [US1] Hydrate session list from localStorage at startup in `src/frontend/src/lib/useSessionHistory.ts`
 - [X] T024 [US1] Implement startup background sync and reconciliation with backend list API in `src/frontend/src/lib/useSessionHistory.ts`
 - [X] T025 [US1] Implement session selection and load trigger in `src/frontend/src/lib/useSessionHistory.ts`
@@ -74,7 +74,7 @@
 
 **Goal**: Users can rename and delete sessions with durable backend persistence.
 
-**Independent Test**: Rename and delete from flyout, refresh app, and verify durable updated history state.
+**Independent Test**: Rename and delete from drawer, refresh app, and verify durable updated history state.
 
 - [X] T032 [P] [US2] Implement default title derivation helper in `src/backend/logistics/services/session_service.py`
 - [X] T033 [US2] Ensure title generation on first display in session list mapping in `src/backend/logistics/main.py`
@@ -120,14 +120,19 @@
 - [ ] T053 Validate AG-UI/CopilotKit compatibility and document outcomes in `specs/004-agent-session-persistence/validation/us-cross-agui-compatibility.md`
 - [ ] T054 Validate authorization/privacy isolation outcomes in `specs/004-agent-session-persistence/validation/us-cross-authz-privacy.md`
 - [ ] T055 Validate private VNET Cosmos boundary (Logistics API-only access) in `specs/004-agent-session-persistence/validation/us-cross-network-boundary.md`
-- [ ] T056 Validate create-if-not-exists bootstrap behavior in `specs/004-agent-session-persistence/validation/us-cross-cosmos-bootstrap.md`
+- [ ] T056 Validate Terraform-provisioned Cosmos metadata resources and API validation-only behavior in `specs/004-agent-session-persistence/validation/us-cross-cosmos-bootstrap.md`
+- [X] T070 Remove runtime owner-resource-missing provisioning retry behavior and keep store failures explicit in `src/backend/logistics/services/session_service.py`
+- [X] T071 Provision session metadata Cosmos database/container through Terraform and switch API startup behavior to validation-only in `infra/data.tf`, `infra/compute.tf`, and `src/backend/logistics/services/session_service.py`
 - [ ] T057 Validate local-first startup hydration and reconciliation behavior in `specs/004-agent-session-persistence/validation/us-cross-local-cache-sync.md`
 - [ ] T063 Validate transcript reload source contract (Foundry Conversations API only; no raw Cosmos transcript parsing) in `specs/004-agent-session-persistence/validation/us-cross-transcript-source-contract.md`
 - [ ] T065 Validate zero-turn suppression in session history (fresh load + immediate history open) in `specs/004-agent-session-persistence/validation/us-cross-zero-turn-filter.md`
-- [ ] T066 Validate no-auth mode hides session history sidebar/actions and emits no session-history API calls in `specs/004-agent-session-persistence/validation/us-cross-noauth-history-gating.md`
+- [ ] T066 Validate no-auth mode hides session history drawer/actions and emits no session-history API calls in `specs/004-agent-session-persistence/validation/us-cross-noauth-history-gating.md`
 - [ ] T067 Validate MCP operational data-path integrity remains unchanged by session persistence feature in `specs/004-agent-session-persistence/validation/us-cross-mcp-path-integrity.md`
 - [ ] T068 Validate authenticated local end-to-end session lifecycle (sign in, create conversations, reload, reopen prior sessions) in `specs/004-agent-session-persistence/validation/us-cross-local-auth-e2e.md`
 - [ ] T069 Capture SC-009 and SC-010 metrics (local UI feedback latency + startup/mutation sync convergence) with measurement method and sample set in `specs/004-agent-session-persistence/validation/us-cross-performance-sync-metrics.md`
+- [X] T072 [US1] Convert session history trigger from floating button to navbar-activated drawer in `src/frontend/src/components/SessionHistoryFlyout.tsx` and `src/frontend/src/app/page.tsx`
+- [X] T073 [US1] Close session drawer immediately after selecting a resumable session in `src/frontend/src/components/SessionHistoryFlyout.tsx`
+- [X] T074 [US1] Show deterministic chat-panel loading overlay during session restore in `src/frontend/src/app/page.tsx` and `src/frontend/src/components/SessionHistoryFlyout.tsx`
 - [X] T058 Run backend quality gate and capture output in `specs/004-agent-session-persistence/validation/quality-gates.md`
 - [X] T059 Run frontend lint gate and capture output in `specs/004-agent-session-persistence/validation/quality-gates.md`
 - [ ] T060 Summarize success-criteria evidence (SC-001..SC-012) in `specs/004-agent-session-persistence/validation/final-quality-gate.md`
@@ -146,7 +151,7 @@
 ### User Story Dependencies
 
 - US1 (P1): Starts after Foundational; no dependency on other user stories.
-- US2 (P2): Starts after Foundational; uses US1 flyout/state primitives but remains independently testable.
+- US2 (P2): Starts after Foundational; uses US1 drawer/state primitives but remains independently testable.
 - US3 (P3): Starts after Foundational; can build on US1 load path while remaining independently testable.
 
 ### Suggested Story Completion Order
@@ -159,7 +164,7 @@
 
 ### User Story 1
 
-- Execute T019 and T020 in parallel (frontend flyout shell and backend list query).
+- Execute T019 and T020 in parallel (frontend drawer shell and backend list query).
 - Execute T022 and T026 in parallel after T021 (UI chips and transcript/linkage logic).
 
 ### User Story 2

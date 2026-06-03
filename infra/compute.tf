@@ -163,6 +163,18 @@ resource "azurerm_container_app" "api" {
         name  = "RECOMMENDATIONS_AGENT_URL"
         value = "https://${azurerm_container_app.a2a.ingress[0].fqdn}"
       }
+      env {
+        name  = "SESSION_METADATA_COSMOS_DB_ENDPOINT"
+        value = "https://${module.ai_cosmosdb.name}.documents.azure.com:443/"
+      }
+      env {
+        name  = "SESSION_METADATA_COSMOS_DATABASE"
+        value = var.session_metadata_cosmos_database
+      }
+      env {
+        name  = "SESSION_METADATA_COSMOS_CONTAINER"
+        value = var.session_metadata_cosmos_container
+      }
     }
   }
 
@@ -170,6 +182,8 @@ resource "azurerm_container_app" "api" {
     azurerm_role_assignment.api_acr_pull,
     azurerm_role_assignment.api_ai_foundry_developer_containerapp,
     azurerm_role_assignment.api_storage,
+    azurerm_cosmosdb_sql_database.session_metadata,
+    azurerm_cosmosdb_sql_container.session_metadata,
     azurerm_container_app.mcp,
     azurerm_container_app.a2a
   ]

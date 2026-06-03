@@ -44,7 +44,7 @@ from middleware import (  # type: ignore
     azure_scheme,
 )
 from monitoring import configure_observability, is_observability_enabled  # type: ignore
-from services import SessionService, create_session_service
+from services import SessionMetadataStoreUnavailableError, SessionService, create_session_service
 
 load_dotenv()
 
@@ -101,7 +101,13 @@ async def _init_chat_client():
 
     logistics_agent = create_logistics_agent(chat_client)
     session_service = create_session_service(chat_client)
-    await session_service.ensure_metadata_store()
+    try:
+        await session_service.ensure_metadata_store()
+    except SessionMetadataStoreUnavailableError as exc:
+        logger.warning(
+            "Session metadata store unavailable during startup; continuing in degraded mode: %s",
+            exc,
+        )
 
 
 @asynccontextmanager
@@ -190,6 +196,14 @@ class TraceIdentityMiddleware(BaseHTTPMiddleware):
         set_trace_identity(identity)
         try:
             if request.url.path.startswith("/logistics"):
+                conversation_id_for_seed = (
+                    identity.conversation_id if identity and identity.conversation_id else None
+                )
+                if conversation_id_for_seed is None and request.method.upper() == "POST":
+                    conversation_id_for_seed = (
+                        await _extract_conversation_id_from_logistics_request(request)
+                    )
+
                 with tracer.start_as_current_span("turn.lifecycle") as span:
                     if identity:
                         span.set_attribute("gen_ai.conversation.id", identity.conversation_id)
@@ -198,6 +212,16 @@ class TraceIdentityMiddleware(BaseHTTPMiddleware):
                         if identity.run_id:
                             span.set_attribute("gen_ai.run.id", identity.run_id)
                     response = await call_next(request)
+
+                if (
+                    request.method.upper() == "POST"
+                    and response.status_code < 500
+                    and conversation_id_for_seed
+                ):
+                    await _seed_session_metadata_for_turn(
+                        request=request,
+                        conversation_id=conversation_id_for_seed,
+                    )
             else:
                 response = await call_next(request)
             if identity:
@@ -271,19 +295,6 @@ async def create_conversation(request: Request):
         # get_openai_client() is synchronous — returns an AsyncOpenAI instance
         openai_client = chat_client.project_client.get_openai_client()  # pyright: ignore[reportAttributeAccessIssue]
         conversation = await openai_client.conversations.create()
-        user_id = _get_user_id_for_session_scope(request)
-
-        try:
-            await _get_session_service().seed_session_metadata(
-                user_id=user_id,
-                session_id=conversation.id,
-            )
-        except Exception:
-            logger.exception(
-                "Failed to seed session metadata for conversation_id=%s user_id=%s",
-                conversation.id,
-                user_id,
-            )
 
         logger.info("Created Azure Foundry conversation: %s", conversation.id)
 
@@ -338,6 +349,57 @@ def _get_session_service() -> SessionService:
     return session_service
 
 
+async def _extract_conversation_id_from_logistics_request(request: Request) -> str | None:
+    """Best-effort extraction of conversation/thread ID from AG-UI request payload."""
+
+    content_type = request.headers.get("content-type", "")
+    if "application/json" not in content_type.lower():
+        return None
+
+    try:
+        payload = await request.json()
+    except Exception:
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    for key in ("threadId", "thread_id", "conversationId", "conversation_id"):
+        candidate = payload.get(key)
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    return None
+
+
+async def _seed_session_metadata_for_turn(request: Request, conversation_id: str) -> None:
+    """Persist session metadata when the first real turn reaches the logistics endpoint."""
+
+    try:
+        user_id = _get_user_id_for_session_scope(request)
+    except HTTPException:
+        # If auth context is unavailable for a turn request, skip metadata writes.
+        return
+
+    try:
+        await _get_session_service().seed_session_metadata(
+            user_id=user_id,
+            session_id=conversation_id,
+        )
+    except SessionMetadataStoreUnavailableError:
+        logger.warning(
+            "Session metadata store unavailable while seeding turn metadata; "
+            "continuing without history metadata for conversation_id=%s user_id=%s",
+            conversation_id,
+            user_id,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to seed turn metadata for conversation_id=%s user_id=%s",
+            conversation_id,
+            user_id,
+        )
+
+
 def _get_user_id_for_session_scope(request: Request) -> str:
     user = getattr(request.state, "user", None)
     if AUTH_CONFIGURED and not isinstance(user, dict):
@@ -359,7 +421,10 @@ async def list_sessions(request: Request):
 
     service = _get_session_service()
     user_id = _get_user_id_for_session_scope(request)
-    return await service.list_sessions(user_id=user_id, limit=20)
+    try:
+        return await service.list_sessions(user_id=user_id, limit=20)
+    except SessionMetadataStoreUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get(
@@ -371,7 +436,10 @@ async def load_session(session_id: str, request: Request):
 
     service = _get_session_service()
     user_id = _get_user_id_for_session_scope(request)
-    return await service.load_session(user_id=user_id, session_id=session_id)
+    try:
+        return await service.load_session(user_id=user_id, session_id=session_id)
+    except SessionMetadataStoreUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.patch("/api/sessions/{session_id}", response_model=SessionMutationResult)
@@ -380,9 +448,12 @@ async def rename_session(session_id: str, payload: SessionRenameRequest, request
 
     service = _get_session_service()
     user_id = _get_user_id_for_session_scope(request)
-    result = await service.rename_session(
-        user_id=user_id, session_id=session_id, title=payload.title
-    )
+    try:
+        result = await service.rename_session(
+            user_id=user_id, session_id=session_id, title=payload.title
+        )
+    except SessionMetadataStoreUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     if result.status.value == "rejected":
         raise HTTPException(status_code=409, detail=result.conflict_reason or "Rename rejected")
     return result
@@ -394,7 +465,10 @@ async def delete_session(session_id: str, request: Request):
 
     service = _get_session_service()
     user_id = _get_user_id_for_session_scope(request)
-    result = await service.delete_session(user_id=user_id, session_id=session_id)
+    try:
+        result = await service.delete_session(user_id=user_id, session_id=session_id)
+    except SessionMetadataStoreUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     if result.status.value == "rejected":
         raise HTTPException(status_code=409, detail=result.conflict_reason or "Delete rejected")
     return result

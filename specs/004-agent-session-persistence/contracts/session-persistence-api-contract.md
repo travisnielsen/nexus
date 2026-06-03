@@ -76,13 +76,12 @@ Define required API and identity continuity behavior for session history listing
   - Frontend and chat clients must never access Cosmos DB directly.
   - All session list/load/mutation operations flow through backend APIs that enforce both auth scope and network boundary.
 
-## Contract 8: Cosmos Bootstrap and Idempotent Provisioning
+## Contract 8: Cosmos Provisioning Ownership and Runtime Validation
 
 - Requirements:
-  - Logistics API must perform idempotent create-if-not-exists initialization for required session metadata Cosmos DB resources.
-  - Bootstrap behavior must safely handle already-existing database/container resources without destructive changes.
-  - Missing required resources in a new environment must be created automatically during service initialization or first access path.
-  - Bootstrap failures must return actionable backend diagnostics and keep request failures explicit.
+  - Terraform (or equivalent deployment infrastructure) must provision required session metadata Cosmos DB resources before API runtime.
+  - Logistics API runtime behavior must validate configured database/container availability and must not create missing Cosmos DB resources.
+  - If required resources are missing, unreachable, or denied, API responses must return actionable diagnostics and explicit unavailable-store outcomes.
 
 ## Contract 9: Local-First Session Cache and Sync
 
@@ -107,7 +106,7 @@ Define required API and identity continuity behavior for session history listing
   - Rename/delete durability after page refresh.
   - Authorization tests for cross-user isolation.
   - Verification that no frontend route or client code performs direct Cosmos DB access.
-  - Verification that first-run environment creates required metadata database/container via create-if-not-exists.
+  - Verification that required metadata database/container are provisioned by deployment infrastructure before API startup.
   - Verification that repeat startup/access does not duplicate or mutate existing Cosmos resources unexpectedly.
   - Verification that localStorage startup hydration occurs before backend sync.
   - Verification that local-first rename/delete operations reconcile to backend state with explicit pending/synced/failed outcomes.
