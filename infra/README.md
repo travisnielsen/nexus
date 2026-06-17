@@ -38,6 +38,20 @@ az ad app create \
 # Note the Application (client) ID - you'll need this for NEXT_PUBLIC_AZURE_AD_CLIENT_ID
 ```
 
+### Backend API App Registration
+
+```bash
+# Create the backend API app registration
+az ad app create \
+  --display-name "nexus-backend-api" \
+  --sign-in-audience AzureADMyOrg
+
+# Note the Application (client) ID - you'll need this for backend_api_app_client_id
+# Also define an API scope in the app registration, such as access_as_user,
+# and note the full scope URI for backend_api_scope_uri.
+# Example: api://<backend-api-client-id>/access_as_user
+```
+
 ### MCP App Registration (Optional - for MCP authentication)
 
 ```bash
@@ -85,13 +99,21 @@ storage_account_name = "<unique-storage-account-name>"
 
 ## Step 3: Configure Variables
 
-Create a `terraform.tfvars` file (not committed to source control):
+Start from the example file and then fill in environment-specific values:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Key variables in `terraform.tfvars`:
 
 ```hcl
 subscription_id             = "<your-subscription-id>"
 region                      = "westus3"
 region_aifoundry            = "eastus2"
 frontend_app_client_id      = "<frontend-app-registration-client-id>"
+backend_api_app_client_id   = "<backend-api-app-registration-client-id>"
+backend_api_scope_uri       = "api://<backend-api-app-registration-client-id>/access_as_user"
 mcp_app_client_id           = "<mcp-app-registration-client-id>"
 github_actions_principal_id = "<github-actions-sp-object-id>"
 auth_enabled                = true  # Set to false for development
@@ -185,6 +207,11 @@ Mapped variables:
 - `AZURE_A2A_CONTAINER_APP_NAME`
 - `AGENT_API_BASE_URL`
 - `FOUNDRY_PROJECT_ENDPOINT`
+- `NEXT_PUBLIC_AZURE_AD_CLIENT_ID`
+- `NEXT_PUBLIC_AZURE_AD_TENANT_ID`
+- `NEXT_PUBLIC_AZURE_AD_API_SCOPE_URI`
+- `NEXT_PUBLIC_AUTH_ENABLED`
+- `AUTH_ENABLED`
 
 Script behavior:
 - Idempotent update logic (`added`, `changed`, `unchanged` summary)

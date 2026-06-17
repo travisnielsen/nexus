@@ -65,6 +65,7 @@ export default function LogisticsPage() {
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [isSessionSwitching, setIsSessionSwitching] = useState(false);
   const sessionHistory = useSessionHistoryContext();
+  const isAuthEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true";
 
   // Get access token for authenticated API calls (returns null when auth is disabled)
   const accessToken = useSafeAccessToken();
@@ -134,18 +135,20 @@ export default function LogisticsPage() {
             </svg>
             <span className="text-xl font-bold text-white">Logistics Explorer</span>
           </div>
-          <button
-            onClick={() => setSessionsOpen(true)}
-            className="flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors text-sm"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7"/>
-              <rect x="14" y="3" width="7" height="7"/>
-              <rect x="14" y="14" width="7" height="7"/>
-              <rect x="3" y="14" width="7" height="7"/>
-            </svg>
-            Sessions
-          </button>
+          {isAuthEnabled && (
+            <button
+              onClick={() => setSessionsOpen(true)}
+              className="flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors text-sm"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+              </svg>
+              Sessions
+            </button>
+          )}
           <a href="#" className="text-gray-300 hover:text-white transition-colors">Docs</a>
           <a href="#" className="text-gray-300 hover:text-white transition-colors">About</a>
         </div>

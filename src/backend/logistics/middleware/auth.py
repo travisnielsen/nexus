@@ -21,15 +21,19 @@ logger = logging.getLogger(__name__)
 class AzureADSettings(BaseSettings):
     """Azure AD configuration loaded from environment variables."""
 
-    # The Application (client) ID of the API app registration
+    # The Application (client) ID of the Backend API app registration
     AZURE_AD_CLIENT_ID: str = ""
 
     # The Directory (tenant) ID
     AZURE_AD_TENANT_ID: str = ""
 
-    # Optional: The Application ID URI (if you've set one up for scopes)
-    # Usually looks like: api://<client-id>
-    AZURE_AD_APP_ID_URI: str = ""
+    # The Application ID URI of the Backend API app registration
+    # Usually looks like: api://<backend-app-guid>
+    AZURE_AD_API_SCOPE_URI: str = ""
+
+    # Required scope name exposed by the Backend API app registration
+    # Usually looks like: api://<backend-app-guid>/access_as_user
+    AZURE_AD_API_SCOPE: str = "access_as_user"
 
     # Set to "true" to enable authentication (default in production)
     AUTH_ENABLED: bool = True
@@ -70,24 +74,30 @@ class AzureADAuthMiddleware(BaseHTTPMiddleware):
         )
         self.jwks_client = PyJWKClient(self.jwks_uri) if settings.AZURE_AD_TENANT_ID else None
 
-        # Azure AD can issue tokens with different issuer formats depending on the endpoint
+        # Azure AD accepted issuers
+        # - v2.0 is preferred (requires accessTokenAcceptedVersion=2 in app manifest)
+        # - v1.0 is also accepted until the app manifest is updated in Azure Portal
+        # See: App registrations → Manifest → "accessTokenAcceptedVersion": 2
         self.valid_issuers = [
-            f"https://login.microsoftonline.com/{settings.AZURE_AD_TENANT_ID}/v2.0",  # v2.0 endpoint
-            f"https://sts.windows.net/{settings.AZURE_AD_TENANT_ID}/",  # v1.0 endpoint
+            f"https://login.microsoftonline.com/{settings.AZURE_AD_TENANT_ID}/v2.0",
+            f"https://sts.windows.net/{settings.AZURE_AD_TENANT_ID}/",
         ]
 
-        # The audience can be either the client ID or the App ID URI
-        # Also support Graph API tokens for fallback scenarios
-        self.valid_audiences = [
-            settings.AZURE_AD_CLIENT_ID,
-            f"api://{settings.AZURE_AD_CLIENT_ID}",
-            "00000003-0000-0000-c000-000000000000",  # Microsoft Graph
-        ]
-        if settings.AZURE_AD_APP_ID_URI:
-            self.valid_audiences.append(settings.AZURE_AD_APP_ID_URI)
+        # Parse full scope URI into audience + scope name.
+        # Example: api://<backend-app-guid>/access_as_user
+        scope_uri = settings.AZURE_AD_API_SCOPE_URI.strip()
+        if scope_uri and "/" in scope_uri:
+            audience, required_scope = scope_uri.rsplit("/", 1)
+        else:
+            audience = scope_uri or f"api://{settings.AZURE_AD_CLIENT_ID}"
+            required_scope = settings.AZURE_AD_API_SCOPE
 
-        logger.debug(f"Azure AD Auth configured with audiences: {self.valid_audiences}")
-        logger.debug(f"Azure AD Auth configured with issuers: {self.valid_issuers}")
+        self.valid_audience = audience
+        self.required_scope = required_scope or settings.AZURE_AD_API_SCOPE
+
+        logger.info(f"Azure AD Auth configured for issuers: {self.valid_issuers}")
+        logger.info(f"Azure AD Auth configured for audience: {self.valid_audience}")
+        logger.info(f"Azure AD Auth configured for scope: {self.required_scope}")
 
     async def dispatch(self, request: Request, call_next):
         # Normalize path by removing trailing slash for comparison
@@ -160,13 +170,38 @@ class AzureADAuthMiddleware(BaseHTTPMiddleware):
                 )
 
             signing_key = self.jwks_client.get_signing_key_from_jwt(token)
-            payload = jwt.decode(
-                token,
-                signing_key.key,
-                algorithms=["RS256"],
-                audience=self.valid_audiences,
-                issuer=self.valid_issuers,
-            )
+            last_error: Exception | None = None
+            payload = None
+            for issuer in self.valid_issuers:
+                try:
+                    payload = jwt.decode(
+                        token,
+                        signing_key.key,
+                        algorithms=["RS256"],
+                        audience=self.valid_audience,
+                        issuer=issuer,
+                    )
+                    break
+                except jwt.InvalidIssuerError as e:
+                    last_error = e
+            if payload is None:
+                raise last_error or jwt.InvalidTokenError("No valid issuer matched")
+
+            # Validate that the token contains the required scope
+            # The scope claim in the token lists all permissions granted
+            token_scopes = payload.get("scp", "").split()
+            if self.required_scope not in token_scopes:
+                logger.warning(
+                    f"Token missing required scope '{self.required_scope}'. "
+                    f"Token scopes: {token_scopes}"
+                )
+                return JSONResponse(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    content={
+                        "detail": f"Token does not have required scope: {self.required_scope}"
+                    },
+                )
+
             # Store user info in request state for downstream use
             request.state.user = payload
         except jwt.ExpiredSignatureError:
@@ -197,14 +232,21 @@ def get_azure_auth_scheme() -> SingleTenantAzureAuthorizationCodeBearer:
     Create and return the Azure AD authentication scheme.
 
     This validates tokens and extracts claims from the JWT.
+    Uses separate frontend and backend app registrations following Zero Trust principles.
     """
+    # Use explicit full scope URI when provided, else derive from client ID + scope name.
+    configured_scope_uri = azure_ad_settings.AZURE_AD_API_SCOPE_URI.strip()
+    backend_scope_uri = configured_scope_uri or (
+        f"api://{azure_ad_settings.AZURE_AD_CLIENT_ID}/{azure_ad_settings.AZURE_AD_API_SCOPE}"
+    )
+
     return SingleTenantAzureAuthorizationCodeBearer(
         app_client_id=azure_ad_settings.AZURE_AD_CLIENT_ID,
         tenant_id=azure_ad_settings.AZURE_AD_TENANT_ID,
         scopes={
-            # Define the scopes your API accepts
-            # The key is the scope, value is the description
-            f"api://{azure_ad_settings.AZURE_AD_CLIENT_ID}/access_as_user": "Access API as user",
+            # Define the scopes this Backend API exposes
+            # The key is the fully qualified scope URI
+            backend_scope_uri: "Access Backend API as user",
         }
         if azure_ad_settings.AZURE_AD_CLIENT_ID
         else {},

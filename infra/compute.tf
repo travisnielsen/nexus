@@ -109,7 +109,11 @@ resource "azurerm_container_app" "api" {
       }
       env {
         name  = "AZURE_AD_CLIENT_ID"
-        value = var.frontend_app_client_id
+        value = var.backend_api_app_client_id
+      }
+      env {
+        name  = "AZURE_AD_API_SCOPE_URI"
+        value = var.backend_api_scope_uri
       }
       env {
         name  = "FOUNDRY_PROJECT_ENDPOINT"

@@ -1,0 +1,27 @@
+# Copy this file to terraform.tfvars and replace placeholder values.
+# Do not commit terraform.tfvars with real secrets.
+
+subscription_id             = "<your-subscription-id>"
+region                      = "westus3"
+region_aifoundry            = "eastus2"
+region_alternative          = "eastus"
+
+# App registrations
+frontend_app_client_id      = "<frontend-app-registration-client-id>"
+backend_api_app_client_id   = "<backend-api-app-registration-client-id>"
+backend_api_scope_uri       = "api://<backend-api-app-registration-client-id>/access_as_user"
+mcp_app_client_id           = "<mcp-app-registration-client-id>"
+
+# CI/CD service principal object id
+github_actions_principal_id = "<github-actions-sp-object-id>"
+
+# Auth toggle (set false only for local/dev scenarios)
+auth_enabled                = true
+
+# Required for utility VM
+utility_vm_admin_password   = "<set-a-strong-password>"
+
+# Optional overrides for session metadata container
+# session_metadata_cosmos_database          = "logistics_session_metadata"
+# session_metadata_cosmos_container         = "sessions"
+# session_metadata_cosmos_partition_key_path = "/user_id"

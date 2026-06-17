@@ -100,14 +100,17 @@ async def _init_chat_client():
     await ensure_foundry_agent_exists(chat_client)
 
     logistics_agent = create_logistics_agent(chat_client)
-    session_service = create_session_service(chat_client)
-    try:
-        await session_service.ensure_metadata_store()
-    except SessionMetadataStoreUnavailableError as exc:
-        logger.warning(
-            "Session metadata store unavailable during startup; continuing in degraded mode: %s",
-            exc,
-        )
+    if azure_ad_settings.AUTH_ENABLED:
+        session_service = create_session_service(chat_client)
+        try:
+            await session_service.ensure_metadata_store()
+        except SessionMetadataStoreUnavailableError as exc:
+            logger.warning(
+                "Session metadata store unavailable during startup; continuing in degraded mode: %s",
+                exc,
+            )
+    else:
+        session_service = None
 
 
 @asynccontextmanager
@@ -344,6 +347,8 @@ class HistoricalResponse(BaseModel):
 
 
 def _get_session_service() -> SessionService:
+    if not azure_ad_settings.AUTH_ENABLED:
+        raise HTTPException(status_code=404, detail="Session APIs are disabled")
     if session_service is None:
         raise HTTPException(status_code=503, detail="Session service is not initialized")
     return session_service
@@ -373,6 +378,9 @@ async def _extract_conversation_id_from_logistics_request(request: Request) -> s
 
 async def _seed_session_metadata_for_turn(request: Request, conversation_id: str) -> None:
     """Persist session metadata when the first real turn reaches the logistics endpoint."""
+
+    if not azure_ad_settings.AUTH_ENABLED:
+        return
 
     try:
         user_id = _get_user_id_for_session_scope(request)

@@ -155,8 +155,9 @@ FOUNDRY_AGENT_NAME=logistics-agent
 # FOUNDRY_AGENT_VERSION=<optional>
 
 # Authentication (optional for local dev)
-AZURE_AD_CLIENT_ID=<frontend-app-registration-client-id>
+AZURE_AD_CLIENT_ID=<backend-api-app-registration-client-id>
 AZURE_AD_TENANT_ID=<your-tenant-id>
+AZURE_AD_API_SCOPE_URI=api://<backend-api-app-registration-client-id>/access_as_user
 AUTH_ENABLED=false
 
 # Service URLs
@@ -188,6 +189,7 @@ AGENT_API_BASE_URL=http://localhost:8000
 # Authentication (optional for local dev)
 NEXT_PUBLIC_AZURE_AD_CLIENT_ID=<frontend-app-registration-client-id>
 NEXT_PUBLIC_AZURE_AD_TENANT_ID=<your-tenant-id>
+NEXT_PUBLIC_AZURE_AD_API_SCOPE_URI=api://<backend-api-app-registration-client-id>/access_as_user
 NEXT_PUBLIC_AUTH_ENABLED=false
 
 # Telemetry (optional) - use instrumentation key instead of full connection string

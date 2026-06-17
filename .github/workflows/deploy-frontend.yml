@@ -39,6 +39,7 @@ jobs:
           # Pass all build args via env to avoid shell interpretation issues
           AD_CLIENT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_CLIENT_ID }}
           AD_TENANT_ID: ${{ vars.NEXT_PUBLIC_AZURE_AD_TENANT_ID }}
+          AD_API_SCOPE_URI: ${{ vars.NEXT_PUBLIC_AZURE_AD_API_SCOPE_URI }}
           AUTH_ENABLED: ${{ vars.NEXT_PUBLIC_AUTH_ENABLED || 'true' }}
           API_URL: ${{ vars.AGENT_API_BASE_URL }}
           # Use instrumentation key (simple GUID) instead of full connection string
@@ -54,6 +55,7 @@ jobs:
               --file ./src/frontend/Dockerfile \
               --build-arg NEXT_PUBLIC_AZURE_AD_CLIENT_ID="$AD_CLIENT_ID" \
               --build-arg NEXT_PUBLIC_AZURE_AD_TENANT_ID="$AD_TENANT_ID" \
+              --build-arg NEXT_PUBLIC_AZURE_AD_API_SCOPE_URI="$AD_API_SCOPE_URI" \
               --build-arg NEXT_PUBLIC_AUTH_ENABLED="$AUTH_ENABLED" \
               --build-arg NEXT_PUBLIC_API_URL="$API_URL" \
               --build-arg AGENT_API_BASE_URL="$API_URL" \
