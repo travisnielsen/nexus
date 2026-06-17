@@ -140,6 +140,21 @@ output "foundry_project_endpoint" {
   value       = local.ai_project_endpoint
 }
 
+output "frontend_app_client_id" {
+  description = "Frontend app registration client ID used by frontend build-time auth config"
+  value       = var.frontend_app_client_id
+}
+
+output "backend_api_scope_uri" {
+  description = "Fully qualified backend API scope URI used by backend and frontend auth config"
+  value       = var.backend_api_scope_uri
+}
+
+output "auth_enabled" {
+  description = "Whether auth is enabled for runtime services"
+  value       = var.auth_enabled
+}
+
 # ==============================================================
 # GitHub Actions Deployment Variables (mapped to script expectations)
 # ==============================================================

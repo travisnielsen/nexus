@@ -89,7 +89,7 @@ Environment variables:
 | `AUTH_ENABLED` | `false` | Set to `true` to enable authentication |
 | `AZURE_AD_TENANT_ID` | | Azure AD tenant ID for authentication |
 | `AZURE_AD_CLIENT_ID` | | App Registration client ID (token audience) |
-| `AZURE_AD_APP_ID_URI` | | Optional: Custom App ID URI (defaults to `api://<client-id>`) |
+| `AZURE_AD_API_SCOPE_URI` | | Optional: Full API scope URI (for example `api://<client-id>/access_as_user`) |
 
 Create a `.env` file from the example:
 
@@ -112,6 +112,7 @@ The MCP server supports Azure AD (Entra ID) authentication. When enabled, all `/
    ```env
    AZURE_AD_TENANT_ID=<your-tenant-id>
    AZURE_AD_CLIENT_ID=<your-client-id>
+  AZURE_AD_API_SCOPE_URI=api://YOUR_CLIENT_ID/access_as_user
    AUTH_ENABLED=true
    ```
 
@@ -132,7 +133,7 @@ The server validates:
 
 ```bash
 # Get an access token (using Azure CLI)
-TOKEN=$(az account get-access-token --resource api://<client-id> --query accessToken -o tsv)
+TOKEN=$(az account get-access-token --scope api://YOUR_CLIENT_ID/access_as_user --query accessToken -o tsv)
 
 # Make authenticated request
 curl -H "Authorization: Bearer $TOKEN" "http://localhost:8001/api/flights"

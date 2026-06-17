@@ -13,7 +13,8 @@ import { Configuration, LogLevel } from "@azure/msal-browser";
 export const msalConfig: Configuration = {
   auth: {
     clientId: process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID || "YOUR_CLIENT_ID",
-    authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID || "common"}`,
+    // Use v2.0 endpoint with explicit tenant ID (not 'common') for consistent token format
+    authority: `https://login.microsoftonline.com/${process.env.NEXT_PUBLIC_AZURE_AD_TENANT_ID || "common"}/v2.0`,
     redirectUri: typeof window !== "undefined" ? window.location.origin : "http://localhost:3000",
     postLogoutRedirectUri: typeof window !== "undefined" ? window.location.origin : "http://localhost:3000",
   },
@@ -49,16 +50,19 @@ export const loginRequest = {
   scopes: ["User.Read"],
 };
 
-// Scopes for calling the backend API
-// Option 1: If you've exposed an API scope in Azure Portal, use:
-//   `api://${clientId}/access_as_user`
-// Option 2: If you haven't set up API scopes, use the client ID directly
-//   which will return an access token for the application itself
+/**
+ * Scopes for calling the backend API
+ *
+ * Uses the Backend API app registration scope as configured in the separate Entra ID app registration.
+ * This follows Zero Trust best practices with separate frontend and backend app registrations.
+ *
+ * Environment variable:
+ * - NEXT_PUBLIC_AZURE_AD_API_SCOPE_URI: The Backend API's exposed scope URI
+ *   (e.g., api://[BACKEND_APP_GUID]/access_as_user)
+ */
 export const apiRequest = {
   scopes: [
-    // Use openid and profile to get a proper JWT access token
-    // If you've exposed API scopes, add them here
-    `api://${process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID}/access_as_user`,
+    process.env.NEXT_PUBLIC_AZURE_AD_API_SCOPE_URI || `api://${process.env.NEXT_PUBLIC_AZURE_AD_CLIENT_ID}/access_as_user`,
   ],
 };
 

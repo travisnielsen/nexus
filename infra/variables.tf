@@ -26,6 +26,16 @@ variable "frontend_app_client_id" {
   description = "Azure AD App Registration client ID for the frontend application. Used by the API to validate authentication tokens."
 }
 
+variable "backend_api_app_client_id" {
+  type        = string
+  description = "Azure AD App Registration client ID for the backend API application."
+}
+
+variable "backend_api_scope_uri" {
+  type        = string
+  description = "Fully qualified scope URI for the backend API (for example api://<backend-app-guid>/access_as_user)."
+}
+
 variable "auth_enabled" {
   type        = bool
   default     = true

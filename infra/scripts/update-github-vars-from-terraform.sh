@@ -44,6 +44,11 @@ build_output_map() {
   # Foundry migration and frontend deployment support values.
   OUTPUT_MAP["AGENT_API_BASE_URL"]="$(tf_output_raw api_url)"
   OUTPUT_MAP["FOUNDRY_PROJECT_ENDPOINT"]="$(tf_output_raw foundry_project_endpoint)"
+  OUTPUT_MAP["NEXT_PUBLIC_AZURE_AD_CLIENT_ID"]="$(tf_output_raw frontend_app_client_id)"
+  OUTPUT_MAP["NEXT_PUBLIC_AZURE_AD_TENANT_ID"]="$(tf_output_raw azure_tenant_id)"
+  OUTPUT_MAP["NEXT_PUBLIC_AZURE_AD_API_SCOPE_URI"]="$(tf_output_raw backend_api_scope_uri)"
+  OUTPUT_MAP["NEXT_PUBLIC_AUTH_ENABLED"]="$(tf_output_raw auth_enabled)"
+  OUTPUT_MAP["AUTH_ENABLED"]="$(tf_output_raw auth_enabled)"
 
   local required_keys=(
     AZURE_SUBSCRIPTION_ID
@@ -55,6 +60,11 @@ build_output_map() {
     AZURE_A2A_CONTAINER_APP_NAME
     AGENT_API_BASE_URL
     FOUNDRY_PROJECT_ENDPOINT
+    NEXT_PUBLIC_AZURE_AD_CLIENT_ID
+    NEXT_PUBLIC_AZURE_AD_TENANT_ID
+    NEXT_PUBLIC_AZURE_AD_API_SCOPE_URI
+    NEXT_PUBLIC_AUTH_ENABLED
+    AUTH_ENABLED
   )
 
   for key in "${required_keys[@]}"; do
@@ -146,9 +156,9 @@ echo "Planned sync summary"
 
 # Safely compute array lengths with default 0 if arrays are empty
 set +u
-added_count=${#ADDED[@]:-0}
-changed_count=${#CHANGED[@]:-0}
-unchanged_count=${#UNCHANGED[@]:-0}
+added_count=${#ADDED[@]}
+changed_count=${#CHANGED[@]}
+unchanged_count=${#UNCHANGED[@]}
 set -u
 
 echo "  Added: $added_count"
@@ -190,7 +200,7 @@ for key in "${!OUTPUT_MAP[@]}"; do
 done
 
 set +u
-if [[ ${#FAILED[@]:-0} -gt 0 ]]; then
+if [[ ${#FAILED[@]} -gt 0 ]]; then
   echo
   echo "Failed to update ${#FAILED[@]} variable(s): ${FAILED[*]}" >&2
   set -u
