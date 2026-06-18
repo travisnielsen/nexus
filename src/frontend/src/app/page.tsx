@@ -338,7 +338,7 @@ export default function LogisticsPage() {
                 },
                 ...(isAuthEnabled && overallFeedbackEnabled
                   ? [{
-                      title: "Feedback",
+                      title: "🖐 Feedback",
                       message: "I'd like to give feedback.",
                       className: "feedback-suggestion",
                     }]

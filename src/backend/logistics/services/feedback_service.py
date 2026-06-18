@@ -6,7 +6,8 @@ import os
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from opentelemetry import trace
+from opentelemetry import context as otel_context
+from opentelemetry import propagate, trace
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class FeedbackSubmission(BaseModel):
     comment: str | None = None
     turn_id: str | None = None
     trace_id: str | None = None
+    traceparent: str | None = None
     card_turn_id: str | None = None
     source_surface: Literal["immediate_thumb", "overall_feedback_card"]
 
@@ -162,7 +164,10 @@ class FeedbackService:
                 error_code="validation_error",
                 error_message="turn_response requires turn_id and trace_id",
             )
-        if payload.feedback_kind == "overall_experience" and payload.source_surface != "overall_feedback_card":
+        if (
+            payload.feedback_kind == "overall_experience"
+            and payload.source_surface != "overall_feedback_card"
+        ):
             return FeedbackOutcome(
                 accepted=False,
                 storage_status="failed",
@@ -334,12 +339,38 @@ class FeedbackService:
             attrs["feedback.turn_id"] = payload.turn_id
         if payload.trace_id:
             attrs["feedback.trace_id"] = payload.trace_id
+        if payload.traceparent:
+            attrs["feedback.traceparent"] = payload.traceparent
         if payload.card_turn_id:
             attrs["feedback.card_turn_id"] = payload.card_turn_id
 
-        event_name = "feedback.submission.accepted" if storage_status == "succeeded" else "feedback.storage_failure"
+        include_genai_attrs = (
+            os.getenv("FEEDBACK_INCLUDE_GENAI_ATTRIBUTES", "true").lower() == "true"
+        )
+        if include_genai_attrs:
+            # Enable GenAI semantic attributes for feedback visibility in agent-focused views.
+            attrs["gen_ai.operation.name"] = "user_feedback"
+            attrs["gen_ai.tool.name"] = "submit_feedback"
+            attrs["gen_ai.tool.type"] = "function"
+            attrs["gen_ai.tool.call.id"] = feedback_id
+            attrs["gen_ai.conversation.id"] = payload.conversation_id
+            attrs["gen_ai.tool.status"] = storage_status
+            if payload.turn_id:
+                attrs["gen_ai.turn.id"] = payload.turn_id
 
-        with tracer.start_as_current_span("feedback.telemetry") as span:
+        event_name = (
+            "feedback.submission.accepted"
+            if storage_status == "succeeded"
+            else "feedback.storage_failure"
+        )
+
+        link_upstream_trace = os.getenv("FEEDBACK_LINK_UPSTREAM_TRACE", "false").lower() == "true"
+        span_context = (
+            propagate.extract({"traceparent": payload.traceparent})
+            if link_upstream_trace and payload.traceparent
+            else otel_context.Context()
+        )
+        with tracer.start_as_current_span("feedback.telemetry", context=span_context) as span:
             for key, value in attrs.items():
                 span.set_attribute(key, value)
             if storage_error:
@@ -363,7 +394,10 @@ class FeedbackService:
 
     def _cosmos_modules(self):
         azure_cosmos_aio = __import__("azure.cosmos.aio", fromlist=["CosmosClient"])
-        azure_cosmos_exceptions = __import__("azure.cosmos.exceptions", fromlist=["CosmosResourceNotFoundError", "CosmosHttpResponseError"])
+        azure_cosmos_exceptions = __import__(
+            "azure.cosmos.exceptions",
+            fromlist=["CosmosResourceNotFoundError", "CosmosHttpResponseError"],
+        )
         azure_identity_aio = __import__("azure.identity.aio", fromlist=["DefaultAzureCredential"])
 
         class CosmosModules:

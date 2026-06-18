@@ -86,6 +86,7 @@ export interface FeedbackSubmissionRequest {
   comment?: string;
   turn_id?: string;
   trace_id?: string;
+  traceparent?: string;
   card_turn_id?: string;
   source_surface: FeedbackSourceSurface;
 }
