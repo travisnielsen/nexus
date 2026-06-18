@@ -4,6 +4,8 @@ import React from "react";
 import { AssistantMessage as DefaultAssistantMessage, AssistantMessageProps } from "@copilotkit/react-ui";
 import { parseHydratedToolMarker } from "@/lib/sessionTranscriptHydration";
 import { RecommendationsCard } from "@/components/RecommendationsCard";
+import { OverallFeedbackCard } from "@/components/OverallFeedbackCard";
+import { FeedbackCommentInput } from "@/components/FeedbackCommentInput";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -87,9 +89,18 @@ function PredictedPayloadBar({ args }: { args: unknown }) {
  * (emitted by session transcript hydration) and renders the matching React
  * card directly. Non-marker messages fall through to the default renderer.
  */
-export function HydratedAssistantMessage(props: AssistantMessageProps) {
+export function HydratedAssistantMessage(
+  props: AssistantMessageProps & {
+    pendingCommentMessageId?: string;
+    onCommentSubmit?: (messageId: string, comment: string) => Promise<void>;
+    onCommentDismiss?: (messageId: string) => void;
+    isCommentSubmitting?: boolean;
+  }
+) {
   const content = props.message?.content;
   const text = typeof content === "string" ? content : "";
+  const messageId = props.message?.id;
+  const isCurrentMessage = props.isCurrentMessage === true;
 
   const hydrated = text ? parseHydratedToolMarker(text) : null;
   if (hydrated) {
@@ -106,10 +117,36 @@ export function HydratedAssistantMessage(props: AssistantMessageProps) {
         return <PredictedPayloadBar args={hydrated.args} />;
       case "get_recommendations":
         return <RecommendationsCard status="complete" result={hydrated.result} />;
+      case "show_overall_feedback_card": {
+        const payload = asRecord(hydrated.result);
+        return (
+          <OverallFeedbackCard
+            prompt={typeof payload.prompt === "string" ? payload.prompt : undefined}
+            cardTurnId={typeof payload.card_turn_id === "string" ? payload.card_turn_id : undefined}
+            collapseOnSubmit={true}
+          />
+        );
+      }
       default:
         return null;
     }
   }
 
-  return <DefaultAssistantMessage {...props} />;
+  // Render default message with optional comment input for thumbs-down votes
+  return (
+    <div className={`flex flex-col gap-3 ${isCurrentMessage ? "assistant-turn-current" : "assistant-turn-past"}`}>
+      <DefaultAssistantMessage {...props} />
+      {props.pendingCommentMessageId === messageId &&
+        messageId &&
+        props.onCommentSubmit &&
+        props.onCommentDismiss && (
+          <FeedbackCommentInput
+            messageId={messageId}
+            onSubmit={props.onCommentSubmit}
+            onDismiss={props.onCommentDismiss}
+            isSubmitting={props.isCommentSubmitting}
+          />
+        )}
+    </div>
+  );
 }

@@ -110,3 +110,42 @@ export function getAppInsights(): ApplicationInsights | null {
 export function trackEvent(name: string, properties?: Record<string, string>) {
   appInsights?.trackEvent({ name, properties });
 }
+
+function isHex(value: string, expectedLength: number): boolean {
+  return value.length === expectedLength && /^[0-9a-f]+$/i.test(value);
+}
+
+function normalizeSpanId(rawParentId: string | undefined): string | undefined {
+  if (!rawParentId) return undefined;
+  const cleaned = rawParentId.replace(/^[|]/, "").replace(/\.$/, "").replace(/-/g, "").toLowerCase();
+  if (isHex(cleaned, 16)) return cleaned;
+  return undefined;
+}
+
+function randomHex(bytes: number): string {
+  const cryptoObj = globalThis.crypto;
+  if (!cryptoObj?.getRandomValues) return "";
+  const arr = new Uint8Array(bytes);
+  cryptoObj.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Build a W3C traceparent string for feedback submissions.
+ * Uses the current App Insights trace context when available.
+ */
+export function buildFeedbackTraceparent(): string | undefined {
+  const contextTrace = (appInsights as unknown as {
+    context?: { telemetryTrace?: { traceID?: string; parentID?: string } };
+  } | null)?.context?.telemetryTrace;
+
+  const traceIdFromContext = contextTrace?.traceID?.toLowerCase() ?? "";
+  const traceId = isHex(traceIdFromContext, 32) ? traceIdFromContext : randomHex(16);
+  const spanId = normalizeSpanId(contextTrace?.parentID) ?? randomHex(8);
+
+  if (!isHex(traceId, 32) || !isHex(spanId, 16)) {
+    return undefined;
+  }
+
+  return `00-${traceId}-${spanId}-01`;
+}

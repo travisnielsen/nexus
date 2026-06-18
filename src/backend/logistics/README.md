@@ -167,7 +167,23 @@ PATCH_AGUI_CONTEXT_SYNC=false
 | `/logistics/data/summary` | GET | Get flight statistics |
 | `/logistics/data/historical` | GET | Get historical data with predictions |
 | `/logistics` | POST (SSE) | AG-UI runtime endpoint used by CopilotKit proxy |
-| `/recommendations/feedback` | POST | Submit feedback on recommendations |
+| `/logistics/feedback` | POST | Submit turn-response or overall-experience feedback (auth required) |
+| `/logistics/feedback` | GET | Query stored feedback for authorized admin/analytics consumers |
+
+## Feedback API Design
+
+The feedback pipeline uses a single submission boundary (`POST /logistics/feedback`) for both feedback kinds:
+
+- `turn_response`: immediate thumbs feedback for a specific assistant response
+- `overall_experience`: overall chat feedback submitted through the AG-UI in-chat card flow
+
+Core behavior:
+
+- Durable storage in Cosmos DB is the acceptance boundary.
+- If storage fails, submission is not accepted and the API returns a storage failure response.
+- Telemetry emission is best-effort and recorded independently for operator diagnostics.
+- Canonical session identity is enforced with `conversation_id` in `conv_*` format.
+- Query access is intentionally restricted to authorized backend/admin analytics consumers.
 
 ## Session Persistence Notes
 

@@ -35,6 +35,7 @@ from .chart_tools import (
     get_historical_payload,
     get_predicted_payload,
 )
+from .feedback_tools import show_overall_feedback_card
 
 # Filter tools
 from .filter_tools import (
@@ -80,4 +81,6 @@ __all__ = [
     "get_predicted_payload",
     # Recommendations tools
     "get_recommendations",
+    # Feedback tools
+    "show_overall_feedback_card",
 ]
