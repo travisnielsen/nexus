@@ -144,6 +144,7 @@ As an authorized product or operations stakeholder, I can retrieve feedback by s
 - **FR-034**: Feedback capture controls and end-user feedback submission MUST be available only in authenticated mode; when authentication is disabled, the user interface MUST NOT render feedback controls and the system MUST NOT accept end-user feedback submissions from that mode.
 - **FR-035**: The first release MUST restrict feedback retrieval capabilities to authorized backend or admin analytics consumers and MUST NOT expose a general end-user feedback query interface.
 - **FR-036**: In the first release, optional feedback comments MUST be stored as submitted subject only to general payload validity checks, with no additional redaction or moderation requirement defined by this feature.
+- **FR-037**: When feedback submission is not accepted because durable storage failed, the user interface MUST show a clear, non-blocking message that feedback was not saved and that the user may retry.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -176,6 +177,7 @@ As an authorized product or operations stakeholder, I can retrieve feedback by s
 - **SC-016**: 100% of validation attempts by non-authorized consumers to retrieve stored feedback records are denied in the first release.
 - **SC-017**: 100% of accepted optional feedback comments are durably stored exactly as submitted during validation sampling, excluding only submissions rejected for general payload invalidity.
 - **SC-018**: 100% of validation runs with the overall-experience feedback feature disabled show no overall-feedback affordance or submission card in the chat section.
+- **SC-019**: 100% of validation runs that simulate durable storage failure surface a user-visible feedback-save failure message without interrupting the active chat session.
 
 ## Assumptions
 

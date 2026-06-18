@@ -35,6 +35,7 @@
 - [ ] T007 [P] Implement deterministic idempotency key helpers in `src/backend/logistics/services/feedback_service.py`.
 - [ ] T008 [P] Implement Cosmos container bootstrap and upsert primitives for feedback records in `src/backend/logistics/services/feedback_service.py`.
 - [ ] T009 [P] Implement telemetry emission helper and outcome status mapping in `src/backend/logistics/services/feedback_service.py`.
+- [ ] T046 Implement explicit Application Insights failure telemetry emission for Cosmos DB persistence failures (include `storage_error`, feedback correlation identifiers, and operator-diagnostic fields) in `src/backend/logistics/services/feedback_service.py`.
 - [ ] T010 Wire authenticated feedback submission guard and dependency setup in `src/backend/logistics/main.py`.
 - [ ] T011 Add backend feature-toggle plumbing for overall feedback flows in `src/backend/logistics/main.py`.
 - [ ] T012 Create overall-feedback AG-UI tool scaffolding in `src/backend/logistics/agents/tools/feedback_tools.py`.
@@ -59,6 +60,7 @@
 - [ ] T018 [US1] Persist and return accepted outcome envelope (`feedback_id`, `idempotency_key`, storage/telemetry status) in `src/backend/logistics/main.py` and `src/backend/logistics/services/feedback_service.py`.
 - [ ] T019 [US1] Emit turn-feedback correlation telemetry fields for accepted submissions in `src/backend/logistics/services/feedback_service.py`.
 - [ ] T041 [US1] Hide turn-response feedback controls when authentication is disabled by gating render paths in `src/frontend/src/components/ResponseFeedbackCard.tsx` and auth-aware chat state in `src/frontend/src/app/page.tsx`.
+- [ ] T047 [US1] Render a clear, non-blocking user-facing failure message when feedback submission returns `accepted=false` with `storage_status=failed` using the existing React inline status pattern (component state + conditional render, no new notification dependency) and an accessible `aria-live` region in `src/frontend/src/components/ResponseFeedbackCard.tsx`.
 
 **Checkpoint**: US1 is independently functional and validates MVP behavior.
 
@@ -97,6 +99,7 @@
 - [ ] T029 [US3] Route overall card submission to shared feedback endpoint with `overall_experience` payload in `src/frontend/src/components/OverallFeedbackCard.tsx`.
 - [ ] T030 [US3] Preserve optional `card_turn_id` association during overall feedback persistence mapping in `src/backend/logistics/services/feedback_service.py`.
 - [ ] T031 [US3] Enforce toggle-off behavior to hide affordance and reject disabled-surface submissions in `src/frontend/src/app/page.tsx` and `src/backend/logistics/main.py`.
+- [ ] T048 [US3] Render the same clear, non-blocking user-facing failure message for overall feedback submissions when `accepted=false` with `storage_status=failed` using the same inline React status pattern as US1 (no new notification dependency) and an accessible `aria-live` region in `src/frontend/src/components/OverallFeedbackCard.tsx`.
 
 **Checkpoint**: US3 is independently functional with AG-UI-compliant invocation and toggle behavior.
 
@@ -128,9 +131,10 @@
 - [ ] T038 Run backend quality gates and address issues for changed feedback files using `uv run --project . poe check` from repository root.
 - [ ] T039 Run frontend lint and address issues for changed feedback UI files using `npm run lint` in `src/frontend`.
 - [ ] T040 Execute quickstart validation flows and record outcome summary in `specs/005-user-feedback-storage/quickstart.md`.
-- [ ] T043 Define success-criteria evidence matrix and measurement method for SC-001 through SC-018 in `specs/005-user-feedback-storage/quickstart.md`.
+- [ ] T043 Define success-criteria evidence matrix and measurement method for SC-001 through SC-019 in `specs/005-user-feedback-storage/quickstart.md`.
 - [ ] T044 Implement validation logging and counters needed to compute acceptance percentages and rejection/authorization outcomes in `src/backend/logistics/main.py`, `src/backend/logistics/services/feedback_service.py`, and `src/frontend/src/components/ResponseFeedbackCard.tsx`.
 - [ ] T045 Execute and record threshold verification results for all measurable SC targets and attach pass/fail evidence in `specs/005-user-feedback-storage/quickstart.md`.
+- [ ] T049 Validate and record user-visible save-failure behavior for both response-feedback and overall-feedback cards under simulated Cosmos DB write failure in `specs/005-user-feedback-storage/quickstart.md`.
 
 ---
 
