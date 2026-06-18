@@ -135,6 +135,7 @@
 - [ ] T044 Implement validation logging and counters needed to compute acceptance percentages and rejection/authorization outcomes in `src/backend/logistics/main.py`, `src/backend/logistics/services/feedback_service.py`, and `src/frontend/src/components/ResponseFeedbackCard.tsx`.
 - [ ] T045 Execute and record threshold verification results for all measurable SC targets and attach pass/fail evidence in `specs/005-user-feedback-storage/quickstart.md`.
 - [ ] T049 Validate and record user-visible save-failure behavior for both response-feedback and overall-feedback cards under simulated Cosmos DB write failure in `specs/005-user-feedback-storage/quickstart.md`.
+- [ ] T050 Document the new feedback API surface (`POST /logistics/feedback` and authorized feedback query endpoint) plus core feedback design decisions in `src/backend/logistics/README.md` and `media/docs/getting-started.md` without adding implementation-level detail to root `README.md`.
 
 ---
 
