@@ -75,6 +75,51 @@ export interface FeedbackPayload {
   timestamp: string;
 }
 
+export type FeedbackKind = 'turn_response' | 'overall_experience';
+export type FeedbackRating = 'positive' | 'negative';
+export type FeedbackSourceSurface = 'immediate_thumb' | 'overall_feedback_card';
+
+export interface FeedbackSubmissionRequest {
+  feedback_kind: FeedbackKind;
+  conversation_id: string;
+  rating: FeedbackRating;
+  comment?: string;
+  turn_id?: string;
+  trace_id?: string;
+  card_turn_id?: string;
+  source_surface: FeedbackSourceSurface;
+}
+
+export interface FeedbackSubmissionOutcome {
+  accepted: boolean;
+  feedback_id?: string;
+  idempotency_key?: string;
+  storage_status: 'succeeded' | 'failed';
+  telemetry_status: 'succeeded' | 'failed' | 'not_attempted';
+  error_code?: string;
+  error_message?: string;
+  message?: string;
+}
+
+export interface FeedbackQueryItem {
+  feedback_id: string;
+  feedback_kind: FeedbackKind;
+  conversation_id: string;
+  user_id: string;
+  rating: FeedbackRating;
+  comment?: string;
+  turn_id?: string;
+  trace_id?: string;
+  card_turn_id?: string;
+  submitted_at: string;
+  updated_at: string;
+}
+
+export interface FeedbackQueryResponse {
+  items: FeedbackQueryItem[];
+  next_cursor?: string | null;
+}
+
 export interface LogisticsAgentState {
   flights: Flight[];
   selectedFlight: Flight | null;

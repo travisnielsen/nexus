@@ -75,3 +75,21 @@ variable "session_metadata_cosmos_partition_key_path" {
   default     = "/user_id"
   description = "Partition key path for the session metadata Cosmos SQL container."
 }
+
+variable "feedback_cosmos_database" {
+  type        = string
+  default     = "logistics_feedback"
+  description = "Cosmos SQL database name for Logistics API feedback records."
+}
+
+variable "feedback_cosmos_container" {
+  type        = string
+  default     = "feedback_records"
+  description = "Cosmos SQL container name for Logistics API feedback records."
+}
+
+variable "feedback_cosmos_partition_key_path" {
+  type        = string
+  default     = "/user_id"
+  description = "Partition key path for the feedback records Cosmos SQL container."
+}

@@ -84,3 +84,20 @@ resource "azurerm_cosmosdb_sql_container" "session_metadata" {
   partition_key_paths   = [var.session_metadata_cosmos_partition_key_path]
   partition_key_version = 1
 }
+
+# Cosmos DB database and container for Logistics API feedback records (spec 005).
+# Provisioned by Terraform; API validates existence at startup via bootstrap probe.
+resource "azurerm_cosmosdb_sql_database" "feedback" {
+  name                = var.feedback_cosmos_database
+  resource_group_name = azurerm_resource_group.shared_rg.name
+  account_name        = module.ai_cosmosdb.name
+}
+
+resource "azurerm_cosmosdb_sql_container" "feedback_records" {
+  name                  = var.feedback_cosmos_container
+  resource_group_name   = azurerm_resource_group.shared_rg.name
+  account_name          = module.ai_cosmosdb.name
+  database_name         = azurerm_cosmosdb_sql_database.feedback.name
+  partition_key_paths   = [var.feedback_cosmos_partition_key_path]
+  partition_key_version = 1
+}

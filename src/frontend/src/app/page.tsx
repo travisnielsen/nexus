@@ -7,18 +7,17 @@ import { useLogisticsData } from "@/lib/useLogisticsData";
 import { useSafeAccessToken } from "@/lib/useSafeAccessToken";
 import { useCoAgent, useCopilotAction, useCoAgentStateRender, useRenderToolCall, useCopilotChatInternal, useCopilotReadable } from "@copilotkit/react-core";
 import { CopilotKitCSSProperties, CopilotChat, UserMessageProps } from "@copilotkit/react-ui";
-import { TextMessage, Role } from "@copilotkit/runtime-client-gql";
+import { TextMessage, Role, Message } from "@copilotkit/runtime-client-gql";
 import { FlightListCard } from "@/components/FlightListCard";
 import { FlightDetailCard } from "@/components/FlightDetailCard";
 import { HistoricalChart } from "@/components/HistoricalChart";
 import { RecommendationsCard } from "@/components/RecommendationsCard";
+import { OverallFeedbackCard } from "@/components/OverallFeedbackCard";
 import { HydratedAssistantMessage } from "@/components/HydratedAssistantMessage";
+import type { FeedbackSubmissionRequest, FeedbackSubmissionOutcome } from "@/lib/logisticsTypes";
 import { SessionHistoryFlyout } from "@/components/SessionHistoryFlyout";
 import { useSessionHistoryContext } from "@/lib/sessionHistoryContext";
 // useNewChat is exported from NoAuthCopilotKit for "New Chat" functionality
-
-// Prefix for system action messages - these are hidden from the chat UI but sent to the LLM
-const SYSTEM_ACTION_PREFIX = "[SYSTEM_ACTION]";
 
 // Helper to extract text content from a message
 function getMessageText(content: UserMessageProps['message']['content']): string {
@@ -35,11 +34,6 @@ function getMessageText(content: UserMessageProps['message']['content']): string
 // Custom UserMessage component that hides system action messages
 function CustomUserMessage({ message }: UserMessageProps) {
   const textContent = getMessageText(message.content);
-  
-  // Hide messages that start with the system action prefix
-  if (textContent.startsWith(SYSTEM_ACTION_PREFIX)) {
-    return null;
-  }
   
   // Render normal user messages with default styling
   return (
@@ -64,11 +58,16 @@ export default function LogisticsPage() {
   const [themeColor, setThemeColor] = useState("#1e3a5f"); // Dark navy blue for logistics
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [isSessionSwitching, setIsSessionSwitching] = useState(false);
-  const sessionHistory = useSessionHistoryContext();
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [pendingCommentMessageId, setPendingCommentMessageId] = useState<string | null>(null);
+  const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
+  useSessionHistoryContext();
   const isAuthEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true";
+  const overallFeedbackEnabled = process.env.NEXT_PUBLIC_OVERALL_FEEDBACK_ENABLED !== "false";
 
   // Get access token for authenticated API calls (returns null when auth is disabled)
   const accessToken = useSafeAccessToken();
+  const { threadId } = useCopilotChatInternal();
 
   // Fetch summary data at the page level for the dynamic greeting
   const { summary, isLoading: summaryLoading } = useLogisticsData(100, accessToken);
@@ -88,6 +87,118 @@ export default function LogisticsPage() {
     }
     
     return `📦 Welcome! I'm monitoring ${totalFlights} flights. Current utilization looks healthy at ${averageUtilization.toFixed(0)}% average. ${underUtilized > 0 ? `${underUtilized} flights are under-utilized.` : ''} How can I help?`;
+  };
+
+  // Submit turn-response feedback to backend when thumbs up/down clicked
+  const handleThumbsFeedback = async (message: Message, rating: "positive" | "negative") => {
+    if (!isAuthEnabled || !message.id || !threadId) return;
+    if (!accessToken) {
+      setFeedbackError("Authentication token unavailable. Please sign in again and retry.");
+      setTimeout(() => setFeedbackError(null), 5000);
+      return;
+    }
+
+    // Show thumbs-down comment UI immediately to keep interaction responsive.
+    if (rating === "negative") {
+      setPendingCommentMessageId(message.id);
+    }
+
+    // Submit feedback immediately (both positive and negative)
+    try {
+      const payload: FeedbackSubmissionRequest = {
+        feedback_kind: "turn_response",
+        conversation_id: threadId,
+        rating,
+        turn_id: message.id,
+        trace_id: message.id,
+        source_surface: "immediate_thumb",
+      };
+
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiBaseUrl}/logistics/feedback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const outcome = (await response.json()) as FeedbackSubmissionOutcome | { detail?: string };
+      if (!response.ok || !(outcome as FeedbackSubmissionOutcome).accepted) {
+        const feedbackOutcome = outcome as FeedbackSubmissionOutcome;
+        const errorMsg =
+          feedbackOutcome.error_message ||
+          (typeof (outcome as { detail?: string }).detail === "string" ? (outcome as { detail?: string }).detail : undefined) ||
+          "We couldn't save your feedback right now. Please try again.";
+        setFeedbackError(errorMsg);
+        setTimeout(() => setFeedbackError(null), 5000);
+        return;
+      }
+
+    } catch (error) {
+      const errorMsg = `Error submitting feedback: ${error instanceof Error ? error.message : "Unknown error"}`;
+      setFeedbackError(errorMsg);
+      setTimeout(() => setFeedbackError(null), 5000);
+    }
+  };
+
+  // Handle comment submission for negative feedback
+  const handleCommentSubmit = async (messageId: string, comment: string) => {
+    if (!threadId) return;
+    if (!accessToken) {
+      setFeedbackError("Authentication token unavailable. Please sign in again and retry.");
+      setTimeout(() => setFeedbackError(null), 5000);
+      return;
+    }
+    setIsCommentSubmitting(true);
+
+    try {
+      const payload: FeedbackSubmissionRequest = {
+        feedback_kind: "turn_response",
+        conversation_id: threadId,
+        rating: "negative",
+        turn_id: messageId,
+        trace_id: messageId,
+        source_surface: "immediate_thumb",
+        comment: comment || undefined,
+      };
+
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiBaseUrl}/logistics/feedback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const outcome = (await response.json()) as FeedbackSubmissionOutcome | { detail?: string };
+      if (!response.ok || !(outcome as FeedbackSubmissionOutcome).accepted) {
+        const feedbackOutcome = outcome as FeedbackSubmissionOutcome;
+        const errorMsg =
+          feedbackOutcome.error_message ||
+          (typeof (outcome as { detail?: string }).detail === "string" ? (outcome as { detail?: string }).detail : undefined) ||
+          "We couldn't save your feedback right now. Please try again.";
+        setFeedbackError(errorMsg);
+        setTimeout(() => setFeedbackError(null), 5000);
+      } else {
+        // Success - dismiss comment input
+        setPendingCommentMessageId(null);
+      }
+    } catch (error) {
+      const errorMsg = `Error submitting feedback: ${error instanceof Error ? error.message : "Unknown error"}`;
+      setFeedbackError(errorMsg);
+      setTimeout(() => setFeedbackError(null), 5000);
+    } finally {
+      setIsCommentSubmitting(false);
+    }
+  };
+
+  // Handle comment dismissal (just remove the comment input, keep the thumbs down vote)
+  const handleCommentDismiss = () => {
+    setPendingCommentMessageId(null);
   };
 
   // 🪁 Frontend Actions: https://docs.copilotkit.ai/microsoft-agent-framework/frontend-actions
@@ -173,6 +284,11 @@ export default function LogisticsPage() {
                 </div>
               </div>
             ) : null}
+            {feedbackError && (
+              <div className="border-l-4 border-red-500 bg-red-950/20 px-4 py-3 text-sm text-red-200 animate-in fade-in">
+                {feedbackError}
+              </div>
+            )}
             <CopilotChat
               className="flex-1 min-h-0"
               labels={{
@@ -180,7 +296,17 @@ export default function LogisticsPage() {
                 initial: getInitialGreeting()
               }}
               UserMessage={CustomUserMessage}
-              AssistantMessage={HydratedAssistantMessage}
+              AssistantMessage={(props) => (
+                <HydratedAssistantMessage
+                  {...props}
+                  pendingCommentMessageId={pendingCommentMessageId}
+                  onCommentSubmit={handleCommentSubmit}
+                  onCommentDismiss={handleCommentDismiss}
+                  isCommentSubmitting={isCommentSubmitting}
+                />
+              )}
+              onThumbsUp={(message) => handleThumbsFeedback(message, "positive")}
+              onThumbsDown={(message) => handleThumbsFeedback(message, "negative")}
               suggestions={[
                 {
                   title: "Over-utilized Flights",
@@ -209,7 +335,14 @@ export default function LogisticsPage() {
                 {
                   title: "Historical Data",
                   message: "Show me historical payload trends for the last 7 days",
-                }
+                },
+                ...(isAuthEnabled && overallFeedbackEnabled
+                  ? [{
+                      title: "Feedback",
+                      message: "I'd like to give feedback.",
+                      className: "feedback-suggestion",
+                    }]
+                  : [])
               ]}
             />
           </div>
@@ -603,6 +736,30 @@ function LogisticsDashboard({ themeColor }: { themeColor: string }) {
   useRenderToolCall({
     name: "get_recommendations",
     render: ({ status, result }) => <RecommendationsCard status={status} result={result} />,
+  });
+
+  // show_overall_feedback_card - renders AG-UI-driven overall feedback card
+  useRenderToolCall({
+    name: "show_overall_feedback_card",
+    render: ({ status, result }) => {
+      if (status !== 'complete') {
+        return (
+          <div className="flex items-center gap-2 text-sm p-2 my-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+            <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-indigo-300">Preparing feedback card...</span>
+          </div>
+        );
+      }
+
+      const payload = (result || {}) as Record<string, unknown>;
+      return (
+        <OverallFeedbackCard
+          prompt={typeof payload.prompt === 'string' ? payload.prompt : undefined}
+          cardTurnId={typeof payload.card_turn_id === 'string' ? payload.card_turn_id : undefined}
+          collapseOnSubmit={true}
+        />
+      );
+    },
   });
 
   // 🪁 Generative UI: Render flight list from agent tool calls

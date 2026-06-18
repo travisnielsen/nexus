@@ -35,6 +35,7 @@ from .tools import (
     # Recommendations tools
     get_recommendations,
     reset_filters,
+    show_overall_feedback_card,
 )
 from .utils import get_trace_identity
 
@@ -104,6 +105,12 @@ def _load_system_prompt() -> str:
     return prompt_path.read_text().strip()
 
 
+def _sync_foundry_agent_definition_enabled() -> bool:
+    """Whether to sync local prompt/tool definitions to Foundry on startup."""
+    value = os.getenv("FOUNDRY_SYNC_AGENT_DEFINITION", "true").strip().lower()
+    return value not in {"0", "false", "no", "off"}
+
+
 def _build_tools() -> list[FunctionTool | Callable[..., Any]]:
     """Shared tool list for both bootstrap and runtime agents."""
     return [
@@ -115,6 +122,8 @@ def _build_tools() -> list[FunctionTool | Callable[..., Any]]:
         analyze_flights,
         # Recommendations with feedback - calls A2A agent for dynamic recommendations
         get_recommendations,
+        # Overall experience feedback card trigger
+        show_overall_feedback_card,
         # Chart data tools
         get_historical_payload,
         get_predicted_payload,
@@ -122,19 +131,27 @@ def _build_tools() -> list[FunctionTool | Callable[..., Any]]:
 
 
 async def ensure_foundry_agent_exists(chat_client: SupportsChatGetResponse) -> None:
-    """Create a Foundry prompt agent on first deployment when it does not exist."""
+    """Create or sync the Foundry prompt agent definition on startup."""
     foundry_agent_name = os.getenv("FOUNDRY_AGENT_NAME", "logistics-agent")
     project_client = chat_client.project_client  # pyright: ignore[reportAttributeAccessIssue]
+    should_sync_definition = _sync_foundry_agent_definition_enabled()
+    agent_exists = False
 
     try:
         await project_client.agents.get(agent_name=foundry_agent_name)
-        logger.info("Foundry agent '%s' exists; using latest version", foundry_agent_name)
-        return
+        agent_exists = True
     except ResourceNotFoundError:
         logger.info("Foundry agent '%s' not found; creating initial version", foundry_agent_name)
     except HttpResponseError:
         # Propagate non-404 API failures so startup fails fast with a clear platform error.
         raise
+
+    if agent_exists and not should_sync_definition:
+        logger.info(
+            "Foundry agent '%s' exists; definition sync disabled, using latest version",
+            foundry_agent_name,
+        )
+        return
 
     seed_agent = Agent(
         client=chat_client,
@@ -147,13 +164,24 @@ async def ensure_foundry_agent_exists(chat_client: SupportsChatGetResponse) -> N
     created = await project_client.agents.create_version(
         agent_name=foundry_agent_name,
         definition=to_prompt_agent(seed_agent),
-        description="Initial logistics agent version created during startup bootstrap.",
+        description=(
+            "Startup sync from local app prompt/tools."
+            if agent_exists
+            else "Initial logistics agent version created during startup bootstrap."
+        ),
     )
-    logger.info(
-        "Created Foundry agent '%s' initial version '%s'",
-        foundry_agent_name,
-        getattr(created, "version", "unknown"),
-    )
+    if agent_exists:
+        logger.info(
+            "Synced Foundry agent '%s' to new version '%s' from local definition",
+            foundry_agent_name,
+            getattr(created, "version", "unknown"),
+        )
+    else:
+        logger.info(
+            "Created Foundry agent '%s' initial version '%s'",
+            foundry_agent_name,
+            getattr(created, "version", "unknown"),
+        )
 
 
 def create_logistics_agent(chat_client: SupportsChatGetResponse) -> AgentFrameworkAgent:

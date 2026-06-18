@@ -8,7 +8,7 @@ This feature models user feedback as a durable, queryable record with kind-speci
 ### 1. FeedbackRecord
 - Purpose: Durable source-of-truth record for effective feedback state.
 - Storage: Cosmos DB container (recommended: `feedback_records`).
-- Partition key: `conversation_id`.
+- Partition key: `user_id` (consistent with session metadata pattern; all feedback from a user lives in one partition, enabling efficient point reads using the `user_id`-scoped idempotency key).
 - Primary id: `feedback_id` (server-generated UUID).
 
 Fields:

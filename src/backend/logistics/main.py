@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 import uvicorn
 from agent_framework import SupportsChatGetResponse
@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry import trace
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 # ============================================================================
@@ -44,7 +44,17 @@ from middleware import (  # type: ignore
     azure_scheme,
 )
 from monitoring import configure_observability, is_observability_enabled  # type: ignore
-from services import SessionMetadataStoreUnavailableError, SessionService, create_session_service
+from services import (
+    FeedbackOutcome,
+    FeedbackQueryParams,
+    FeedbackQueryResponse,
+    FeedbackService,
+    FeedbackSubmission,
+    SessionMetadataStoreUnavailableError,
+    SessionService,
+    create_feedback_service,
+    create_session_service,
+)
 
 load_dotenv()
 
@@ -82,6 +92,7 @@ configure_observability()
 chat_client: SupportsChatGetResponse | None = None
 logistics_agent: AgentFrameworkAgent | None = None
 session_service: SessionService | None = None
+feedback_service: FeedbackService | None = None
 
 
 async def _init_chat_client():
@@ -89,7 +100,7 @@ async def _init_chat_client():
 
     This is called during application startup.
     """
-    global chat_client, logistics_agent, session_service
+    global chat_client, logistics_agent, session_service, feedback_service
 
     # Build the Foundry chat client
     from clients import build_responses_client  # type: ignore
@@ -111,6 +122,8 @@ async def _init_chat_client():
             )
     else:
         session_service = None
+
+    feedback_service = create_feedback_service()
 
 
 @asynccontextmanager
@@ -320,13 +333,21 @@ async def create_conversation(request: Request):
 
 
 class RecommendationFeedbackPayload(BaseModel):
-    """Feedback payload for risk mitigation recommendations."""
+    """Deprecated payload retained temporarily for backward compatibility."""
 
     flightId: str
     flightNumber: str
-    votes: dict[str, str]  # recommendation_id -> "up" | "down"
+    votes: dict[str, str]
     comment: str | None = None
     timestamp: str
+
+
+class FeedbackSubmissionRequest(FeedbackSubmission):
+    """Typed feedback submission request model."""
+
+
+class FeedbackSubmissionResponse(FeedbackOutcome):
+    """Typed feedback submission response model."""
 
 
 class FlightsResponse(BaseModel):
@@ -352,6 +373,30 @@ def _get_session_service() -> SessionService:
     if session_service is None:
         raise HTTPException(status_code=503, detail="Session service is not initialized")
     return session_service
+
+
+def _get_feedback_service() -> FeedbackService:
+    if feedback_service is None:
+        raise HTTPException(status_code=503, detail="Feedback service is not initialized")
+    return feedback_service
+
+
+def _is_feedback_query_authorized(request: Request) -> bool:
+    user = getattr(request.state, "user", None)
+    if not isinstance(user, dict):
+        return False
+
+    roles = {str(role).lower() for role in user.get("roles", []) if isinstance(role, str)}
+    scopes = {
+        str(scope).lower()
+        for scope in str(user.get("scp", "")).split()
+        if isinstance(scope, str)
+    }
+
+    if roles.intersection({"admin", "analytics", "feedback.read", "feedback.admin"}):
+        return True
+
+    return "feedback.read" in scopes or "feedback.admin" in scopes
 
 
 async def _extract_conversation_id_from_logistics_request(request: Request) -> str | None:
@@ -613,37 +658,75 @@ async def get_data_summary():
 # ============================================================================
 
 
-@app.post("/logistics/feedback")
-async def submit_recommendation_feedback(payload: RecommendationFeedbackPayload):
-    """
-    Submit feedback on risk mitigation recommendations.
+@app.post("/logistics/feedback", response_model=FeedbackOutcome)
+async def submit_feedback(payload: FeedbackSubmissionRequest, request: Request):
+    """Submit feedback and persist durable record with telemetry outcome."""
+    if not azure_ad_settings.AUTH_ENABLED:
+        raise HTTPException(
+            status_code=403,
+            detail="Feedback submissions are disabled when authentication is off",
+        )
 
-    Currently logs feedback for analysis. Backend storage will be implemented later.
-    """
+    user_claims = getattr(request.state, "user", None)
+    if not isinstance(user_claims, dict):
+        raise HTTPException(status_code=401, detail="Authentication required for feedback")
+
+    user_id = _get_user_id_for_session_scope(request)
+
+    overall_feedback_enabled = os.getenv("OVERALL_FEEDBACK_ENABLED", "true").lower() == "true"
+    if payload.feedback_kind == "overall_experience" and not overall_feedback_enabled:
+        raise HTTPException(status_code=403, detail="Overall feedback surface is disabled")
+
     identity = get_trace_identity()
     if identity:
         validate_trace_identity_payload(identity.model_dump())
 
-    logger.info("=" * 60)
-    logger.info("RECOMMENDATION FEEDBACK RECEIVED")
-    logger.info("=" * 60)
-    logger.info("Flight ID: %s", payload.flightId)
-    logger.info("Flight Number: %s", payload.flightNumber)
-    logger.info("Timestamp: %s", payload.timestamp)
-    logger.info("Votes: %s", json.dumps(payload.votes, indent=2))
-    if payload.comment:
-        logger.info("Comment: %s", payload.comment)
-    logger.info("=" * 60)
+    outcome = await _get_feedback_service().submit_feedback(payload=payload, user_id=user_id)
+    return outcome
 
-    # TODO: Persist feedback to database/storage
-    # For now, just acknowledge receipt
 
-    return {
-        "status": "received",
-        "message": "Feedback logged successfully. Thank you!",
-        "flightNumber": payload.flightNumber,
-        "votesReceived": len(payload.votes),
-    }
+@app.get("/logistics/feedback", response_model=FeedbackQueryResponse)
+async def query_feedback(
+    request: Request,
+    conversation_id: str | None = Query(None),
+    feedback_kind: str | None = Query(None),
+    rating: str | None = Query(None),
+    turn_id: str | None = Query(None),
+    card_turn_id: str | None = Query(None),
+    from_ts: str | None = Query(None, alias="from"),
+    to_ts: str | None = Query(None, alias="to"),
+    limit: int = Query(50, ge=1, le=200),
+):
+    """Authorized feedback retrieval endpoint for backend/admin analytics consumers."""
+    if not _is_feedback_query_authorized(request):
+        raise HTTPException(status_code=403, detail="Feedback query requires admin/analytics authorization")
+
+    parsed_from = datetime.fromisoformat(from_ts) if from_ts else None
+    parsed_to = datetime.fromisoformat(to_ts) if to_ts else None
+
+    normalized_kind = feedback_kind.strip() if isinstance(feedback_kind, str) else None
+    if normalized_kind not in {None, "turn_response", "overall_experience"}:
+        raise HTTPException(status_code=400, detail="feedback_kind must be turn_response or overall_experience")
+
+    normalized_rating = rating.strip() if isinstance(rating, str) else None
+    if normalized_rating not in {None, "positive", "negative"}:
+        raise HTTPException(status_code=400, detail="rating must be positive or negative")
+
+    try:
+        params = FeedbackQueryParams(
+            conversation_id=conversation_id,
+            feedback_kind=normalized_kind,
+            rating=normalized_rating,
+            turn_id=turn_id,
+            card_turn_id=card_turn_id,
+            from_ts=parsed_from,
+            to_ts=parsed_to,
+            limit=limit,
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return await _get_feedback_service().query_feedback(params=params)
 
 
 # NOTE: AG-UI endpoint for logistics_agent is registered in the lifespan handler

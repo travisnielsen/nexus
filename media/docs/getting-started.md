@@ -137,3 +137,17 @@ The following scripts are available from the repository root:
 | `build` | Builds the Next.js application for production |
 | `start` | Starts the production server |
 | `lint` | Runs ESLint for code linting |
+
+## Feedback API Endpoints and Core Design
+
+The feature branch introduces a unified feedback API on the logistics backend:
+
+- `POST /logistics/feedback`: submit user feedback (`turn_response` or `overall_experience`)
+- `GET /logistics/feedback`: query stored feedback for authorized admin/analytics consumers
+
+Core design guarantees:
+
+- Feedback submission is accepted only when durable Cosmos DB persistence succeeds.
+- Telemetry is emitted as correlated operational data and can fail independently without changing accepted storage outcomes.
+- `conversation_id` must use the canonical `conv_*` identity used by chat session continuity.
+- End-user feedback capture is available only in authenticated mode; no-auth mode hides feedback controls and blocks submissions.

@@ -28,6 +28,11 @@ html {
   color: #1f2937 !important;
 }
 
+/* Reserve space for the sticky composer so inline cards don't sit underneath it. */
+.copilotKitMessages {
+  padding-bottom: 0 !important;
+}
+
 /* Move CopilotKit web inspector below the navbar */
 cpk-web-inspector {
   top: 5rem !important;
@@ -64,4 +69,62 @@ cpk-web-inspector {
 
 *::-webkit-scrollbar-corner {
   background: rgba(31, 41, 55, 0.3);
+}
+
+/* CopilotKit message controls: dimmed by default, become prominent on parent hover. */
+.copilotKitMessageControlButton {
+  color: rgba(255, 255, 255, 0.28) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background-color: transparent !important;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease !important;
+}
+
+/* Brighten the whole row when the user hovers anywhere near the message controls area */
+.copilotKitMessage:hover .copilotKitMessageControlButton,
+.copilotKitAssistantMessage:hover .copilotKitMessageControlButton {
+  color: rgba(255, 255, 255, 0.72) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Full brightness when directly hovered or active */
+.copilotKitMessageControlButton:hover,
+.copilotKitMessageControlButton:active {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Selected (voted) state */
+.copilotKitMessageControlButton.active,
+.copilotKitMessageControlButton.active:hover {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.62) !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Only show action controls for the latest assistant turn. */
+.copilotKitMessageControls:not(.currentMessage) {
+  display: none !important;
+}
+
+/* Hard guard for custom assistant renderer wrappers. */
+.assistant-turn-past .copilotKitMessageControls,
+.assistant-turn-past .copilotKitMessageControlButton {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* Distinct styling for the pinned chat feedback suggestion chip. */
+.copilotKitMessages footer .suggestions .suggestion.feedback-suggestion,
+.copilotKitMessages footer .suggestions .suggestion:last-child {
+  border: 1px solid rgba(244, 114, 182, 0.88) !important;
+  color: rgb(251, 207, 232) !important;
+  background: rgba(157, 23, 77, 0.22) !important;
+}
+
+.copilotKitMessages footer .suggestions .suggestion.feedback-suggestion:hover,
+.copilotKitMessages footer .suggestions .suggestion:last-child:hover {
+  border-color: rgba(244, 114, 182, 1) !important;
+  background: rgba(157, 23, 77, 0.34) !important;
 }

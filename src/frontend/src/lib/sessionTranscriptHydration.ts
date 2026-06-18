@@ -21,6 +21,7 @@ const RENDERABLE_TOOLS = new Set<string>([
   "get_historical_payload",
   "get_predicted_payload",
   "get_recommendations",
+  "show_overall_feedback_card",
 ]);
 
 function asRecord(value: unknown): Record<string, unknown> {

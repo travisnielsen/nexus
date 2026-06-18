@@ -18,10 +18,10 @@
 
 **Purpose**: Establish feature scaffolding across backend and frontend.
 
-- [ ] T001 Add feedback feature configuration scaffold and constants in `src/backend/logistics/main.py`.
-- [ ] T002 [P] Create backend feedback service module scaffold in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T003 [P] Extend frontend feedback type definitions for kind-based payloads in `src/frontend/src/lib/logisticsTypes.ts`.
-- [ ] T004 [P] Add overall feedback UI component scaffold in `src/frontend/src/components/OverallFeedbackCard.tsx`.
+- [X] T001 Add feedback feature configuration scaffold and constants in `src/backend/logistics/main.py`.
+- [X] T002 [P] Create backend feedback service module scaffold in `src/backend/logistics/services/feedback_service.py`.
+- [X] T003 [P] Extend frontend feedback type definitions for kind-based payloads in `src/frontend/src/lib/logisticsTypes.ts`.
+- [X] T004 [P] Add overall feedback UI component scaffold in `src/frontend/src/components/OverallFeedbackCard.tsx`.
 
 ---
 
@@ -30,16 +30,16 @@
 **Purpose**: Complete core contracts, validation, persistence, telemetry, and agent wiring before story work.
 
 **⚠️ CRITICAL**: No user-story implementation should begin until this phase is complete.
-- [ ] T006 Implement shared feedback request and outcome validation models in `src/backend/logistics/main.py`.
-- [ ] T042 Implement canonical session identifier enforcement for feedback submissions, accepting only the established conversation identifier shape and rejecting alternate parallel session keys in `src/backend/logistics/main.py` and `src/backend/logistics/services/feedback_service.py`.
-- [ ] T007 [P] Implement deterministic idempotency key helpers in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T008 [P] Implement Cosmos container bootstrap and upsert primitives for feedback records in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T009 [P] Implement telemetry emission helper and outcome status mapping in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T046 Implement explicit Application Insights failure telemetry emission for Cosmos DB persistence failures (include `storage_error`, feedback correlation identifiers, and operator-diagnostic fields) in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T010 Wire authenticated feedback submission guard and dependency setup in `src/backend/logistics/main.py`.
-- [ ] T011 Add backend feature-toggle plumbing for overall feedback flows in `src/backend/logistics/main.py`.
-- [ ] T012 Create overall-feedback AG-UI tool scaffolding in `src/backend/logistics/agents/tools/feedback_tools.py`.
-- [ ] T013 Register feedback tools in `src/backend/logistics/agents/tools/__init__.py` and `src/backend/logistics/agents/logistics_agent.py`.
+- [X] T006 Implement shared feedback request and outcome validation models in `src/backend/logistics/main.py`.
+- [X] T042 Implement canonical session identifier enforcement for feedback submissions, accepting only the established conversation identifier shape and rejecting alternate parallel session keys in `src/backend/logistics/main.py` and `src/backend/logistics/services/feedback_service.py`.
+- [X] T007 [P] Implement deterministic idempotency key helpers in `src/backend/logistics/services/feedback_service.py`.
+- [X] T008 [P] Implement Cosmos container bootstrap and upsert primitives for feedback records in `src/backend/logistics/services/feedback_service.py`.
+- [X] T009 [P] Implement telemetry emission helper and outcome status mapping in `src/backend/logistics/services/feedback_service.py`.
+- [X] T046 Implement explicit Application Insights failure telemetry emission for Cosmos DB persistence failures (include `storage_error`, feedback correlation identifiers, and operator-diagnostic fields) in `src/backend/logistics/services/feedback_service.py`.
+- [X] T010 Wire authenticated feedback submission guard and dependency setup in `src/backend/logistics/main.py`.
+- [X] T011 Add backend feature-toggle plumbing for overall feedback flows in `src/backend/logistics/main.py`.
+- [X] T012 Create overall-feedback AG-UI tool scaffolding in `src/backend/logistics/agents/tools/feedback_tools.py`.
+- [X] T013 Register feedback tools in `src/backend/logistics/agents/tools/__init__.py` and `src/backend/logistics/agents/logistics_agent.py`.
 
 **Checkpoint**: Foundation ready. User stories can now be implemented.
 
@@ -53,14 +53,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Extend `POST /logistics/feedback` to process `turn_response` submissions in `src/backend/logistics/main.py`.
-- [ ] T015 [P] [US1] Implement turn-response required-field validation (`conversation_id`, `turn_id`, `trace_id`, `rating`) in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T016 [P] [US1] Update emitted response-feedback card payload builder to send `feedback_kind` and `source_surface` in `src/frontend/src/components/ResponseFeedbackCard.tsx`.
-- [ ] T017 [US1] Ensure emitted response-feedback card click dispatch is immediate and non-blocking for ongoing chat UX in `src/frontend/src/components/ResponseFeedbackCard.tsx`.
-- [ ] T018 [US1] Persist and return accepted outcome envelope (`feedback_id`, `idempotency_key`, storage/telemetry status) in `src/backend/logistics/main.py` and `src/backend/logistics/services/feedback_service.py`.
-- [ ] T019 [US1] Emit turn-feedback correlation telemetry fields for accepted submissions in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T041 [US1] Hide turn-response feedback controls when authentication is disabled by gating render paths in `src/frontend/src/components/ResponseFeedbackCard.tsx` and auth-aware chat state in `src/frontend/src/app/page.tsx`.
-- [ ] T047 [US1] Render a clear, non-blocking user-facing failure message when feedback submission returns `accepted=false` with `storage_status=failed` using the existing React inline status pattern (component state + conditional render, no new notification dependency) and an accessible `aria-live` region in `src/frontend/src/components/ResponseFeedbackCard.tsx`.
+- [X] T014 [US1] Extend `POST /logistics/feedback` to process `turn_response` submissions in `src/backend/logistics/main.py`.
+- [X] T015 [P] [US1] Implement turn-response required-field validation (`conversation_id`, `turn_id`, `trace_id`, `rating`) in `src/backend/logistics/services/feedback_service.py`.
+- [X] T016 [P] [US1] Wire native CopilotKit response feedback controls to send `feedback_kind` and `source_surface` payload fields through the shared feedback submission path in `src/frontend/src/components/HydratedAssistantMessage.tsx` and `src/frontend/src/app/page.tsx`.
+- [X] T017 [US1] Ensure native CopilotKit response feedback click dispatch remains immediate and non-blocking for ongoing chat UX in `src/frontend/src/components/HydratedAssistantMessage.tsx` and `src/frontend/src/app/page.tsx`.
+- [X] T018 [US1] Persist and return accepted outcome envelope (`feedback_id`, `idempotency_key`, storage/telemetry status) in `src/backend/logistics/main.py` and `src/backend/logistics/services/feedback_service.py`.
+- [X] T019 [US1] Emit turn-feedback correlation telemetry fields for accepted submissions in `src/backend/logistics/services/feedback_service.py`.
+- [X] T041 [US1] Hide turn-response feedback controls when authentication is disabled by relying on auth-gated CopilotKit runtime state in `src/frontend/src/components/AuthenticatedCopilotKit.tsx` and `src/frontend/src/app/page.tsx`.
+- [X] T047 [US1] Ensure user-facing failure behavior for turn-response feedback remains clear and non-blocking while using native CopilotKit response feedback controls and API outcome handling in `src/frontend/src/components/HydratedAssistantMessage.tsx` and `src/frontend/src/app/page.tsx`.
 
 **Checkpoint**: US1 is independently functional and validates MVP behavior.
 
@@ -74,11 +74,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Implement latest-write-wins update semantics for negative feedback comment updates in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T021 [P] [US2] Wire comment-after-vote submission to reuse existing logical feedback key in `src/frontend/src/components/ResponseFeedbackCard.tsx`.
-- [ ] T022 [US2] Implement dismiss-without-comment behavior while preserving rating-only state in `src/frontend/src/components/ResponseFeedbackCard.tsx`.
-- [ ] T023 [US2] Enforce comment-as-submitted storage policy with payload validity checks in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T024 [US2] Return update-aware response metadata for repeated submissions in `src/backend/logistics/main.py`.
+- [X] T020 [US2] Implement latest-write-wins update semantics for negative feedback comment updates in `src/backend/logistics/services/feedback_service.py`.
+- [X] T021 [P] [US2] Preserve comment-after-vote idempotent semantics in backend feedback records while keeping turn-response UX on native CopilotKit controls in `src/backend/logistics/services/feedback_service.py`.
+- [X] T022 [US2] Keep negative-feedback optional-comment interaction aligned with non-blocking chat UX while avoiding duplicate custom turn-feedback controls in `src/frontend/src/components/HydratedAssistantMessage.tsx`.
+- [X] T023 [US2] Enforce comment-as-submitted storage policy with payload validity checks in `src/backend/logistics/services/feedback_service.py`.
+- [X] T024 [US2] Return update-aware response metadata for repeated submissions in `src/backend/logistics/main.py`.
 
 **Checkpoint**: US2 works independently and does not create duplicate logical feedback records.
 
@@ -92,14 +92,14 @@
 
 ### Implementation for User Story 3
 
-- [ ] T025 [US3] Implement AG-UI tool for overall-feedback card invocation in `src/backend/logistics/agents/tools/feedback_tools.py`.
-- [ ] T026 [US3] Register overall-feedback tool for agent execution in `src/backend/logistics/agents/tools/__init__.py` and `src/backend/logistics/agents/logistics_agent.py`.
-- [ ] T027 [P] [US3] Implement overall feedback card UI and submit handler in `src/frontend/src/components/OverallFeedbackCard.tsx`.
-- [ ] T028 [US3] Add chat affordance and feature-toggle-driven visibility in `src/frontend/src/app/page.tsx`.
-- [ ] T029 [US3] Route overall card submission to shared feedback endpoint with `overall_experience` payload in `src/frontend/src/components/OverallFeedbackCard.tsx`.
-- [ ] T030 [US3] Preserve optional `card_turn_id` association during overall feedback persistence mapping in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T031 [US3] Enforce toggle-off behavior to hide affordance and reject disabled-surface submissions in `src/frontend/src/app/page.tsx` and `src/backend/logistics/main.py`.
-- [ ] T048 [US3] Render the same clear, non-blocking user-facing failure message for overall feedback submissions when `accepted=false` with `storage_status=failed` using the same inline React status pattern as US1 (no new notification dependency) and an accessible `aria-live` region in `src/frontend/src/components/OverallFeedbackCard.tsx`.
+- [X] T025 [US3] Implement AG-UI tool for overall-feedback card invocation in `src/backend/logistics/agents/tools/feedback_tools.py`.
+- [X] T026 [US3] Register overall-feedback tool for agent execution in `src/backend/logistics/agents/tools/__init__.py` and `src/backend/logistics/agents/logistics_agent.py`.
+- [X] T027 [P] [US3] Implement overall feedback card UI and submit handler in `src/frontend/src/components/OverallFeedbackCard.tsx`.
+- [X] T028 [US3] Add chat affordance and feature-toggle-driven visibility in `src/frontend/src/app/page.tsx`.
+- [X] T029 [US3] Route overall card submission to shared feedback endpoint with `overall_experience` payload in `src/frontend/src/components/OverallFeedbackCard.tsx`.
+- [X] T030 [US3] Preserve optional `card_turn_id` association during overall feedback persistence mapping in `src/backend/logistics/services/feedback_service.py`.
+- [X] T031 [US3] Enforce toggle-off behavior to hide affordance and reject disabled-surface submissions in `src/frontend/src/app/page.tsx` and `src/backend/logistics/main.py`.
+- [X] T048 [US3] Render the same clear, non-blocking user-facing failure message for overall feedback submissions when `accepted=false` with `storage_status=failed` using the same inline React status pattern as US1 (no new notification dependency) and an accessible `aria-live` region in `src/frontend/src/components/OverallFeedbackCard.tsx`.
 
 **Checkpoint**: US3 is independently functional with AG-UI-compliant invocation and toggle behavior.
 
@@ -113,11 +113,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T032 [US4] Implement authorized feedback query endpoint and filter parameters in `src/backend/logistics/main.py`.
-- [ ] T033 [P] [US4] Implement filtered query and pagination methods in `src/backend/logistics/services/feedback_service.py`.
-- [ ] T034 [US4] Enforce backend or admin authorization policy for query access in `src/backend/logistics/main.py`.
-- [ ] T035 [US4] Map query response fields to contract shape and preserve correlation fields in `src/backend/logistics/main.py`.
-- [ ] T036 [US4] Add operational logging for storage-only and telemetry-only failure states in `src/backend/logistics/services/feedback_service.py`.
+- [X] T032 [US4] Implement authorized feedback query endpoint and filter parameters in `src/backend/logistics/main.py`.
+- [X] T033 [P] [US4] Implement filtered query and pagination methods in `src/backend/logistics/services/feedback_service.py`.
+- [X] T034 [US4] Enforce backend or admin authorization policy for query access in `src/backend/logistics/main.py`.
+- [X] T035 [US4] Map query response fields to contract shape and preserve correlation fields in `src/backend/logistics/main.py`.
+- [X] T036 [US4] Add operational logging for storage-only and telemetry-only failure states in `src/backend/logistics/services/feedback_service.py`.
 
 **Checkpoint**: US4 is independently functional with secure query access and analytics-ready filtering.
 
@@ -128,14 +128,14 @@
 **Purpose**: Validate end-to-end behavior, quality gates, and documentation updates.
 
 - [ ] T037 [P] Update implementation notes and executed validation evidence in `specs/005-user-feedback-storage/quickstart.md`.
-- [ ] T038 Run backend quality gates and address issues for changed feedback files using `uv run --project . poe check` from repository root.
-- [ ] T039 Run frontend lint and address issues for changed feedback UI files using `npm run lint` in `src/frontend`.
+- [X] T038 Run backend quality gates and address issues for changed feedback files using `uv run --project . poe check` from repository root.
+- [X] T039 Run frontend lint and address issues for changed feedback UI files using `npm run lint` in `src/frontend`.
 - [ ] T040 Execute quickstart validation flows and record outcome summary in `specs/005-user-feedback-storage/quickstart.md`.
 - [ ] T043 Define success-criteria evidence matrix and measurement method for SC-001 through SC-019 in `specs/005-user-feedback-storage/quickstart.md`.
-- [ ] T044 Implement validation logging and counters needed to compute acceptance percentages and rejection/authorization outcomes in `src/backend/logistics/main.py`, `src/backend/logistics/services/feedback_service.py`, and `src/frontend/src/components/ResponseFeedbackCard.tsx`.
+- [ ] T044 Implement validation logging and counters needed to compute acceptance percentages and rejection/authorization outcomes in `src/backend/logistics/main.py`, `src/backend/logistics/services/feedback_service.py`, and `src/frontend/src/components/HydratedAssistantMessage.tsx`.
 - [ ] T045 Execute and record threshold verification results for all measurable SC targets and attach pass/fail evidence in `specs/005-user-feedback-storage/quickstart.md`.
 - [ ] T049 Validate and record user-visible save-failure behavior for both response-feedback and overall-feedback cards under simulated Cosmos DB write failure in `specs/005-user-feedback-storage/quickstart.md`.
-- [ ] T050 Document the new feedback API surface (`POST /logistics/feedback` and authorized feedback query endpoint) plus core feedback design decisions in `src/backend/logistics/README.md` and `media/docs/getting-started.md` without adding implementation-level detail to root `README.md`.
+- [X] T050 Document the new feedback API surface (`POST /logistics/feedback` and authorized feedback query endpoint) plus core feedback design decisions in `src/backend/logistics/README.md` and `media/docs/getting-started.md` without adding implementation-level detail to root `README.md`.
 
 ---
 
@@ -176,7 +176,7 @@
 ```bash
 # Parallel backend/frontend work for US1
 Task: T015 [US1] Implement turn-response validation in src/backend/logistics/services/feedback_service.py
-Task: T016 [US1] Update thumbs payload in src/frontend/src/components/ResponseFeedbackCard.tsx
+Task: T016 [US1] Wire native CopilotKit thumbs payload in src/frontend/src/components/HydratedAssistantMessage.tsx
 ```
 
 ## Parallel Example: User Story 3

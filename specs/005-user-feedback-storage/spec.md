@@ -108,7 +108,7 @@ As an authorized product or operations stakeholder, I can retrieve feedback by s
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST allow users to submit explicit feedback on an individual agent response using positive and negative rating controls.
+- **FR-001**: The system MUST allow users to submit explicit feedback on an individual agent response using the native CopilotKit thumbs-up/thumbs-down controls.
 - **FR-002**: The system MUST also support overall experience feedback submitted from the chat interface independently of a specific assistant response.
 - **FR-003**: The system MUST classify feedback by kind so turn-based response feedback and overall experience feedback remain distinguishable in storage, telemetry, and analytics.
 - **FR-004**: The system MUST associate each feedback submission to the canonical conversation session identifier used by the product, where that session is the Foundry conversation identifier in the `conv_*` family.
@@ -145,6 +145,7 @@ As an authorized product or operations stakeholder, I can retrieve feedback by s
 - **FR-035**: The first release MUST restrict feedback retrieval capabilities to authorized backend or admin analytics consumers and MUST NOT expose a general end-user feedback query interface.
 - **FR-036**: In the first release, optional feedback comments MUST be stored as submitted subject only to general payload validity checks, with no additional redaction or moderation requirement defined by this feature.
 - **FR-037**: When feedback submission is not accepted because durable storage failed, the user interface MUST show a clear, non-blocking message that feedback was not saved and that the user may retry.
+- **FR-038**: The user interface MUST NOT render an additional custom turn-response feedback card when the native CopilotKit response feedback controls are available; response feedback UX must remain a single, non-duplicated control set.
 
 ### Key Entities *(include if feature involves data)*
 

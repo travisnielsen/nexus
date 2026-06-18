@@ -6,7 +6,7 @@
 
 ## Summary
 
-Implement a unified feedback pipeline that captures turn-level and overall-experience feedback in authenticated mode, persists accepted submissions durably, and emits correlated telemetry for analytics and evaluation workflows. The approach extends the existing backend feedback endpoint into a typed, idempotent service boundary backed by Cosmos DB, adds explicit feedback-kind contracts for an emitted response-feedback card and AG-UI-invoked overall feedback card flows, and keeps CopilotKit plus AG-UI session continuity unchanged.
+Implement a unified feedback pipeline that captures turn-level and overall-experience feedback in authenticated mode, persists accepted submissions durably, and emits correlated telemetry for analytics and evaluation workflows. The approach extends the existing backend feedback endpoint into a typed, idempotent service boundary backed by Cosmos DB, uses native CopilotKit response feedback controls for turn feedback, adds explicit AG-UI-invoked overall feedback card flows, and keeps CopilotKit plus AG-UI session continuity unchanged.
 
 ## Technical Context
 
@@ -14,7 +14,7 @@ Implement a unified feedback pipeline that captures turn-level and overall-exper
 
 **Primary Dependencies**: FastAPI, Pydantic v2, Microsoft Agent Framework Python SDK, CopilotKit React Core and UI, AG-UI protocol integration, Azure Cosmos DB SDK, OpenTelemetry and Azure Monitor exporter
 
-**Storage**: Azure Cosmos DB (durable feedback records; partitioned by conversation/session scope)
+**Storage**: Azure Cosmos DB (durable feedback records; partitioned by `user_id`, consistent with the session metadata pattern from spec 004). The SQL database (`logistics_feedback`) and container (`feedback_records`) are provisioned by Terraform and validated at API startup via `_ensure_bootstrap_ready()`. The API does not create these resources at runtime — they must exist before the service starts. Configure via `FEEDBACK_COSMOS_DB_ENDPOINT`, `FEEDBACK_COSMOS_DATABASE`, and `FEEDBACK_COSMOS_CONTAINER` environment variables.
 
 **Testing**: `uv run --project . poe check`, targeted backend unit/integration tests with `pytest`, frontend lint and interaction checks via `npm run lint` and existing app-level validation flows
 
@@ -79,7 +79,6 @@ src/backend/logistics/
 src/frontend/
 ├── src/
 │   ├── components/
-│   │   ├── ResponseFeedbackCard.tsx     # new (emitted card for turn feedback)
 │   │   └── OverallFeedbackCard.tsx      # new (emitted card for overall feedback)
 │   ├── app/
 │   │   └── page.tsx
@@ -87,7 +86,7 @@ src/frontend/
 │       └── logisticsTypes.ts
 ```
 
-**Structure Decision**: Use the existing web-application split (`src/backend/logistics` plus `src/frontend`) and add a dedicated backend feedback service plus explicit emitted frontend feedback card components (`ResponseFeedbackCard` and `OverallFeedbackCard`). Keep feedback contracts in `specs/005-user-feedback-storage/contracts` and avoid introducing new top-level runtime services.
+**Structure Decision**: Use the existing web-application split (`src/backend/logistics` plus `src/frontend`) and add a dedicated backend feedback service plus one emitted frontend card component (`OverallFeedbackCard`) while relying on native CopilotKit response feedback controls for turn feedback. Keep feedback contracts in `specs/005-user-feedback-storage/contracts` and avoid introducing new top-level runtime services.
 
 ## Complexity Tracking
 
