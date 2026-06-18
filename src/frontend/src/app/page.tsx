@@ -7,7 +7,7 @@ import { useLogisticsData } from "@/lib/useLogisticsData";
 import { useSafeAccessToken } from "@/lib/useSafeAccessToken";
 import { useCoAgent, useCopilotAction, useCoAgentStateRender, useRenderToolCall, useCopilotChatInternal, useCopilotReadable } from "@copilotkit/react-core";
 import { CopilotKitCSSProperties, CopilotChat, UserMessageProps } from "@copilotkit/react-ui";
-import { TextMessage, Role, Message } from "@copilotkit/runtime-client-gql";
+import { TextMessage, Role } from "@copilotkit/runtime-client-gql";
 import { FlightListCard } from "@/components/FlightListCard";
 import { FlightDetailCard } from "@/components/FlightDetailCard";
 import { HistoricalChart } from "@/components/HistoricalChart";
@@ -90,7 +90,10 @@ export default function LogisticsPage() {
   };
 
   // Submit turn-response feedback to backend when thumbs up/down clicked
-  const handleThumbsFeedback = async (message: Message, rating: "positive" | "negative") => {
+  const handleThumbsFeedback = async (
+    message: { id?: string | null },
+    rating: "positive" | "negative",
+  ) => {
     if (!isAuthEnabled || !message.id || !threadId) return;
     if (!accessToken) {
       setFeedbackError("Authentication token unavailable. Please sign in again and retry.");
