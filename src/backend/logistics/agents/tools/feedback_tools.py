@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
 from typing import Annotated
+from uuid import uuid4
 
 from agent_framework import tool
 from pydantic import Field
