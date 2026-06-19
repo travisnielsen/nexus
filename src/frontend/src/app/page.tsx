@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { AuthButton } from "@/components/AuthButton";
 import { LogisticsAgentState, Flight, DashboardFilter, initialLogisticsState, DEFAULT_FILTER } from "@/lib/logisticsTypes";
 import { useLogisticsData } from "@/lib/useLogisticsData";
-import { useSafeAccessToken } from "@/lib/useSafeAccessToken";
+import { useSafeAccessToken, useSafeAccessTokenState } from "@/lib/useSafeAccessToken";
 import { useCoAgent, useCopilotAction, useCoAgentStateRender, useRenderToolCall, useCopilotChatInternal, useCopilotReadable } from "@copilotkit/react-core";
 import { CopilotKitCSSProperties, CopilotChat, UserMessageProps } from "@copilotkit/react-ui";
 import { TextMessage, Role } from "@copilotkit/runtime-client-gql";
@@ -61,13 +61,14 @@ export default function LogisticsPage() {
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [pendingCommentMessageId, setPendingCommentMessageId] = useState<string | null>(null);
   const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
+  const lastUserMessageIdRef = useRef<string | null>(null);
   useSessionHistoryContext();
   const isAuthEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true";
   const overallFeedbackEnabled = process.env.NEXT_PUBLIC_OVERALL_FEEDBACK_ENABLED !== "false";
 
   // Get access token for authenticated API calls (returns null when auth is disabled)
-  const accessToken = useSafeAccessToken();
-  const { threadId } = useCopilotChatInternal();
+  const { accessToken, acquireToken } = useSafeAccessTokenState();
+  const { threadId, messages } = useCopilotChatInternal();
 
   // Fetch summary data at the page level for the dynamic greeting
   const { summary, isLoading: summaryLoading } = useLogisticsData(100, accessToken);
@@ -89,120 +90,125 @@ export default function LogisticsPage() {
     return `📦 Welcome! I'm monitoring ${totalFlights} flights. Current utilization looks healthy at ${averageUtilization.toFixed(0)}% average. ${underUtilized > 0 ? `${underUtilized} flights are under-utilized.` : ''} How can I help?`;
   };
 
+  const submitTurnResponseFeedback = async (
+    messageId: string,
+    rating: "positive" | "negative",
+    comment?: string,
+  ): Promise<boolean> => {
+    if (!isAuthEnabled || !threadId) return false;
+    const token = accessToken ?? await acquireToken();
+    if (!token) {
+      setFeedbackError("Authentication token unavailable. Please sign in again and retry.");
+      setTimeout(() => setFeedbackError(null), 5000);
+      return false;
+    }
+
+    try {
+      const payload: FeedbackSubmissionRequest = {
+        feedback_kind: "turn_response",
+        conversation_id: threadId,
+        rating,
+        turn_id: messageId,
+        trace_id: messageId,
+        source_surface: "immediate_thumb",
+        comment: comment?.trim() ? comment.trim() : undefined,
+      };
+
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiBaseUrl}/logistics/feedback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const outcome = (await response.json()) as FeedbackSubmissionOutcome | { detail?: string };
+      if (!response.ok || !(outcome as FeedbackSubmissionOutcome).accepted) {
+        const feedbackOutcome = outcome as FeedbackSubmissionOutcome;
+        const errorMsg =
+          feedbackOutcome.error_message ||
+          (typeof (outcome as { detail?: string }).detail === "string" ? (outcome as { detail?: string }).detail : undefined) ||
+          "We couldn't save your feedback right now. Please try again.";
+        setFeedbackError(errorMsg);
+        setTimeout(() => setFeedbackError(null), 5000);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      const errorMsg = `Error submitting feedback: ${error instanceof Error ? error.message : "Unknown error"}`;
+      setFeedbackError(errorMsg);
+      setTimeout(() => setFeedbackError(null), 5000);
+      return false;
+    }
+  };
+
   // Submit turn-response feedback to backend when thumbs up/down clicked
   const handleThumbsFeedback = async (
     message: { id?: string | null },
     rating: "positive" | "negative",
   ) => {
     if (!isAuthEnabled || !message.id || !threadId) return;
-    if (!accessToken) {
-      setFeedbackError("Authentication token unavailable. Please sign in again and retry.");
-      setTimeout(() => setFeedbackError(null), 5000);
+
+    if (rating === "negative") {
+      if (pendingCommentMessageId && pendingCommentMessageId !== message.id && !isCommentSubmitting) {
+        void handleCommentDismiss(pendingCommentMessageId);
+      }
+      setPendingCommentMessageId(message.id);
       return;
     }
 
-    // Show thumbs-down comment UI immediately to keep interaction responsive.
-    if (rating === "negative") {
-      setPendingCommentMessageId(message.id);
-    }
-
-    // Submit feedback immediately (both positive and negative)
-    try {
-      const payload: FeedbackSubmissionRequest = {
-        feedback_kind: "turn_response",
-        conversation_id: threadId,
-        rating,
-        turn_id: message.id,
-        trace_id: message.id,
-        source_surface: "immediate_thumb",
-      };
-
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${apiBaseUrl}/logistics/feedback`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const outcome = (await response.json()) as FeedbackSubmissionOutcome | { detail?: string };
-      if (!response.ok || !(outcome as FeedbackSubmissionOutcome).accepted) {
-        const feedbackOutcome = outcome as FeedbackSubmissionOutcome;
-        const errorMsg =
-          feedbackOutcome.error_message ||
-          (typeof (outcome as { detail?: string }).detail === "string" ? (outcome as { detail?: string }).detail : undefined) ||
-          "We couldn't save your feedback right now. Please try again.";
-        setFeedbackError(errorMsg);
-        setTimeout(() => setFeedbackError(null), 5000);
-        return;
-      }
-
-    } catch (error) {
-      const errorMsg = `Error submitting feedback: ${error instanceof Error ? error.message : "Unknown error"}`;
-      setFeedbackError(errorMsg);
-      setTimeout(() => setFeedbackError(null), 5000);
-    }
+    await submitTurnResponseFeedback(message.id, rating);
   };
 
   // Handle comment submission for negative feedback
   const handleCommentSubmit = async (messageId: string, comment: string) => {
-    if (!threadId) return;
-    if (!accessToken) {
-      setFeedbackError("Authentication token unavailable. Please sign in again and retry.");
-      setTimeout(() => setFeedbackError(null), 5000);
-      return;
-    }
     setIsCommentSubmitting(true);
 
     try {
-      const payload: FeedbackSubmissionRequest = {
-        feedback_kind: "turn_response",
-        conversation_id: threadId,
-        rating: "negative",
-        turn_id: messageId,
-        trace_id: messageId,
-        source_surface: "immediate_thumb",
-        comment: comment || undefined,
-      };
-
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${apiBaseUrl}/logistics/feedback`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const outcome = (await response.json()) as FeedbackSubmissionOutcome | { detail?: string };
-      if (!response.ok || !(outcome as FeedbackSubmissionOutcome).accepted) {
-        const feedbackOutcome = outcome as FeedbackSubmissionOutcome;
-        const errorMsg =
-          feedbackOutcome.error_message ||
-          (typeof (outcome as { detail?: string }).detail === "string" ? (outcome as { detail?: string }).detail : undefined) ||
-          "We couldn't save your feedback right now. Please try again.";
-        setFeedbackError(errorMsg);
-        setTimeout(() => setFeedbackError(null), 5000);
-      } else {
-        // Success - dismiss comment input
+      const accepted = await submitTurnResponseFeedback(messageId, "negative", comment);
+      if (accepted) {
         setPendingCommentMessageId(null);
       }
-    } catch (error) {
-      const errorMsg = `Error submitting feedback: ${error instanceof Error ? error.message : "Unknown error"}`;
-      setFeedbackError(errorMsg);
-      setTimeout(() => setFeedbackError(null), 5000);
     } finally {
       setIsCommentSubmitting(false);
     }
   };
 
-  // Handle comment dismissal (just remove the comment input, keep the thumbs down vote)
-  const handleCommentDismiss = () => {
-    setPendingCommentMessageId(null);
+  // Dismiss counts as a thumbs-down with no comment, and also clears on new user input.
+  const handleCommentDismiss = async (messageId: string) => {
+    setIsCommentSubmitting(true);
+    try {
+      await submitTurnResponseFeedback(messageId, "negative");
+    } finally {
+      setPendingCommentMessageId((currentId) => (currentId === messageId ? null : currentId));
+      setIsCommentSubmitting(false);
+    }
   };
+
+  useEffect(() => {
+    const latestUserMessage = [...messages].reverse().find((message) => message.role === "user");
+    if (!latestUserMessage?.id) {
+      return;
+    }
+
+    if (lastUserMessageIdRef.current === null) {
+      lastUserMessageIdRef.current = latestUserMessage.id;
+      return;
+    }
+
+    if (latestUserMessage.id === lastUserMessageIdRef.current) {
+      return;
+    }
+
+    lastUserMessageIdRef.current = latestUserMessage.id;
+
+    if (pendingCommentMessageId && !isCommentSubmitting) {
+      void handleCommentDismiss(pendingCommentMessageId);
+    }
+  }, [messages, pendingCommentMessageId, isCommentSubmitting]);
 
   // 🪁 Frontend Actions: https://docs.copilotkit.ai/microsoft-agent-framework/frontend-actions
   useCopilotAction({

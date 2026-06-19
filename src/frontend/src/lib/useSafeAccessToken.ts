@@ -20,3 +20,21 @@ export function useSafeAccessToken(): string | null {
   const { accessToken } = useAccessToken();
   return accessToken;
 }
+
+/**
+ * Safe wrapper exposing token acquisition helpers for flows that should retry
+ * when the initial token has not finished loading yet.
+ */
+export function useSafeAccessTokenState() {
+  if (!isAuthEnabled) {
+    return {
+      accessToken: null as string | null,
+      isLoading: false,
+      error: null as Error | null,
+      acquireToken: async () => null as string | null,
+    };
+  }
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  return useAccessToken();
+}

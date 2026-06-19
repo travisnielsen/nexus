@@ -334,6 +334,7 @@ class FeedbackService:
             "feedback.storage_status": storage_status,
             "feedback.source_surface": payload.source_surface,
             "feedback.rating": payload.rating,
+            "feedback.hasComment": bool(payload.comment and payload.comment.strip()),
         }
         if payload.turn_id:
             attrs["feedback.turn_id"] = payload.turn_id

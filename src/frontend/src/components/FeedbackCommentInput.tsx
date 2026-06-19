@@ -5,7 +5,7 @@ import React, { useState } from "react";
 export interface FeedbackCommentInputProps {
   messageId: string;
   onSubmit: (messageId: string, comment: string) => Promise<void>;
-  onDismiss: (messageId: string) => void;
+  onDismiss: (messageId: string) => Promise<void> | void;
   isSubmitting?: boolean;
 }
 
@@ -19,6 +19,10 @@ export function FeedbackCommentInput({
 
   const handleSubmit = async () => {
     await onSubmit(messageId, comment);
+  };
+
+  const handleDismiss = async () => {
+    await onDismiss(messageId);
   };
 
   return (
@@ -43,7 +47,7 @@ export function FeedbackCommentInput({
           {isSubmitting ? "Saving..." : "Save feedback"}
         </button>
         <button
-          onClick={() => onDismiss(messageId)}
+          onClick={handleDismiss}
           disabled={isSubmitting}
           className="rounded bg-gray-700 px-3 py-1.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
