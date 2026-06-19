@@ -7,7 +7,7 @@ import {
   FeedbackRating,
 } from "@/lib/logisticsTypes";
 import { useThreadId } from "@/components/NoAuthCopilotKit";
-import { useSafeAccessToken } from "@/lib/useSafeAccessToken";
+import { useSafeAccessTokenState } from "@/lib/useSafeAccessToken";
 
 interface OverallFeedbackCardProps {
   prompt?: string;
@@ -46,7 +46,7 @@ export function OverallFeedbackCard({
   const [collapsedMessage, setCollapsedMessage] = useState(initialCollapsedState.collapsedMessage);
 
   const conversationId = useThreadId();
-  const accessToken = useSafeAccessToken();
+  const { accessToken, acquireToken } = useSafeAccessTokenState();
   const isAuthEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true";
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -94,7 +94,8 @@ export function OverallFeedbackCard({
       setStatusMessage("Please select Good or Needs work before submitting.");
       return;
     }
-    if (!accessToken) {
+    const token = accessToken ?? await acquireToken();
+    if (!token) {
       setStatusMessage("Authentication token unavailable. Please sign in again and retry.");
       return;
     }
@@ -116,7 +117,7 @@ export function OverallFeedbackCard({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
